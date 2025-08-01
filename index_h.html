@@ -3,30 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Health Tracker</title>
+    <title>Health Tracker (Local)</title>
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Inter -->
+    <!-- Google Fonts: Sarabun -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Sarabun', sans-serif;
-        }
-        /* Simple loading spinner */
-        .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
         }
         /* Hide pages by default */
         .page {
@@ -43,7 +29,7 @@
         <header class="bg-white shadow-sm">
             <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
                 <h1 class="text-3xl font-bold text-gray-900">Health Tracker</h1>
-                <p class="text-gray-500">ระบบส่งเสริมสุขภาพพนักงาน</p>
+                <p class="text-gray-500">ระบบส่งเสริมสุขภาพพนักงาน (บันทึกในเครื่อง)</p>
             </div>
         </header>
 
@@ -57,17 +43,8 @@
                 </div>
             </div>
 
-            <!-- Loading Indicator -->
-            <div id="loading-indicator" class="text-center p-10">
-                <div class="loader"></div>
-                <p>กำลังเตรียมระบบ...</p>
-            </div>
-            
-            <!-- Error Message -->
-            <div id="error-message" class="hidden text-center p-10 text-red-500"></div>
-
             <!-- Content Pages -->
-            <div id="main-content" class="hidden">
+            <div id="main-content">
                 <!-- Profile Page -->
                 <div id="profile-page" class="page active">
                     <div class="p-6 bg-white rounded-xl shadow-lg">
@@ -118,7 +95,7 @@
                                         <svg id="log-placeholder-icon" class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
                                             <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 4v.01M28 8L20 16m0 0L12 8m8 8v20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                         </svg>
-                                        <div class="flex text-sm text-gray-600">
+                                        <div class="flex text-sm text-gray-600 justify-center">
                                             <label for="log-file-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500">
                                                 <span>เลือกไฟล์</span>
                                                 <input id="log-file-upload" type="file" class="sr-only" accept="image/*"/>
@@ -147,268 +124,159 @@
                         <h2 class="text-2xl font-bold mb-4 text-gray-800">ประวัติการบันทึก</h2>
                         <div id="history-container" class="space-y-6">
                             <!-- History items will be injected here -->
-                            <div id="history-loading" class="text-center p-10 text-gray-500">กำลังโหลดประวัติ...</div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <footer class="text-center mt-8 text-gray-400 text-xs">
-               <p>รหัสพนักงาน (UserID): <span id="user-id-display">N/A</span></p>
-               <p>App ID: <span id="app-id-display">N/A</span></p>
+               <p>ข้อมูลทั้งหมดถูกบันทึกไว้ในเบราว์เซอร์ของคุณ</p>
             </footer>
         </main>
     </div>
 
-    <!-- Firebase SDKs -->
-    <script type="module">
-        // Import Firebase modules
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, query, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getStorage, ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
-
-        // --- DOM Elements ---
-        const loadingIndicator = document.getElementById('loading-indicator');
-        const errorMessage = document.getElementById('error-message');
-        const mainContent = document.getElementById('main-content');
-        const navButtons = document.querySelectorAll('.nav-button');
-        const pages = document.querySelectorAll('.page');
-        const userIdDisplay = document.getElementById('user-id-display');
-        const appIdDisplay = document.getElementById('app-id-display');
-        
-        // Profile Page Elements
-        const profileName = document.getElementById('profile-name');
-        const profileDob = document.getElementById('profile-dob');
-        const profileWeight = document.getElementById('profile-weight');
-        const profileHeight = document.getElementById('profile-height');
-        const saveProfileBtn = document.getElementById('save-profile-btn');
-        const ageDisplay = document.getElementById('age-display');
-        const bmiDisplay = document.getElementById('bmi-display');
-        const profileMessage = document.getElementById('profile-message');
-
-        // Log Entry Page Elements
-        const logTypeButtons = document.querySelectorAll('.log-type-btn');
-        const logUploadLabel = document.getElementById('log-upload-label');
-        const logFileInput = document.getElementById('log-file-upload');
-        const logPreview = document.getElementById('log-preview');
-        const logPlaceholderIcon = document.getElementById('log-placeholder-icon');
-        const logDescription = document.getElementById('log-description');
-        const logSubmitBtn = document.getElementById('log-submit-btn');
-        const logMessage = document.getElementById('log-message');
-
-        // History Page Elements
-        const historyContainer = document.getElementById('history-container');
-        const historyLoading = document.getElementById('history-loading');
-
-        // --- App State ---
-        let db, auth, storage;
-        let userId = null;
-        let currentLogType = 'exercise';
-        let logImageFile = null;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        appIdDisplay.textContent = appId;
-
-        // --- Helper Functions ---
-        function showMessage(element, text, isSuccess) {
-            element.textContent = text;
-            element.className = `mt-4 text-center font-semibold ${isSuccess ? 'text-green-600' : 'text-red-600'}`;
-            setTimeout(() => { element.textContent = ''; }, 3000);
-        }
-
-        function calculateAge(dob) {
-            if (!dob) return null;
-            const birthDate = new Date(dob);
-            const today = new Date();
-            let age = today.getFullYear() - birthDate.getFullYear();
-            const m = today.getMonth() - birthDate.getMonth();
-            if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-                age--;
-            }
-            return age;
-        }
-
-        function calculateBmi() {
-            const weight = parseFloat(profileWeight.value);
-            const height = parseFloat(profileHeight.value);
-            if (!weight || !height || height <= 0) {
-                bmiDisplay.innerHTML = '';
-                return;
-            }
-            const heightInMeters = height / 100;
-            const bmi = (weight / (heightInMeters * heightInMeters)).toFixed(2);
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements ---
+            const navButtons = document.querySelectorAll('.nav-button');
+            const pages = document.querySelectorAll('.page');
             
-            let bmiInfo = {};
-            if (bmi < 18.5) bmiInfo = { text: 'น้ำหนักน้อยกว่าเกณฑ์', color: 'text-blue-500' };
-            else if (bmi >= 18.5 && bmi <= 22.9) bmiInfo = { text: 'สมส่วน', color: 'text-green-500' };
-            else if (bmi >= 23 && bmi <= 24.9) bmiInfo = { text: 'น้ำหนักเกิน', color: 'text-yellow-500' };
-            else if (bmi >= 25 && bmi <= 29.9) bmiInfo = { text: 'โรคอ้วน', color: 'text-orange-500' };
-            else bmiInfo = { text: 'โรคอ้วนอันตราย', color: 'text-red-500' };
+            // Profile Page Elements
+            const profileName = document.getElementById('profile-name');
+            const profileDob = document.getElementById('profile-dob');
+            const profileWeight = document.getElementById('profile-weight');
+            const profileHeight = document.getElementById('profile-height');
+            const saveProfileBtn = document.getElementById('save-profile-btn');
+            const ageDisplay = document.getElementById('age-display');
+            const bmiDisplay = document.getElementById('bmi-display');
+            const profileMessage = document.getElementById('profile-message');
 
-            bmiDisplay.innerHTML = `
-                <div class="mt-4 p-4 bg-gray-100 rounded-lg text-center">
-                    <h3 class="font-bold text-lg">ค่าดัชนีมวลกาย (BMI)</h3>
-                    <p class="text-3xl font-bold">${bmi}</p>
-                    <p class="font-semibold ${bmiInfo.color}">${bmiInfo.text}</p>
-                </div>
-            `;
-        }
-        
-        // --- Event Listeners ---
-        // Page Navigation
-        navButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                const targetPageId = button.dataset.page + '-page';
-                
-                pages.forEach(page => page.classList.remove('active'));
-                document.getElementById(targetPageId).classList.add('active');
+            // Log Entry Page Elements
+            const logTypeButtons = document.querySelectorAll('.log-type-btn');
+            const logUploadLabel = document.getElementById('log-upload-label');
+            const logFileInput = document.getElementById('log-file-upload');
+            const logPreview = document.getElementById('log-preview');
+            const logPlaceholderIcon = document.getElementById('log-placeholder-icon');
+            const logDescription = document.getElementById('log-description');
+            const logSubmitBtn = document.getElementById('log-submit-btn');
+            const logMessage = document.getElementById('log-message');
 
-                navButtons.forEach(btn => {
-                    btn.classList.remove('bg-indigo-600', 'text-white');
-                    btn.classList.add('text-gray-700', 'bg-gray-200', 'hover:bg-gray-300');
-                });
-                button.classList.add('bg-indigo-600', 'text-white');
-                button.classList.remove('text-gray-700', 'bg-gray-200', 'hover:bg-gray-300');
-            });
-        });
+            // History Page Elements
+            const historyContainer = document.getElementById('history-container');
 
-        // Profile input changes
-        [profileDob, profileWeight, profileHeight].forEach(input => {
-            input.addEventListener('input', () => {
-                const age = calculateAge(profileDob.value);
-                ageDisplay.textContent = age !== null ? `อายุ: ${age} ปี` : '';
-                calculateBmi();
-            });
-        });
+            // --- App State ---
+            let currentLogType = 'exercise';
+            let logImageBase64 = null;
 
-        // Save Profile
-        saveProfileBtn.addEventListener('click', async () => {
-            if (!userId || !db) return;
-            if (!profileName.value || !profileDob.value || !profileWeight.value || !profileHeight.value) {
-                showMessage(profileMessage, 'กรุณากรอกข้อมูลให้ครบทุกช่อง', false);
-                return;
+            // --- Helper Functions ---
+            function showMessage(element, text, isSuccess) {
+                element.textContent = text;
+                element.className = `mt-4 text-center font-semibold ${isSuccess ? 'text-green-600' : 'text-red-600'}`;
+                setTimeout(() => { element.textContent = ''; }, 3000);
             }
-            const docRef = doc(db, `artifacts/${appId}/users/${userId}/profiles`, 'userProfile');
-            try {
-                await setDoc(docRef, {
+
+            function calculateAge(dob) {
+                if (!dob) return null;
+                const birthDate = new Date(dob);
+                const today = new Date();
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const m = today.getMonth() - birthDate.getMonth();
+                if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+                    age--;
+                }
+                return age;
+            }
+
+            function calculateBmi() {
+                const weight = parseFloat(profileWeight.value);
+                const height = parseFloat(profileHeight.value);
+                if (!weight || !height || height <= 0) {
+                    bmiDisplay.innerHTML = '';
+                    return;
+                }
+                const heightInMeters = height / 100;
+                const bmi = (weight / (heightInMeters * heightInMeters)).toFixed(2);
+                
+                let bmiInfo = {};
+                if (bmi < 18.5) bmiInfo = { text: 'น้ำหนักน้อยกว่าเกณฑ์', color: 'text-blue-500' };
+                else if (bmi >= 18.5 && bmi <= 22.9) bmiInfo = { text: 'สมส่วน', color: 'text-green-500' };
+                else if (bmi >= 23 && bmi <= 24.9) bmiInfo = { text: 'น้ำหนักเกิน', color: 'text-yellow-500' };
+                else if (bmi >= 25 && bmi <= 29.9) bmiInfo = { text: 'โรคอ้วน', color: 'text-orange-500' };
+                else bmiInfo = { text: 'โรคอ้วนอันตราย', color: 'text-red-500' };
+
+                bmiDisplay.innerHTML = `
+                    <div class="mt-4 p-4 bg-gray-100 rounded-lg text-center">
+                        <h3 class="font-bold text-lg">ค่าดัชนีมวลกาย (BMI)</h3>
+                        <p class="text-3xl font-bold">${bmi}</p>
+                        <p class="font-semibold ${bmiInfo.color}">${bmiInfo.text}</p>
+                    </div>
+                `;
+            }
+
+            // --- Data Functions (Using localStorage) ---
+            function saveProfile() {
+                const profileData = {
                     name: profileName.value,
                     dob: profileDob.value,
                     weight: profileWeight.value,
                     height: profileHeight.value
-                }, { merge: true });
+                };
+                localStorage.setItem('healthTrackerProfile', JSON.stringify(profileData));
                 showMessage(profileMessage, 'บันทึกข้อมูลสำเร็จ!', true);
-            } catch (error) {
-                console.error("Error saving profile:", error);
-                showMessage(profileMessage, 'เกิดข้อผิดพลาดในการบันทึก', false);
             }
-        });
-        
-        // Log Type Selection
-        logTypeButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                currentLogType = button.dataset.logType;
-                logUploadLabel.textContent = `อัปโหลดรูปภาพ${currentLogType === 'exercise' ? 'การออกกำลังกาย' : 'อาหาร'}`;
-                logTypeButtons.forEach(btn => {
-                    btn.classList.remove('border-indigo-500', 'text-indigo-600');
-                    btn.classList.add('text-gray-500');
-                });
-                button.classList.add('border-indigo-500', 'text-indigo-600');
-            });
-        });
 
-        // Log File Input
-        logFileInput.addEventListener('change', (e) => {
-            if (e.target.files[0]) {
-                logImageFile = e.target.files[0];
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    logPreview.src = reader.result;
-                    logPreview.classList.remove('hidden');
-                    logPlaceholderIcon.classList.add('hidden');
-                };
-                reader.readAsDataURL(logImageFile);
-            }
-        });
-
-        // Submit Log
-        logSubmitBtn.addEventListener('click', async () => {
-            if (!logImageFile) {
-                showMessage(logMessage, 'กรุณาเลือกรูปภาพ', false);
-                return;
-            }
-            if (!userId || !db || !storage) return;
-
-            logSubmitBtn.disabled = true;
-            logSubmitBtn.textContent = 'กำลังบันทึก...';
-
-            try {
-                const reader = new FileReader();
-                reader.readAsDataURL(logImageFile);
-                reader.onload = async (event) => {
-                    const base64String = event.target.result;
-                    const storageRef = ref(storage, `artifacts/${appId}/users/${userId}/logs/${Date.now()}-${logImageFile.name}`);
-                    const snapshot = await uploadString(storageRef, base64String, 'data_url');
-                    const downloadURL = await getDownloadURL(snapshot.ref);
-
-                    await addDoc(collection(db, `artifacts/${appId}/users/${userId}/logs`), {
-                        type: currentLogType,
-                        description: logDescription.value,
-                        imageUrl: downloadURL,
-                        timestamp: serverTimestamp()
-                    });
-                    
-                    showMessage(logMessage, 'บันทึกข้อมูลสำเร็จ!', true);
-                    // Reset form
-                    logDescription.value = '';
-                    logFileInput.value = '';
-                    logImageFile = null;
-                    logPreview.classList.add('hidden');
-                    logPlaceholderIcon.classList.remove('hidden');
-                };
-            } catch (error) {
-                console.error("Error adding log:", error);
-                showMessage(logMessage, 'เกิดข้อผิดพลาดในการบันทึก', false);
-            } finally {
-                logSubmitBtn.disabled = false;
-                logSubmitBtn.textContent = 'บันทึกกิจกรรม';
-            }
-        });
-
-
-        // --- Firestore Data Loading ---
-        function loadProfileData() {
-            if (!userId || !db) return;
-            const docRef = doc(db, `artifacts/${appId}/users/${userId}/profiles`, 'userProfile');
-            onSnapshot(docRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    profileName.value = data.name || '';
-                    profileDob.value = data.dob || '';
-                    profileWeight.value = data.weight || '';
-                    profileHeight.value = data.height || '';
-                    // Trigger calculations
-                    const age = calculateAge(profileDob.value);
-                    ageDisplay.textContent = age !== null ? `อายุ: ${age} ปี` : '';
-                    calculateBmi();
+            function loadProfile() {
+                const profileData = JSON.parse(localStorage.getItem('healthTrackerProfile'));
+                if (profileData) {
+                    profileName.value = profileData.name || '';
+                    profileDob.value = profileData.dob || '';
+                    profileWeight.value = profileData.weight || '';
+                    profileHeight.value = profileData.height || '';
+                    updateProfileCalculations();
                 }
-            }, (error) => {
-                console.error("Error fetching profile:", error);
-            });
-        }
+            }
+            
+            function updateProfileCalculations() {
+                 const age = calculateAge(profileDob.value);
+                 ageDisplay.textContent = age !== null ? `อายุ: ${age} ปี` : '';
+                 calculateBmi();
+            }
 
-        function loadHistoryData() {
-            if (!userId || !db) return;
-            const q = query(collection(db, `artifacts/${appId}/users/${userId}/logs`), orderBy('timestamp', 'desc'));
-            onSnapshot(q, (querySnapshot) => {
-                historyLoading.style.display = 'none';
+            function saveLog() {
+                if (!logImageBase64) {
+                    showMessage(logMessage, 'กรุณาเลือกรูปภาพ', false);
+                    return;
+                }
+
+                const logs = JSON.parse(localStorage.getItem('healthTrackerLogs')) || [];
+                const newLog = {
+                    type: currentLogType,
+                    description: logDescription.value,
+                    imageUrl: logImageBase64,
+                    timestamp: new Date().toISOString()
+                };
+
+                logs.unshift(newLog); // Add to the beginning of the array
+                localStorage.setItem('healthTrackerLogs', JSON.stringify(logs));
+
+                showMessage(logMessage, 'บันทึกกิจกรรมสำเร็จ!', true);
+                resetLogForm();
+                loadHistory(); // Refresh history page if it's active
+            }
+
+            function loadHistory() {
+                const logs = JSON.parse(localStorage.getItem('healthTrackerLogs')) || [];
                 historyContainer.innerHTML = ''; // Clear previous entries
-                if (querySnapshot.empty) {
-                     historyContainer.innerHTML = '<p class="text-center text-gray-500">ยังไม่มีข้อมูลบันทึก</p>';
-                     return;
+                
+                if (logs.length === 0) {
+                    historyContainer.innerHTML = '<p class="text-center text-gray-500">ยังไม่มีข้อมูลบันทึก</p>';
+                    return;
                 }
-                querySnapshot.forEach((doc) => {
-                    const log = doc.data();
-                    const logDate = log.timestamp ? new Date(log.timestamp.toDate()).toLocaleDateString('th-TH') : 'N/A';
+
+                logs.forEach(log => {
+                    const logDate = new Date(log.timestamp).toLocaleDateString('th-TH', {
+                        year: 'numeric', month: 'long', day: 'numeric'
+                    });
                     const logTypeDisplay = log.type === 'exercise' 
                         ? { text: 'ออกกำลังกาย', bg: 'bg-blue-100', text_color: 'text-blue-800' }
                         : { text: 'อาหาร', bg: 'bg-green-100', text_color: 'text-green-800' };
@@ -416,7 +284,7 @@
                     const logElement = document.createElement('div');
                     logElement.className = 'flex items-start space-x-4 p-4 border border-gray-200 rounded-lg';
                     logElement.innerHTML = `
-                        <img src="${log.imageUrl}" alt="${log.description || 'log image'}" class="w-24 h-24 object-cover rounded-md bg-gray-200" onerror="this.onerror=null;this.src='https://placehold.co/100x100/e2e8f0/cbd5e0?text=Image';">
+                        <img src="${log.imageUrl}" alt="${log.description || 'log image'}" class="w-24 h-24 object-cover rounded-md bg-gray-200">
                         <div class="flex-1">
                             <div class="flex justify-between items-center">
                                 <span class="px-2 py-1 text-xs font-semibold rounded-full ${logTypeDisplay.bg} ${logTypeDisplay.text_color}">
@@ -429,61 +297,81 @@
                     `;
                     historyContainer.appendChild(logElement);
                 });
-            }, (error) => {
-                console.error("Error fetching history:", error);
-                historyContainer.innerHTML = '<p class="text-center text-red-500">ไม่สามารถโหลดประวัติได้</p>';
-            });
-        }
+            }
+            
+            function resetLogForm() {
+                logDescription.value = '';
+                logFileInput.value = '';
+                logImageBase64 = null;
+                logPreview.src = '';
+                logPreview.classList.add('hidden');
+                logPlaceholderIcon.classList.remove('hidden');
+            }
 
-        // --- Initialization ---
-        document.addEventListener('DOMContentLoaded', () => {
-            try {
-                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-                if (Object.keys(firebaseConfig).length === 0) {
-                    throw new Error("Firebase config is missing.");
-                }
-                const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-                storage = getStorage(app);
+            // --- Event Listeners ---
+            // Page Navigation
+            navButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const targetPageId = button.dataset.page + '-page';
+                    
+                    pages.forEach(page => page.classList.remove('active'));
+                    document.getElementById(targetPageId).classList.add('active');
 
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        userId = user.uid;
-                    } else {
-                        try {
-                             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                                await signInWithCustomToken(auth, __initial_auth_token);
-                            } else {
-                                await signInAnonymously(auth);
-                            }
-                            // onAuthStateChanged will be triggered again with the new user
-                            return;
-                        } catch (error) {
-                            console.error("Authentication failed:", error);
-                            loadingIndicator.style.display = 'none';
-                            errorMessage.textContent = 'การยืนยันตัวตนล้มเหลว ไม่สามารถโหลดแอปได้';
-                            errorMessage.style.display = 'block';
-                        }
-                    }
-
-                    if (userId) {
-                        userIdDisplay.textContent = userId;
-                        // Hide loading and show content
-                        loadingIndicator.style.display = 'none';
-                        mainContent.style.display = 'block';
-                        // Load data from Firestore
-                        loadProfileData();
-                        loadHistoryData();
+                    navButtons.forEach(btn => {
+                        btn.classList.remove('bg-indigo-600', 'text-white');
+                        btn.classList.add('text-gray-700', 'bg-gray-200', 'hover:bg-gray-300');
+                    });
+                    button.classList.add('bg-indigo-600', 'text-white');
+                    button.classList.remove('text-gray-700', 'bg-gray-200', 'hover:bg-gray-300');
+                    
+                    // Refresh history when navigating to it
+                    if (button.dataset.page === 'history') {
+                        loadHistory();
                     }
                 });
+            });
 
-            } catch (error) {
-                console.error("Initialization error:", error);
-                loadingIndicator.style.display = 'none';
-                errorMessage.textContent = 'เกิดข้อผิดพลาดในการตั้งค่าระบบ: ' + error.message;
-                errorMessage.style.display = 'block';
-            }
+            // Profile input changes
+            [profileDob, profileWeight, profileHeight].forEach(input => {
+                input.addEventListener('input', updateProfileCalculations);
+            });
+
+            // Save Profile
+            saveProfileBtn.addEventListener('click', saveProfile);
+            
+            // Log Type Selection
+            logTypeButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    currentLogType = button.dataset.logType;
+                    logUploadLabel.textContent = `อัปโหลดรูปภาพ${currentLogType === 'exercise' ? 'การออกกำลังกาย' : 'อาหาร'}`;
+                    logTypeButtons.forEach(btn => {
+                        btn.classList.remove('border-indigo-500', 'text-indigo-600');
+                        btn.classList.add('text-gray-500');
+                    });
+                    button.classList.add('border-indigo-500', 'text-indigo-600');
+                });
+            });
+
+            // Log File Input
+            logFileInput.addEventListener('change', (e) => {
+                if (e.target.files[0]) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        logImageBase64 = reader.result; // Store as base64
+                        logPreview.src = logImageBase64;
+                        logPreview.classList.remove('hidden');
+                        logPlaceholderIcon.classList.add('hidden');
+                    };
+                    reader.readAsDataURL(e.target.files[0]);
+                }
+            });
+
+            // Submit Log
+            logSubmitBtn.addEventListener('click', saveLog);
+
+            // --- Initial Load ---
+            loadProfile();
+            loadHistory();
         });
     </script>
 </body>
