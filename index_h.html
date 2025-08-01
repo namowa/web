@@ -10,6 +10,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js for graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <!-- Google Fonts: Sarabun -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -53,15 +54,38 @@
                 <div class="mb-6">
                     <div class="flex space-x-2 p-2 bg-gray-200 rounded-lg">
                         <!-- Navigation Buttons -->
-                        <button data-page="profile" class="nav-button px-4 py-2 rounded-md text-sm font-medium transition-colors bg-indigo-600 text-white">โปรไฟล์</button>
+                        <button data-page="dashboard" class="nav-button px-4 py-2 rounded-md text-sm font-medium transition-colors bg-indigo-600 text-white">Dashboard</button>
+                        <button data-page="profile" class="nav-button px-4 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 bg-gray-200 hover:bg-gray-300">โปรไฟล์</button>
                         <button data-page="log" class="nav-button px-4 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 bg-gray-200 hover:bg-gray-300">บันทึกกิจกรรม</button>
                         <button data-page="history" class="nav-button px-4 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 bg-gray-200 hover:bg-gray-300">ประวัติ</button>
                     </div>
                 </div>
 
                 <div id="content-pages">
+                     <!-- Dashboard Page -->
+                    <div id="dashboard-page" class="page active">
+                        <div class="p-6 bg-white rounded-xl shadow-lg">
+                            <h2 class="text-2xl font-bold mb-4 text-gray-800">ภาพรวมสุขภาพ</h2>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <!-- BMI Gauge -->
+                                <div class="flex flex-col items-center">
+                                    <h3 class="text-lg font-semibold text-gray-700">ดัชนีมวลกาย (BMI)</h3>
+                                    <div class="relative w-full max-w-xs h-48">
+                                        <canvas id="bmiGaugeChart"></canvas>
+                                    </div>
+                                </div>
+                                <!-- Exercise Summary -->
+                                <div class="flex flex-col">
+                                     <h3 class="text-lg font-semibold text-gray-700 mb-2">สรุปการออกกำลังกาย</h3>
+                                     <div id="exercise-summary-container" class="space-y-3">
+                                        <!-- Summary data will be injected here -->
+                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <!-- Profile Page -->
-                    <div id="profile-page" class="page active">
+                    <div id="profile-page" class="page">
                         <div class="p-6 bg-white rounded-xl shadow-lg">
                             <h2 class="text-2xl font-bold mb-4 text-gray-800">ข้อมูลส่วนตัว</h2>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -126,8 +150,18 @@
                                     <label class="block text-sm font-medium text-gray-700">แคลอรี่ (kcal)</label>
                                     <input type="number" id="log-kcal" placeholder="0" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
                                 </div>
+                                <!-- Km Input -->
+                                <div id="km-input-container">
+                                    <label class="block text-sm font-medium text-gray-700">ระยะทาง (กม.)</label>
+                                    <input type="number" id="log-km" placeholder="0.0" step="0.1" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
+                                </div>
+                                <!-- Minutes Input -->
+                                <div id="minutes-input-container" class="hidden">
+                                    <label class="block text-sm font-medium text-gray-700">เวลา (นาที)</label>
+                                    <input type="number" id="log-minutes" placeholder="0" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
+                                </div>
                                 <div>
-                                    <label id="log-upload-label" class="block text-sm font-medium text-gray-700">อัปโหลดรูปภาพการออกกำลังกาย</label>
+                                    <label id="log-upload-label" class="block text-sm font-medium text-gray-700">อัปโหลดรูปภาพ</label>
                                     <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
                                         <div class="space-y-1 text-center">
                                             <img id="log-preview" src="" alt="Preview" class="hidden mx-auto h-48 w-auto rounded-md"/>
@@ -218,11 +252,17 @@
                 const bmiDisplay = document.getElementById('bmi-display');
                 const profileMessage = document.getElementById('profile-message');
                 const weightChartCanvas = document.getElementById('weightChart');
+                const bmiGaugeChartCanvas = document.getElementById('bmiGaugeChart');
+                const exerciseSummaryContainer = document.getElementById('exercise-summary-container');
                 const logTypeButtons = document.querySelectorAll('.log-type-btn');
                 const exerciseTypeContainer = document.getElementById('exercise-type-container');
                 const logExerciseType = document.getElementById('log-exercise-type');
                 const kcalInputContainer = document.getElementById('kcal-input-container');
                 const logKcal = document.getElementById('log-kcal');
+                const kmInputContainer = document.getElementById('km-input-container');
+                const logKm = document.getElementById('log-km');
+                const minutesInputContainer = document.getElementById('minutes-input-container');
+                const logMinutes = document.getElementById('log-minutes');
                 const logUploadLabel = document.getElementById('log-upload-label');
                 const logFileInput = document.getElementById('log-file-upload');
                 const logPreview = document.getElementById('log-preview');
@@ -235,6 +275,7 @@
                 let currentLogType = 'exercise';
                 let logImageBase64 = null;
                 let weightChart = null;
+                let bmiGaugeChart = null;
 
                 const exerciseTypeMap = {
                     running: 'การวิ่ง',
@@ -260,24 +301,34 @@
                     return age;
                 }
 
-                function calculateBmi() {
-                    const weight = parseFloat(profileWeight.value);
-                    const height = parseFloat(profileHeight.value);
-                    if (!weight || !height || height <= 0) {
+                function getBmi() {
+                    const profileData = getProfileData();
+                    const lastWeight = profileData.weightHistory[profileData.weightHistory.length - 1]?.value;
+                    const lastHeight = profileData.heightHistory[profileData.heightHistory.length - 1]?.value;
+
+                    if (!lastWeight || !lastHeight || lastHeight <= 0) {
+                        return { value: null, info: null };
+                    }
+                    const heightInMeters = lastHeight / 100;
+                    const bmiValue = (lastWeight / (heightInMeters * heightInMeters)).toFixed(1);
+                    
+                    let bmiInfo = {};
+                    if (bmiValue < 18.5) bmiInfo = { text: 'น้ำหนักน้อยกว่าเกณฑ์', color: '#3b82f6' }; // blue-500
+                    else if (bmiValue >= 18.5 && bmiValue <= 22.9) bmiInfo = { text: 'สมส่วน', color: '#22c55e' }; // green-500
+                    else if (bmiValue >= 23 && bmiValue <= 24.9) bmiInfo = { text: 'น้ำหนักเกิน', color: '#f59e0b' }; // amber-500
+                    else if (bmiValue >= 25 && bmiValue <= 29.9) bmiInfo = { text: 'โรคอ้วน', color: '#f97316' }; // orange-500
+                    else bmiInfo = { text: 'โรคอ้วนอันตราย', color: '#ef4444' }; // red-500
+
+                    return { value: bmiValue, info: bmiInfo };
+                }
+
+                function calculateBmiForDisplay() {
+                    const { value, info } = getBmi();
+                    if (!value) {
                         bmiDisplay.innerHTML = '';
                         return;
                     }
-                    const heightInMeters = height / 100;
-                    const bmi = (weight / (heightInMeters * heightInMeters)).toFixed(1);
-                    
-                    let bmiInfo = {};
-                    if (bmi < 18.5) bmiInfo = { text: 'น้ำหนักน้อยกว่าเกณฑ์', color: 'text-blue-500' };
-                    else if (bmi >= 18.5 && bmi <= 22.9) bmiInfo = { text: 'สมส่วน', color: 'text-green-500' };
-                    else if (bmi >= 23 && bmi <= 24.9) bmiInfo = { text: 'น้ำหนักเกิน', color: 'text-yellow-500' };
-                    else if (bmi >= 25 && bmi <= 29.9) bmiInfo = { text: 'โรคอ้วน', color: 'text-orange-500' };
-                    else bmiInfo = { text: 'โรคอ้วนอันตราย', color: 'text-red-500' };
-
-                    bmiDisplay.innerHTML = `<div class="mt-4 p-4 bg-gray-100 rounded-lg text-center"><h3 class="font-bold text-lg">ค่าดัชนีมวลกาย (BMI)</h3><p class="text-3xl font-bold">${bmi}</p><p class="font-semibold ${bmiInfo.color}">${bmiInfo.text}</p></div>`;
+                    bmiDisplay.innerHTML = `<div class="mt-4 p-4 bg-gray-100 rounded-lg text-center"><h3 class="font-bold text-lg">ค่าดัชนีมวลกาย (BMI)</h3><p class="text-3xl font-bold">${value}</p><p class="font-semibold" style="color:${info.color};">${info.text}</p></div>`;
                 }
 
                 // --- Data Functions (Using localStorage with LIFF UserID) ---
@@ -302,6 +353,7 @@
                     localStorage.setItem(getStorageKey('healthTrackerProfile'), JSON.stringify(profileData));
                     showMessage(profileMessage, 'บันทึกข้อมูลสำเร็จ!', true);
                     renderWeightChart();
+                    calculateBmiForDisplay();
                 }
 
                 function loadProfile() {
@@ -319,7 +371,7 @@
                 function updateProfileCalculations() {
                      const age = calculateAge(profileDob.value);
                      ageDisplay.textContent = age !== null ? `อายุ: ${age} ปี` : '';
-                     calculateBmi();
+                     calculateBmiForDisplay();
                 }
                 
                 function renderWeightChart() {
@@ -360,6 +412,11 @@
                     
                     if (currentLogType === 'exercise') {
                         newLog.exerciseType = logExerciseType.value;
+                        if (['running', 'walking', 'cycling'].includes(newLog.exerciseType)) {
+                            newLog.km = parseFloat(logKm.value) || 0;
+                        } else {
+                            newLog.minutes = parseInt(logMinutes.value) || 0;
+                        }
                     }
                     if (currentLogType === 'food') {
                         newLog.kcal = logKcal.value || 0;
@@ -390,10 +447,18 @@
                         const logElement = document.createElement('div');
                         if (item.type === 'exercise' || item.type === 'food') {
                             const logTypeDisplay = item.type === 'exercise' ? { text: 'ออกกำลังกาย', bg: 'bg-blue-100', text_color: 'text-blue-800' } : { text: 'อาหาร', bg: 'bg-green-100', text_color: 'text-green-800' };
-                            const kcalHtml = item.type === 'food' ? `<p class="mt-1 font-semibold text-orange-600">${item.kcal || 0} kcal</p>` : '';
-                            const exerciseTypeHtml = item.type === 'exercise' ? `<p class="mt-1 font-semibold text-blue-600">${exerciseTypeMap[item.exerciseType] || 'ออกกำลังกาย'}</p>` : '';
+                            let detailsHtml = '';
+                            if (item.type === 'food') {
+                                detailsHtml = `<p class="mt-1 font-semibold text-orange-600">${item.kcal || 0} kcal</p>`;
+                            } else if (item.type === 'exercise') {
+                                const typeText = exerciseTypeMap[item.exerciseType] || 'ออกกำลังกาย';
+                                let valueText = '';
+                                if(item.km > 0) valueText = `${item.km} กม.`;
+                                if(item.minutes > 0) valueText = `${item.minutes} นาที`;
+                                detailsHtml = `<p class="mt-1 font-semibold text-blue-600">${typeText}${valueText ? `: ${valueText}` : ''}</p>`;
+                            }
                             logElement.className = 'flex items-start space-x-4 p-4 border border-gray-200 rounded-lg';
-                            logElement.innerHTML = `<img src="${item.imageUrl}" alt="${item.description || 'log image'}" class="w-24 h-24 object-cover rounded-md bg-gray-200"><div class="flex-1"><div class="flex justify-between items-center"><span class="px-2 py-1 text-xs font-semibold rounded-full ${logTypeDisplay.bg} ${logTypeDisplay.text_color}">${logTypeDisplay.text}</span><span class="text-sm text-gray-500">${logDate}</span></div><p class="mt-2 text-gray-700">${item.description || 'ไม่มีคำอธิบาย'}</p>${kcalHtml}${exerciseTypeHtml}</div>`;
+                            logElement.innerHTML = `<img src="${item.imageUrl}" alt="${item.description || 'log image'}" class="w-24 h-24 object-cover rounded-md bg-gray-200"><div class="flex-1"><div class="flex justify-between items-center"><span class="px-2 py-1 text-xs font-semibold rounded-full ${logTypeDisplay.bg} ${logTypeDisplay.text_color}">${logTypeDisplay.text}</span><span class="text-sm text-gray-500">${logDate}</span></div><p class="mt-2 text-gray-700">${item.description || 'ไม่มีคำอธิบาย'}</p>${detailsHtml}</div>`;
                         } else if (item.type === 'weight') {
                             logElement.className = 'flex items-center space-x-4 p-4 border border-gray-200 rounded-lg';
                             logElement.innerHTML = `<div class="flex-shrink-0 w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center"><svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div><div class="flex-1"><div class="flex justify-between items-center"><span class="font-semibold text-gray-800">อัปเดตน้ำหนัก</span><span class="text-sm text-gray-500">${logDate}</span></div><p class="mt-1 text-lg text-gray-700 font-bold">${item.value} kg</p></div>`;
@@ -407,10 +472,113 @@
                 
                 function resetLogForm() {
                     logDescription.value = ''; logFileInput.value = ''; logKcal.value = '';
+                    logKm.value = ''; logMinutes.value = '';
                     logExerciseType.value = 'running';
                     logImageBase64 = null; logPreview.src = '';
                     logPreview.classList.add('hidden'); logPlaceholderIcon.classList.remove('hidden');
+                    // Reset input visibility
+                    kmInputContainer.classList.remove('hidden');
+                    minutesInputContainer.classList.add('hidden');
                 }
+
+                function loadDashboard() {
+                    renderBmiGauge();
+                    renderExerciseSummary();
+                }
+
+                function renderBmiGauge() {
+                    const { value, info } = getBmi();
+                    const ctx = bmiGaugeChartCanvas.getContext('2d');
+                    if(bmiGaugeChart) bmiGaugeChart.destroy();
+                    
+                    if (!value) {
+                         ctx.clearRect(0, 0, bmiGaugeChartCanvas.width, bmiGaugeChartCanvas.height);
+                         ctx.font = "16px Sarabun";
+                         ctx.fillStyle = "rgb(107, 114, 128)";
+                         ctx.textAlign = "center";
+                         ctx.fillText("ไม่มีข้อมูล BMI", bmiGaugeChartCanvas.width / 2, bmiGaugeChartCanvas.height / 2);
+                         return;
+                    }
+
+                    const maxBmi = 50; // Set a reasonable max for the gauge
+                    const data = {
+                        datasets: [{
+                            data: [value, maxBmi - value],
+                            backgroundColor: [info.color, '#e5e7eb'],
+                            borderColor: ['#fff', '#fff'],
+                            borderWidth: 2,
+                            circumference: 180,
+                            rotation: -90,
+                        }]
+                    };
+
+                    bmiGaugeChart = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: data,
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            cutout: '60%',
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: { enabled: false },
+                                datalabels: {
+                                    formatter: (value, context) => {
+                                        if (context.dataIndex === 0) {
+                                            return `${value}\n${info.text}`;
+                                        }
+                                        return '';
+                                    },
+                                    color: '#1f2937',
+                                    textAlign: 'center',
+                                    font: {
+                                        size: 18,
+                                        weight: 'bold',
+                                        family: 'Sarabun'
+                                    }
+                                }
+                            }
+                        },
+                        plugins: [ChartDataLabels]
+                    });
+                }
+
+                function renderExerciseSummary() {
+                    const logs = JSON.parse(localStorage.getItem(getStorageKey('healthTrackerLogs'))) || [];
+                    const summary = {
+                        running: { km: 0 },
+                        walking: { km: 0 },
+                        cycling: { km: 0 },
+                        other: { minutes: 0 }
+                    };
+
+                    logs.filter(log => log.type === 'exercise').forEach(log => {
+                        if (log.exerciseType && summary[log.exerciseType]) {
+                            if (log.km) summary[log.exerciseType].km += log.km;
+                            if (log.minutes) summary[log.exerciseType].minutes += log.minutes;
+                        }
+                    });
+
+                    exerciseSummaryContainer.innerHTML = `
+                        <div class="flex justify-between items-center p-3 bg-gray-100 rounded-lg">
+                            <span class="font-semibold text-gray-600">วิ่ง</span>
+                            <span class="font-bold text-lg text-indigo-600">${summary.running.km.toFixed(1)} กม.</span>
+                        </div>
+                        <div class="flex justify-between items-center p-3 bg-gray-100 rounded-lg">
+                            <span class="font-semibold text-gray-600">เดิน</span>
+                            <span class="font-bold text-lg text-indigo-600">${summary.walking.km.toFixed(1)} กม.</span>
+                        </div>
+                        <div class="flex justify-between items-center p-3 bg-gray-100 rounded-lg">
+                            <span class="font-semibold text-gray-600">ปั่นจักรยาน</span>
+                            <span class="font-bold text-lg text-indigo-600">${summary.cycling.km.toFixed(1)} กม.</span>
+                        </div>
+                        <div class="flex justify-between items-center p-3 bg-gray-100 rounded-lg">
+                            <span class="font-semibold text-gray-600">กีฬาอื่นๆ</span>
+                            <span class="font-bold text-lg text-indigo-600">${summary.other.minutes} นาที</span>
+                        </div>
+                    `;
+                }
+
 
                 // --- Event Listeners ---
                 navButtons.forEach(button => {
@@ -423,20 +591,34 @@
                         button.classList.remove('text-gray-700', 'bg-gray-200', 'hover:bg-gray-300');
                         if (button.dataset.page === 'history') loadHistory();
                         if (button.dataset.page === 'profile') renderWeightChart();
+                        if (button.dataset.page === 'dashboard') loadDashboard();
                     });
                 });
 
                 [profileDob, profileWeight, profileHeight, profileGender].forEach(input => input.addEventListener('input', updateProfileCalculations));
                 saveProfileBtn.addEventListener('click', saveProfile);
+                
                 logTypeButtons.forEach(button => {
                     button.addEventListener('click', () => {
                         currentLogType = button.dataset.logType;
-                        logUploadLabel.textContent = `อัปโหลดรูปภาพ${currentLogType === 'exercise' ? 'การออกกำลังกาย' : 'อาหาร'}`;
-                        kcalInputContainer.classList.toggle('hidden', currentLogType !== 'food');
-                        exerciseTypeContainer.classList.toggle('hidden', currentLogType !== 'exercise');
+                        const isExercise = currentLogType === 'exercise';
+                        logUploadLabel.textContent = `อัปโหลดรูปภาพ${isExercise ? 'การออกกำลังกาย' : 'อาหาร'}`;
+                        kcalInputContainer.classList.toggle('hidden', !isExercise);
+                        exerciseTypeContainer.classList.toggle('hidden', !isExercise);
+                        kcalInputContainer.classList.toggle('hidden', isExercise);
+                        // Trigger change on exercise type to set correct input field
+                        if (isExercise) logExerciseType.dispatchEvent(new Event('change'));
+
                         logTypeButtons.forEach(btn => { btn.classList.remove('border-indigo-500', 'text-indigo-600'); btn.classList.add('text-gray-500'); });
                         button.classList.add('border-indigo-500', 'text-indigo-600');
                     });
+                });
+
+                logExerciseType.addEventListener('change', () => {
+                    const selectedType = logExerciseType.value;
+                    const isOther = selectedType === 'other';
+                    kmInputContainer.classList.toggle('hidden', isOther);
+                    minutesInputContainer.classList.toggle('hidden', !isOther);
                 });
 
                 logFileInput.addEventListener('change', (e) => {
@@ -469,6 +651,7 @@
 
                 // --- Initial Load ---
                 loadProfile();
+                loadDashboard();
             }
         });
     </script>
