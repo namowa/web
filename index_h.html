@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Health Tracker</title>
+    <title>Health Tracker (LIFF)</title>
     <!-- LIFF SDK -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <!-- Tailwind CSS for styling -->
@@ -207,6 +207,7 @@
             // --- LIFF Initialization ---
             const liffId = "1654435774-wze0oX67"; 
             let liffUserId = null;
+            let liffProfile = null;
 
             async function initializeLiff() {
                 try {
@@ -215,11 +216,11 @@
                     if (!liff.isLoggedIn()) {
                         liff.login(); 
                     } else {
-                        const profile = await liff.getProfile();
-                        liffUserId = profile.userId;
+                        liffProfile = await liff.getProfile();
+                        liffUserId = liffProfile.userId;
 
-                        document.getElementById('liff-display-name').textContent = profile.displayName;
-                        document.getElementById('liff-picture-url').src = profile.pictureUrl;
+                        document.getElementById('liff-display-name').textContent = liffProfile.displayName;
+                        document.getElementById('liff-picture-url').src = liffProfile.pictureUrl;
                         document.getElementById('liff-profile').classList.remove('hidden');
                         document.getElementById('liff-loading').classList.add('hidden');
                         document.getElementById('footer-text').textContent = `UserID: ${liffUserId}`;
@@ -285,6 +286,20 @@
                 };
 
                 // --- Helper Functions ---
+                async function postDataToWebhook(payload) {
+                    const webhookUrl = 'https://prod-53.southeastasia.logic.azure.com:443/workflows/c2e513eb481f410ba8177327c40e7f9d/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=AiNM5m_ySfmRHe50_UsM83kLpJJOMBtCkvID9APwgvc';
+                    try {
+                        await fetch(webhookUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload),
+                        });
+                        console.log('Data posted to webhook successfully.');
+                    } catch (error) {
+                        console.error('Error posting data to webhook:', error);
+                    }
+                }
+
                 function showMessage(element, text, isSuccess) {
                     element.textContent = text;
                     element.className = `mt-4 text-center font-semibold ${isSuccess ? 'text-green-600' : 'text-red-600'}`;
@@ -341,16 +356,35 @@
                     return profileData || { dob: '', gender: '', weightHistory: [], heightHistory: [] };
                 }
 
-                function saveProfile() {
+                async function saveProfile() {
                     const profileData = getProfileData();
                     profileData.dob = profileDob.value;
                     profileData.gender = profileGender.value;
                     const newWeight = parseFloat(profileWeight.value);
                     const newHeight = parseFloat(profileHeight.value);
-                    const today = new Date().toISOString();
-                    if (newWeight) profileData.weightHistory.push({ value: newWeight, date: today });
-                    if (newHeight) profileData.heightHistory.push({ value: newHeight, date: today });
+                    const timestamp = new Date().toISOString();
+                    
+                    if (newWeight) profileData.weightHistory.push({ value: newWeight, date: timestamp });
+                    if (newHeight) profileData.heightHistory.push({ value: newHeight, date: timestamp });
+                    
                     localStorage.setItem(getStorageKey('healthTrackerProfile'), JSON.stringify(profileData));
+                    
+                    // Post comprehensive payload to webhook
+                    const webhookPayload = {
+                        userId: liffUserId,
+                        height: newHeight || null,
+                        weight: newWeight || null,
+                        type: 'profileUpdate',
+                        exerciseType: null,
+                        description: 'Profile updated.',
+                        km: null,
+                        minutes: null,
+                        kcal: null,
+                        timestamp: timestamp,
+                        image: null
+                    };
+                    await postDataToWebhook(webhookPayload);
+
                     showMessage(profileMessage, 'บันทึกข้อมูลสำเร็จ!', true);
                     renderWeightChart();
                     calculateBmiForDisplay();
@@ -402,7 +436,7 @@
                     });
                 }
 
-                function saveLog() {
+                async function saveLog() {
                     if (!logImageBase64) {
                         showMessage(logMessage, 'กรุณาเลือกรูปภาพ', false);
                         return;
@@ -424,6 +458,27 @@
 
                     logs.unshift(newLog);
                     localStorage.setItem(getStorageKey('healthTrackerLogs'), JSON.stringify(logs));
+                    
+                    // Post comprehensive payload to webhook
+                    const profileData = getProfileData();
+                    const lastWeight = profileData.weightHistory[profileData.weightHistory.length - 1]?.value || null;
+                    const lastHeight = profileData.heightHistory[profileData.heightHistory.length - 1]?.value || null;
+                    
+                    const webhookPayload = {
+                        userId: liffUserId,
+                        height: lastHeight,
+                        weight: lastWeight,
+                        type: newLog.type,
+                        exerciseType: newLog.exerciseType || null,
+                        description: newLog.description || null,
+                        km: newLog.km || null,
+                        minutes: newLog.minutes || null,
+                        kcal: newLog.kcal || null,
+                        timestamp: newLog.timestamp,
+                        image: newLog.imageUrl
+                    };
+                    await postDataToWebhook(webhookPayload);
+
                     showMessage(logMessage, 'บันทึกกิจกรรมสำเร็จ!', true);
                     resetLogForm();
                     if (document.getElementById('history-page').classList.contains('active')) loadHistory();
