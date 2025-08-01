@@ -304,15 +304,30 @@
 
                 async function postDataToWebhook(payload) {
                     const webhookUrl = 'https://prod-53.southeastasia.logic.azure.com:443/workflows/c2e513eb481f410ba8177327c40e7f9d/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=AiNM5m_ySfmRHe50_UsM83kLpJJOMBtCkvID9APwgvc';
+                    
+                    // Log for debugging
+                    console.log("Attempting to POST to webhook:", webhookUrl);
+                    console.log("Payload being sent:", JSON.stringify(payload, null, 2));
+
                     try {
-                        await fetch(webhookUrl, {
+                        const response = await fetch(webhookUrl, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(payload),
+                            mode: 'cors' // Explicitly set mode
                         });
+
+                        console.log('Webhook Response Status:', response.status);
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            console.error('Webhook response was not OK:', response.statusText, errorText);
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        
                         console.log('Data posted to webhook successfully.');
                     } catch (error) {
                         console.error('Error posting data to webhook:', error);
+                        // You could show an error message to the user here if needed
                     }
                 }
 
