@@ -54,7 +54,7 @@
                 <div class="mb-6">
                     <div class="flex space-x-2 p-2 bg-gray-200 rounded-lg">
                         <!-- Navigation Buttons -->
-                        <button data-page="dashboard" class="nav-button px-4 py-2 rounded-md text-sm font-medium transition-colors bg-indigo-600 text-white">Dashboard</button>
+                        <button data-page="dashboard" class="nav-button px-4 py-2 rounded-md text-sm font-medium transition-colors bg-indigo-600 text-white">ภาพรวม</button>
                         <button data-page="profile" class="nav-button px-4 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 bg-gray-200 hover:bg-gray-300">โปรไฟล์</button>
                         <button data-page="log" class="nav-button px-4 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 bg-gray-200 hover:bg-gray-300">บันทึกกิจกรรม</button>
                         <button data-page="history" class="nav-button px-4 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 bg-gray-200 hover:bg-gray-300">ประวัติ</button>
@@ -211,6 +211,18 @@
                 <span class="font-semibold">กำลังส่งข้อมูล...</span>
             </div>
         </div>
+        
+        <!-- Confirmation Modal -->
+        <div id="confirm-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white p-6 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
+                <h3 class="text-lg font-bold text-gray-900 mb-2">ยืนยันการลบ</h3>
+                <p id="confirm-modal-message" class="text-gray-600 mb-6">คุณต้องการลบรายการนี้ใช่หรือไม่?</p>
+                <div class="flex justify-center space-x-4">
+                    <button id="confirm-delete-btn" class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700">ลบ</button>
+                    <button id="cancel-delete-btn" class="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg hover:bg-gray-300">ยกเลิก</button>
+                </div>
+            </div>
+        </div>
 
     </div>
 
@@ -255,6 +267,9 @@
 
                 // --- DOM Elements ---
                 const sendingPopup = document.getElementById('sending-popup');
+                const confirmModal = document.getElementById('confirm-modal');
+                const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+                const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
                 const navButtons = document.querySelectorAll('.nav-button');
                 const pages = document.querySelectorAll('.page');
                 const profileDob = document.getElementById('profile-dob');
@@ -290,6 +305,7 @@
                 let logImageBase64 = null;
                 let weightChart = null;
                 let bmiGaugeChart = null;
+                let itemToDeleteId = null;
 
                 const exerciseTypeMap = {
                     running: 'การวิ่ง',
@@ -313,11 +329,9 @@
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(payload)
-                            // Removed mode: 'cors' to match the working example
                         });
 
                         console.log('Webhook Response Status:', response.status);
-                        // Check for 200 OK or 202 Accepted, common for webhooks
                         if (response.status !== 200 && response.status !== 202) {
                             const errorText = await response.text();
                             console.error('Webhook response was not OK:', response.statusText, errorText);
@@ -401,7 +415,6 @@
                         
                         localStorage.setItem(getStorageKey('healthTrackerProfile'), JSON.stringify(profileData));
                         
-                        // Post comprehensive payload to webhook
                         const webhookPayload = {
                             userId: liffUserId,
                             displayName: liffProfile.displayName,
@@ -547,6 +560,10 @@
                     combinedHistory.forEach(item => {
                         const logDate = new Date(item.sortDate).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
                         const logElement = document.createElement('div');
+                        logElement.className = 'relative flex items-start space-x-4 p-4 border border-gray-200 rounded-lg';
+                        
+                        let contentHtml = '';
+
                         if (item.type === 'exercise' || item.type === 'food') {
                             const logTypeDisplay = item.type === 'exercise' ? { text: 'ออกกำลังกาย', bg: 'bg-blue-100', text_color: 'text-blue-800' } : { text: 'อาหาร', bg: 'bg-green-100', text_color: 'text-green-800' };
                             let detailsHtml = '';
@@ -559,15 +576,18 @@
                                 if(item.minutes > 0) valueText = `${item.minutes} นาที`;
                                 detailsHtml = `<p class="mt-1 font-semibold text-blue-600">${typeText}${valueText ? `: ${valueText}` : ''}</p>`;
                             }
-                            logElement.className = 'flex items-start space-x-4 p-4 border border-gray-200 rounded-lg';
-                            logElement.innerHTML = `<img src="${item.imageUrl}" alt="${item.description || 'log image'}" class="w-24 h-24 object-cover rounded-md bg-gray-200"><div class="flex-1"><div class="flex justify-between items-center"><span class="px-2 py-1 text-xs font-semibold rounded-full ${logTypeDisplay.bg} ${logTypeDisplay.text_color}">${logTypeDisplay.text}</span><span class="text-sm text-gray-500">${logDate}</span></div><p class="mt-2 text-gray-700">${item.description || 'ไม่มีคำอธิบาย'}</p>${detailsHtml}</div>`;
+                            contentHtml = `<img src="${item.imageUrl}" alt="${item.description || 'log image'}" class="w-24 h-24 object-cover rounded-md bg-gray-200"><div class="flex-1"><div class="flex justify-between items-center"><span class="px-2 py-1 text-xs font-semibold rounded-full ${logTypeDisplay.bg} ${logTypeDisplay.text_color}">${logTypeDisplay.text}</span><span class="text-sm text-gray-500">${logDate}</span></div><p class="mt-2 text-gray-700">${item.description || 'ไม่มีคำอธิบาย'}</p>${detailsHtml}</div>`;
                         } else if (item.type === 'weight') {
-                            logElement.className = 'flex items-center space-x-4 p-4 border border-gray-200 rounded-lg';
-                            logElement.innerHTML = `<div class="flex-shrink-0 w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center"><svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div><div class="flex-1"><div class="flex justify-between items-center"><span class="font-semibold text-gray-800">อัปเดตน้ำหนัก</span><span class="text-sm text-gray-500">${logDate}</span></div><p class="mt-1 text-lg text-gray-700 font-bold">${item.value} kg</p></div>`;
+                            contentHtml = `<div class="flex-shrink-0 w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center"><svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div><div class="flex-1"><div class="flex justify-between items-center"><span class="font-semibold text-gray-800">อัปเดตน้ำหนัก</span><span class="text-sm text-gray-500">${logDate}</span></div><p class="mt-1 text-lg text-gray-700 font-bold">${item.value} kg</p></div>`;
                         } else if (item.type === 'height') {
-                             logElement.className = 'flex items-center space-x-4 p-4 border border-gray-200 rounded-lg';
-                             logElement.innerHTML = `<div class="flex-shrink-0 w-12 h-12 rounded-full bg-teal-100 flex items-center justify-center"><svg class="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div><div class="flex-1"><div class="flex justify-between items-center"><span class="font-semibold text-gray-800">อัปเดตส่วนสูง</span><span class="text-sm text-gray-500">${logDate}</span></div><p class="mt-1 text-lg text-gray-700 font-bold">${item.value} cm</p></div>`;
+                             contentHtml = `<div class="flex-shrink-0 w-12 h-12 rounded-full bg-teal-100 flex items-center justify-center"><svg class="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div><div class="flex-1"><div class="flex justify-between items-center"><span class="font-semibold text-gray-800">อัปเดตส่วนสูง</span><span class="text-sm text-gray-500">${logDate}</span></div><p class="mt-1 text-lg text-gray-700 font-bold">${item.value} cm</p></div>`;
                         }
+                        
+                        const deleteButtonHtml = `<button class="delete-btn absolute top-2 right-2 text-gray-400 hover:text-red-500" data-id="${item.id}">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>`;
+
+                        logElement.innerHTML = contentHtml + deleteButtonHtml;
                         historyContainer.appendChild(logElement);
                     });
                 }
@@ -681,6 +701,28 @@
                     `;
                 }
 
+                async function performDelete(idToDelete) {
+                    if (!idToDelete) return;
+
+                    if (String(idToDelete).startsWith('weight-') || String(idToDelete).startsWith('height-')) {
+                        const profileData = getProfileData();
+                        const type = String(idToDelete).startsWith('weight-') ? 'weightHistory' : 'heightHistory';
+                        const timestamp = String(idToDelete).substring(type === 'weightHistory' ? 7 : 7);
+
+                        profileData[type] = profileData[type].filter(entry => entry.date !== timestamp);
+                        localStorage.setItem(getStorageKey('healthTrackerProfile'), JSON.stringify(profileData));
+                    } else {
+                        let logs = JSON.parse(localStorage.getItem(getStorageKey('healthTrackerLogs'))) || [];
+                        logs = logs.filter(log => log.id != idToDelete);
+                        localStorage.setItem(getStorageKey('healthTrackerLogs'), JSON.stringify(logs));
+                    }
+
+                    // Refresh UI
+                    loadHistory();
+                    loadDashboard(); 
+                    renderWeightChart();
+                }
+
 
                 // --- Event Listeners ---
                 navButtons.forEach(button => {
@@ -750,6 +792,25 @@
                 });
 
                 logSubmitBtn.addEventListener('click', saveLog);
+                
+                historyContainer.addEventListener('click', (event) => {
+                    const deleteButton = event.target.closest('.delete-btn');
+                    if (deleteButton) {
+                        itemToDeleteId = deleteButton.dataset.id;
+                        confirmModal.classList.remove('hidden');
+                    }
+                });
+
+                cancelDeleteBtn.addEventListener('click', () => {
+                    itemToDeleteId = null;
+                    confirmModal.classList.add('hidden');
+                });
+
+                confirmDeleteBtn.addEventListener('click', () => {
+                    performDelete(itemToDeleteId);
+                    itemToDeleteId = null;
+                    confirmModal.classList.add('hidden');
+                });
 
                 // --- Initial Load ---
                 loadProfile();
