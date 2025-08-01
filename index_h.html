@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Health Tracker (Local)</title>
+    <title>Health Tracker (LIFF)</title>
+    <!-- LIFF SDK -->
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js for graphs -->
@@ -16,567 +18,458 @@
         body {
             font-family: 'Sarabun', sans-serif;
         }
-        /* Hide pages by default */
-        .page {
-            display: none;
-        }
-        .page.active {
-            display: block;
-        }
+        .page { display: none; }
+        .page.active { display: block; }
     </style>
 </head>
 <body class="bg-gray-50">
 
     <div id="app-container">
         <header class="bg-white shadow-sm">
-            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                <h1 class="text-3xl font-bold text-gray-900">Health Tracker</h1>
-                <p class="text-gray-500">ระบบส่งเสริมสุขภาพพนักงาน (บันทึกในเครื่อง)</p>
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex justify-between items-center">
+                 <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Health Tracker</h1>
+                    <p class="text-gray-500">ระบบส่งเสริมสุขภาพพนักงาน</p>
+                </div>
+                <!-- LIFF Profile Info -->
+                <div id="liff-profile" class="hidden flex items-center space-x-3">
+                    <span id="liff-display-name" class="font-semibold text-gray-700 text-right"></span>
+                    <img id="liff-picture-url" class="w-10 h-10 rounded-full" src="" alt="LINE Profile Picture">
+                </div>
+                <div id="liff-loading" class="text-sm text-gray-500">
+                    กำลังเชื่อมต่อกับ LINE...
+                </div>
             </div>
         </header>
 
         <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="mb-6">
-                <div class="flex space-x-2 p-2 bg-gray-200 rounded-lg">
-                    <!-- Navigation Buttons -->
-                    <button data-page="profile" class="nav-button px-4 py-2 rounded-md text-sm font-medium transition-colors bg-indigo-600 text-white">โปรไฟล์</button>
-                    <button data-page="log" class="nav-button px-4 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 bg-gray-200 hover:bg-gray-300">บันทึกกิจกรรม</button>
-                    <button data-page="history" class="nav-button px-4 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 bg-gray-200 hover:bg-gray-300">ประวัติ</button>
-                </div>
+            <!-- Loading indicator for the main app -->
+            <div id="app-loading" class="text-center p-10">
+                <p>กรุณารอสักครู่...</p>
             </div>
-
-            <!-- Content Pages -->
-            <div id="main-content">
-                <!-- Profile Page -->
-                <div id="profile-page" class="page active">
-                    <div class="p-6 bg-white rounded-xl shadow-lg">
-                        <h2 class="text-2xl font-bold mb-4 text-gray-800">ข้อมูลส่วนตัว</h2>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">วัน/เดือน/ปีเกิด</label>
-                                <input type="date" id="profile-dob" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
-                            </div>
-                             <div>
-                                <label class="block text-sm font-medium text-gray-700">เพศ</label>
-                                <select id="profile-gender" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                                    <option value="">ไม่ระบุ</option>
-                                    <option value="male">ชาย</option>
-                                    <option value="female">หญิง</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">ส่วนสูง (cm)</label>
-                                <input type="number" id="profile-height" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">น้ำหนัก (kg)</label>
-                                <input type="number" id="profile-weight" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
-                            </div>
-                        </div>
-                        <div id="age-display" class="mt-4 text-gray-600"></div>
-                        <button id="save-profile-btn" class="mt-6 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out">
-                            บันทึกข้อมูล
-                        </button>
-                        <p id="profile-message" class="mt-4 text-center font-semibold"></p>
-                        <div id="bmi-display" class="mt-4"></div>
-                        
-                        <!-- Weight Chart -->
-                        <div class="mt-8">
-                             <h3 class="text-xl font-bold text-gray-800 mb-4">กราฟติดตามน้ำหนัก</h3>
-                             <div class="bg-gray-50 p-4 rounded-lg">
-                                <canvas id="weightChart"></canvas>
-                             </div>
-                        </div>
+            
+            <!-- Main content, hidden until LIFF is ready -->
+            <div id="main-app" class="hidden">
+                <div class="mb-6">
+                    <div class="flex space-x-2 p-2 bg-gray-200 rounded-lg">
+                        <!-- Navigation Buttons -->
+                        <button data-page="profile" class="nav-button px-4 py-2 rounded-md text-sm font-medium transition-colors bg-indigo-600 text-white">โปรไฟล์</button>
+                        <button data-page="log" class="nav-button px-4 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 bg-gray-200 hover:bg-gray-300">บันทึกกิจกรรม</button>
+                        <button data-page="history" class="nav-button px-4 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 bg-gray-200 hover:bg-gray-300">ประวัติ</button>
                     </div>
                 </div>
 
-                <!-- Log Entry Page -->
-                <div id="log-page" class="page">
-                    <div class="p-6 bg-white rounded-xl shadow-lg">
-                        <h2 class="text-2xl font-bold mb-4 text-gray-800">บันทึกกิจกรรม</h2>
-                        <div class="mb-4">
-                            <div class="flex border-b border-gray-200">
-                                <button data-log-type="exercise" class="log-type-btn flex-1 py-2 text-center font-medium border-b-2 border-indigo-500 text-indigo-600">ออกกำลังกาย</button>
-                                <button data-log-type="food" class="log-type-btn flex-1 py-2 text-center font-medium text-gray-500">อาหาร</button>
-                            </div>
-                        </div>
-                        <div class="space-y-4">
-                            <!-- Kcal input - shown only for food -->
-                            <div id="kcal-input-container" class="hidden">
-                                <label class="block text-sm font-medium text-gray-700">แคลอรี่ (kcal)</label>
-                                <input type="number" id="log-kcal" placeholder="0" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
-                            </div>
-                            <div>
-                                <label id="log-upload-label" class="block text-sm font-medium text-gray-700">อัปโหลดรูปภาพการออกกำลังกาย</label>
-                                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                                    <div class="space-y-1 text-center">
-                                        <img id="log-preview" src="" alt="Preview" class="hidden mx-auto h-48 w-auto rounded-md"/>
-                                        <svg id="log-placeholder-icon" class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-                                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 4v.01M28 8L20 16m0 0L12 8m8 8v20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                        </svg>
-                                        <div class="flex text-sm text-gray-600 justify-center">
-                                            <label for="log-file-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500">
-                                                <span>เลือกไฟล์</span>
-                                                <input id="log-file-upload" type="file" class="sr-only" accept="image/*"/>
-                                            </label>
-                                            <p class="pl-1">หรือลากและวาง</p>
-                                        </div>
-                                        <p class="text-xs text-gray-500">PNG, JPG, GIF</p>
-                                    </div>
+                <div id="content-pages">
+                    <!-- Profile Page -->
+                    <div id="profile-page" class="page active">
+                        <div class="p-6 bg-white rounded-xl shadow-lg">
+                            <h2 class="text-2xl font-bold mb-4 text-gray-800">ข้อมูลส่วนตัว</h2>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">วัน/เดือน/ปีเกิด</label>
+                                    <input type="date" id="profile-dob" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
+                                </div>
+                                 <div>
+                                    <label class="block text-sm font-medium text-gray-700">เพศ</label>
+                                    <select id="profile-gender" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                        <option value="">ไม่ระบุ</option>
+                                        <option value="male">ชาย</option>
+                                        <option value="female">หญิง</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">ส่วนสูง (cm)</label>
+                                    <input type="number" id="profile-height" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">น้ำหนัก (kg)</label>
+                                    <input type="number" id="profile-weight" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
                                 </div>
                             </div>
-                             <div>
-                                <label class="block text-sm font-medium text-gray-700">คำอธิบาย (ถ้ามี)</label>
-                                <textarea id="log-description" rows="3" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                            <div id="age-display" class="mt-4 text-gray-600"></div>
+                            <button id="save-profile-btn" class="mt-6 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out">
+                                บันทึกข้อมูล
+                            </button>
+                            <p id="profile-message" class="mt-4 text-center font-semibold"></p>
+                            <div id="bmi-display" class="mt-4"></div>
+                            <div class="mt-8">
+                                 <h3 class="text-xl font-bold text-gray-800 mb-4">กราฟติดตามน้ำหนัก</h3>
+                                 <div class="bg-gray-50 p-4 rounded-lg">
+                                    <canvas id="weightChart"></canvas>
+                                 </div>
                             </div>
                         </div>
-                        <button id="log-submit-btn" class="mt-6 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 disabled:bg-indigo-300 transition duration-150 ease-in-out">
-                            บันทึกกิจกรรม
-                        </button>
-                         <p id="log-message" class="mt-4 text-center font-semibold"></p>
                     </div>
-                </div>
-
-                <!-- History Page -->
-                <div id="history-page" class="page">
-                     <div class="p-6 bg-white rounded-xl shadow-lg">
-                        <h2 class="text-2xl font-bold mb-4 text-gray-800">ประวัติการบันทึกทั้งหมด</h2>
-                        <div id="history-container" class="space-y-6">
-                            <!-- History items will be injected here -->
+                    <!-- Log Entry Page -->
+                    <div id="log-page" class="page">
+                         <div class="p-6 bg-white rounded-xl shadow-lg">
+                            <h2 class="text-2xl font-bold mb-4 text-gray-800">บันทึกกิจกรรม</h2>
+                            <div class="mb-4">
+                                <div class="flex border-b border-gray-200">
+                                    <button data-log-type="exercise" class="log-type-btn flex-1 py-2 text-center font-medium border-b-2 border-indigo-500 text-indigo-600">ออกกำลังกาย</button>
+                                    <button data-log-type="food" class="log-type-btn flex-1 py-2 text-center font-medium text-gray-500">อาหาร</button>
+                                </div>
+                            </div>
+                            <div class="space-y-4">
+                                <!-- Exercise Type Dropdown -->
+                                <div id="exercise-type-container">
+                                    <label class="block text-sm font-medium text-gray-700">ประเภทการออกกำลังกาย</label>
+                                    <select id="log-exercise-type" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                        <option value="running">การวิ่ง</option>
+                                        <option value="walking">เดิน</option>
+                                        <option value="cycling">ปั่นจักรยาน</option>
+                                        <option value="other">กีฬาอื่นๆ</option>
+                                    </select>
+                                </div>
+                                <!-- Kcal input -->
+                                <div id="kcal-input-container" class="hidden">
+                                    <label class="block text-sm font-medium text-gray-700">แคลอรี่ (kcal)</label>
+                                    <input type="number" id="log-kcal" placeholder="0" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
+                                </div>
+                                <div>
+                                    <label id="log-upload-label" class="block text-sm font-medium text-gray-700">อัปโหลดรูปภาพการออกกำลังกาย</label>
+                                    <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                                        <div class="space-y-1 text-center">
+                                            <img id="log-preview" src="" alt="Preview" class="hidden mx-auto h-48 w-auto rounded-md"/>
+                                            <svg id="log-placeholder-icon" class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 4v.01M28 8L20 16m0 0L12 8m8 8v20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                                            <div class="flex text-sm text-gray-600 justify-center">
+                                                <label for="log-file-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500">
+                                                    <span>เลือกไฟล์</span>
+                                                    <input id="log-file-upload" type="file" class="sr-only" accept="image/*"/>
+                                                </label>
+                                                <p class="pl-1">หรือลากและวาง</p>
+                                            </div>
+                                            <p class="text-xs text-gray-500">PNG, JPG, GIF</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                 <div>
+                                    <label class="block text-sm font-medium text-gray-700">คำอธิบาย (ถ้ามี)</label>
+                                    <textarea id="log-description" rows="3" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                                </div>
+                            </div>
+                            <button id="log-submit-btn" class="mt-6 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 disabled:bg-indigo-300 transition duration-150 ease-in-out">บันทึกกิจกรรม</button>
+                             <p id="log-message" class="mt-4 text-center font-semibold"></p>
+                        </div>
+                    </div>
+                    <!-- History Page -->
+                    <div id="history-page" class="page">
+                         <div class="p-6 bg-white rounded-xl shadow-lg">
+                            <h2 class="text-2xl font-bold mb-4 text-gray-800">ประวัติการบันทึกทั้งหมด</h2>
+                            <div id="history-container" class="space-y-6"></div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <footer class="text-center mt-8 text-gray-400 text-xs">
-               <p>ข้อมูลทั้งหมดถูกบันทึกไว้ในเบราว์เซอร์ของคุณ</p>
+               <p id="footer-text">ข้อมูลทั้งหมดถูกบันทึกไว้ในเบราว์เซอร์ของคุณ</p>
             </footer>
         </main>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // --- DOM Elements ---
-            const navButtons = document.querySelectorAll('.nav-button');
-            const pages = document.querySelectorAll('.page');
-            
-            // Profile Page Elements
-            const profileDob = document.getElementById('profile-dob');
-            const profileGender = document.getElementById('profile-gender');
-            const profileWeight = document.getElementById('profile-weight');
-            const profileHeight = document.getElementById('profile-height');
-            const saveProfileBtn = document.getElementById('save-profile-btn');
-            const ageDisplay = document.getElementById('age-display');
-            const bmiDisplay = document.getElementById('bmi-display');
-            const profileMessage = document.getElementById('profile-message');
-            const weightChartCanvas = document.getElementById('weightChart');
+        document.addEventListener('DOMContentLoaded', async () => {
+            // --- LIFF Initialization ---
+            const liffId = "1654435774-wze0oX67"; 
+            let liffUserId = null;
 
-            // Log Entry Page Elements
-            const logTypeButtons = document.querySelectorAll('.log-type-btn');
-            const kcalInputContainer = document.getElementById('kcal-input-container');
-            const logKcal = document.getElementById('log-kcal');
-            const logUploadLabel = document.getElementById('log-upload-label');
-            const logFileInput = document.getElementById('log-file-upload');
-            const logPreview = document.getElementById('log-preview');
-            const logPlaceholderIcon = document.getElementById('log-placeholder-icon');
-            const logDescription = document.getElementById('log-description');
-            const logSubmitBtn = document.getElementById('log-submit-btn');
-            const logMessage = document.getElementById('log-message');
-
-            // History Page Elements
-            const historyContainer = document.getElementById('history-container');
-
-            // --- App State ---
-            let currentLogType = 'exercise';
-            let logImageBase64 = null;
-            let weightChart = null;
-
-            // --- Helper Functions ---
-            function showMessage(element, text, isSuccess) {
-                element.textContent = text;
-                element.className = `mt-4 text-center font-semibold ${isSuccess ? 'text-green-600' : 'text-red-600'}`;
-                setTimeout(() => { element.textContent = ''; }, 3000);
-            }
-
-            function calculateAge(dob) {
-                if (!dob) return null;
-                const birthDate = new Date(dob);
-                const today = new Date();
-                let age = today.getFullYear() - birthDate.getFullYear();
-                const m = today.getMonth() - birthDate.getMonth();
-                if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-                    age--;
-                }
-                return age;
-            }
-
-            function calculateBmi() {
-                const weight = parseFloat(profileWeight.value);
-                const height = parseFloat(profileHeight.value);
-                if (!weight || !height || height <= 0) {
-                    bmiDisplay.innerHTML = '';
-                    return;
-                }
-                const heightInMeters = height / 100;
-                // *** CHANGED: Round BMI to 1 decimal place ***
-                const bmi = (weight / (heightInMeters * heightInMeters)).toFixed(1);
-                
-                let bmiInfo = {};
-                if (bmi < 18.5) bmiInfo = { text: 'น้ำหนักน้อยกว่าเกณฑ์', color: 'text-blue-500' };
-                else if (bmi >= 18.5 && bmi <= 22.9) bmiInfo = { text: 'สมส่วน', color: 'text-green-500' };
-                else if (bmi >= 23 && bmi <= 24.9) bmiInfo = { text: 'น้ำหนักเกิน', color: 'text-yellow-500' };
-                else if (bmi >= 25 && bmi <= 29.9) bmiInfo = { text: 'โรคอ้วน', color: 'text-orange-500' };
-                else bmiInfo = { text: 'โรคอ้วนอันตราย', color: 'text-red-500' };
-
-                bmiDisplay.innerHTML = `
-                    <div class="mt-4 p-4 bg-gray-100 rounded-lg text-center">
-                        <h3 class="font-bold text-lg">ค่าดัชนีมวลกาย (BMI)</h3>
-                        <p class="text-3xl font-bold">${bmi}</p>
-                        <p class="font-semibold ${bmiInfo.color}">${bmiInfo.text}</p>
-                    </div>
-                `;
-            }
-
-            // --- Data Functions (Using localStorage) ---
-            function getProfileData() {
-                const profileData = JSON.parse(localStorage.getItem('healthTrackerProfile'));
-                return profileData || { dob: '', gender: '', weightHistory: [], heightHistory: [] };
-            }
-
-            function saveProfile() {
-                const profileData = getProfileData();
-                profileData.dob = profileDob.value;
-                profileData.gender = profileGender.value;
-
-                const newWeight = parseFloat(profileWeight.value);
-                const newHeight = parseFloat(profileHeight.value);
-                const today = new Date().toISOString(); // Use full ISO string for unique sorting
-
-                // Always add a new record if the value is valid
-                if (newWeight) {
-                    profileData.weightHistory.push({ value: newWeight, date: today });
-                }
-                if (newHeight) {
-                    profileData.heightHistory.push({ value: newHeight, date: today });
-                }
-
-                localStorage.setItem('healthTrackerProfile', JSON.stringify(profileData));
-                showMessage(profileMessage, 'บันทึกข้อมูลสำเร็จ!', true);
-                renderWeightChart();
-            }
-
-            function loadProfile() {
-                const profileData = getProfileData();
-                profileDob.value = profileData.dob || '';
-                profileGender.value = profileData.gender || '';
-
-                const lastWeightEntry = profileData.weightHistory[profileData.weightHistory.length - 1];
-                if(lastWeightEntry) profileWeight.value = lastWeightEntry.value;
-
-                const lastHeightEntry = profileData.heightHistory[profileData.heightHistory.length - 1];
-                if(lastHeightEntry) profileHeight.value = lastHeightEntry.value;
-
-                updateProfileCalculations();
-                renderWeightChart();
-            }
-            
-            function updateProfileCalculations() {
-                 const age = calculateAge(profileDob.value);
-                 ageDisplay.textContent = age !== null ? `อายุ: ${age} ปี` : '';
-                 calculateBmi();
-            }
-            
-            function renderWeightChart() {
-                const profileData = getProfileData();
-                const ctx = weightChartCanvas.getContext('2d');
-
-                if (weightChart) {
-                    weightChart.destroy();
-                }
-                
-                if (profileData.weightHistory.length < 2) {
-                    ctx.clearRect(0, 0, weightChartCanvas.width, weightChartCanvas.height);
-                    ctx.font = "16px Sarabun";
-                    ctx.fillStyle = "rgb(107, 114, 128)";
-                    ctx.textAlign = "center";
-                    ctx.fillText("ต้องการข้อมูลน้ำหนักอย่างน้อย 2 ครั้งเพื่อสร้างกราฟ", weightChartCanvas.width / 2, weightChartCanvas.height / 2);
-                    return;
-                }
-
-                const labels = profileData.weightHistory.map((entry, index) => `ครั้งที่ ${index + 1}`);
-                const data = profileData.weightHistory.map(entry => entry.value);
-
-                weightChart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: 'น้ำหนัก (kg)',
-                            data: data,
-                            borderColor: 'rgb(79, 70, 229)',
-                            backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                            fill: true,
-                            tension: 0.1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        scales: { 
-                            y: { beginAtZero: false },
-                            x: {
-                                title: {
-                                    display: true,
-                                    text: 'ครั้งที่บันทึก'
-                                }
-                            }
-                        },
-                        plugins: { 
-                            legend: { display: false },
-                            tooltip: {
-                                callbacks: {
-                                    title: function(tooltipItems) {
-                                        const index = tooltipItems[0].dataIndex;
-                                        const date = profileData.weightHistory[index].date;
-                                        return new Date(date).toLocaleDateString('th-TH', {
-                                            year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                                        });
-                                    },
-                                    label: function(tooltipItem) {
-                                        return `น้ำหนัก: ${tooltipItem.formattedValue} kg`;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-
-            function saveLog() {
-                if (!logImageBase64) {
-                    showMessage(logMessage, 'กรุณาเลือกรูปภาพ', false);
-                    return;
-                }
-
-                const logs = JSON.parse(localStorage.getItem('healthTrackerLogs')) || [];
-                const newLog = {
-                    id: Date.now(),
-                    type: currentLogType,
-                    description: logDescription.value,
-                    imageUrl: logImageBase64,
-                    timestamp: new Date().toISOString()
-                };
-                
-                if (currentLogType === 'food') {
-                    newLog.kcal = logKcal.value || 0;
-                }
-
-                logs.unshift(newLog);
-                localStorage.setItem('healthTrackerLogs', JSON.stringify(logs));
-
-                showMessage(logMessage, 'บันทึกกิจกรรมสำเร็จ!', true);
-                resetLogForm();
-                if (document.getElementById('history-page').classList.contains('active')) {
-                    loadHistory();
-                }
-            }
-
-            function loadHistory() {
-                const logs = JSON.parse(localStorage.getItem('healthTrackerLogs')) || [];
-                const profileData = getProfileData();
-                let combinedHistory = [];
-
-                const formattedLogs = logs.map(log => ({ ...log, sortDate: new Date(log.timestamp) }));
-                combinedHistory.push(...formattedLogs);
-
-                const weightChanges = profileData.weightHistory.map(entry => ({
-                    id: `weight-${entry.date}`,
-                    type: 'weight',
-                    value: entry.value,
-                    timestamp: entry.date,
-                    sortDate: new Date(entry.date)
-                }));
-                combinedHistory.push(...weightChanges);
-
-                const heightChanges = profileData.heightHistory.map(entry => ({
-                    id: `height-${entry.date}`,
-                    type: 'height',
-                    value: entry.value,
-                    timestamp: entry.date,
-                    sortDate: new Date(entry.date)
-                }));
-                combinedHistory.push(...heightChanges);
-
-                combinedHistory.sort((a, b) => b.sortDate - a.sortDate);
-
-                historyContainer.innerHTML = '';
-                
-                if (combinedHistory.length === 0) {
-                    historyContainer.innerHTML = '<p class="text-center text-gray-500">ยังไม่มีข้อมูลบันทึก</p>';
-                    return;
-                }
-
-                combinedHistory.forEach(item => {
-                    const logDate = new Date(item.sortDate).toLocaleDateString('th-TH', {
-                        year: 'numeric', month: 'long', day: 'numeric'
-                    });
-                    const logElement = document.createElement('div');
-
-                    if (item.type === 'exercise' || item.type === 'food') {
-                        const logTypeDisplay = item.type === 'exercise' 
-                            ? { text: 'ออกกำลังกาย', bg: 'bg-blue-100', text_color: 'text-blue-800' }
-                            : { text: 'อาหาร', bg: 'bg-green-100', text_color: 'text-green-800' };
-                        const kcalHtml = item.type === 'food' ? `<p class="mt-1 font-semibold text-orange-600">${item.kcal || 0} kcal</p>` : '';
-                        logElement.className = 'flex items-start space-x-4 p-4 border border-gray-200 rounded-lg';
-                        logElement.innerHTML = `
-                            <img src="${item.imageUrl}" alt="${item.description || 'log image'}" class="w-24 h-24 object-cover rounded-md bg-gray-200">
-                            <div class="flex-1">
-                                <div class="flex justify-between items-center">
-                                    <span class="px-2 py-1 text-xs font-semibold rounded-full ${logTypeDisplay.bg} ${logTypeDisplay.text_color}">${logTypeDisplay.text}</span>
-                                    <span class="text-sm text-gray-500">${logDate}</span>
-                                </div>
-                                <p class="mt-2 text-gray-700">${item.description || 'ไม่มีคำอธิบาย'}</p>
-                                ${kcalHtml}
-                            </div>
-                        `;
-                    } else if (item.type === 'weight') {
-                        logElement.className = 'flex items-center space-x-4 p-4 border border-gray-200 rounded-lg';
-                        logElement.innerHTML = `
-                            <div class="flex-shrink-0 w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
-                                <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            </div>
-                            <div class="flex-1">
-                                <div class="flex justify-between items-center">
-                                    <span class="font-semibold text-gray-800">อัปเดตน้ำหนัก</span>
-                                    <span class="text-sm text-gray-500">${logDate}</span>
-                                </div>
-                                <p class="mt-1 text-lg text-gray-700 font-bold">${item.value} kg</p>
-                            </div>
-                        `;
-                    } else if (item.type === 'height') {
-                         logElement.className = 'flex items-center space-x-4 p-4 border border-gray-200 rounded-lg';
-                         logElement.innerHTML = `
-                            <div class="flex-shrink-0 w-12 h-12 rounded-full bg-teal-100 flex items-center justify-center">
-                                <svg class="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            </div>
-                            <div class="flex-1">
-                                <div class="flex justify-between items-center">
-                                    <span class="font-semibold text-gray-800">อัปเดตส่วนสูง</span>
-                                    <span class="text-sm text-gray-500">${logDate}</span>
-                                </div>
-                                <p class="mt-1 text-lg text-gray-700 font-bold">${item.value} cm</p>
-                            </div>
-                        `;
-                    }
-                    historyContainer.appendChild(logElement);
-                });
-            }
-            
-            function resetLogForm() {
-                logDescription.value = '';
-                logFileInput.value = '';
-                logKcal.value = '';
-                logImageBase64 = null;
-                logPreview.src = '';
-                logPreview.classList.add('hidden');
-                logPlaceholderIcon.classList.remove('hidden');
-            }
-
-            // --- Event Listeners ---
-            navButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    const targetPageId = button.dataset.page + '-page';
-                    pages.forEach(page => page.classList.remove('active'));
-                    document.getElementById(targetPageId).classList.add('active');
-                    navButtons.forEach(btn => {
-                        btn.classList.remove('bg-indigo-600', 'text-white');
-                        btn.classList.add('text-gray-700', 'bg-gray-200', 'hover:bg-gray-300');
-                    });
-                    button.classList.add('bg-indigo-600', 'text-white');
-                    button.classList.remove('text-gray-700', 'bg-gray-200', 'hover:bg-gray-300');
+            async function initializeLiff() {
+                try {
+                    await liff.init({ liffId: liffId });
                     
-                    if (button.dataset.page === 'history') {
-                        loadHistory();
-                    }
-                    if (button.dataset.page === 'profile') {
-                        renderWeightChart();
-                    }
-                });
-            });
-
-            [profileDob, profileWeight, profileHeight, profileGender].forEach(input => {
-                input.addEventListener('input', updateProfileCalculations);
-            });
-
-            saveProfileBtn.addEventListener('click', saveProfile);
-            
-            logTypeButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    currentLogType = button.dataset.logType;
-                    logUploadLabel.textContent = `อัปโหลดรูปภาพ${currentLogType === 'exercise' ? 'การออกกำลังกาย' : 'อาหาร'}`;
-                    if (currentLogType === 'food') {
-                        kcalInputContainer.classList.remove('hidden');
+                    if (!liff.isLoggedIn()) {
+                        liff.login(); 
                     } else {
-                        kcalInputContainer.classList.add('hidden');
-                    }
-                    logTypeButtons.forEach(btn => {
-                        btn.classList.remove('border-indigo-500', 'text-indigo-600');
-                        btn.classList.add('text-gray-500');
-                    });
-                    button.classList.add('border-indigo-500', 'text-indigo-600');
-                });
-            });
+                        const profile = await liff.getProfile();
+                        liffUserId = profile.userId;
 
-            logFileInput.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (!file) {
-                    return;
+                        document.getElementById('liff-display-name').textContent = profile.displayName;
+                        document.getElementById('liff-picture-url').src = profile.pictureUrl;
+                        document.getElementById('liff-profile').classList.remove('hidden');
+                        document.getElementById('liff-loading').classList.add('hidden');
+                        document.getElementById('footer-text').textContent = `UserID: ${liffUserId}`;
+
+                        initializeApp();
+                    }
+                } catch (error) {
+                    console.error("LIFF Initialization failed", error);
+                    document.getElementById('liff-loading').textContent = "ไม่สามารถเชื่อมต่อกับ LINE ได้";
+                    document.getElementById('app-loading').classList.add('hidden');
+                }
+            }
+            
+            await initializeLiff();
+
+            // --- Main App Logic (runs after LIFF is ready) ---
+            function initializeApp() {
+                document.getElementById('app-loading').classList.add('hidden');
+                document.getElementById('main-app').classList.remove('hidden');
+
+                // --- DOM Elements ---
+                const navButtons = document.querySelectorAll('.nav-button');
+                const pages = document.querySelectorAll('.page');
+                const profileDob = document.getElementById('profile-dob');
+                const profileGender = document.getElementById('profile-gender');
+                const profileWeight = document.getElementById('profile-weight');
+                const profileHeight = document.getElementById('profile-height');
+                const saveProfileBtn = document.getElementById('save-profile-btn');
+                const ageDisplay = document.getElementById('age-display');
+                const bmiDisplay = document.getElementById('bmi-display');
+                const profileMessage = document.getElementById('profile-message');
+                const weightChartCanvas = document.getElementById('weightChart');
+                const logTypeButtons = document.querySelectorAll('.log-type-btn');
+                const exerciseTypeContainer = document.getElementById('exercise-type-container');
+                const logExerciseType = document.getElementById('log-exercise-type');
+                const kcalInputContainer = document.getElementById('kcal-input-container');
+                const logKcal = document.getElementById('log-kcal');
+                const logUploadLabel = document.getElementById('log-upload-label');
+                const logFileInput = document.getElementById('log-file-upload');
+                const logPreview = document.getElementById('log-preview');
+                const logPlaceholderIcon = document.getElementById('log-placeholder-icon');
+                const logDescription = document.getElementById('log-description');
+                const logSubmitBtn = document.getElementById('log-submit-btn');
+                const logMessage = document.getElementById('log-message');
+                const historyContainer = document.getElementById('history-container');
+
+                let currentLogType = 'exercise';
+                let logImageBase64 = null;
+                let weightChart = null;
+
+                const exerciseTypeMap = {
+                    running: 'การวิ่ง',
+                    walking: 'เดิน',
+                    cycling: 'ปั่นจักรยาน',
+                    other: 'กีฬาอื่นๆ'
+                };
+
+                // --- Helper Functions ---
+                function showMessage(element, text, isSuccess) {
+                    element.textContent = text;
+                    element.className = `mt-4 text-center font-semibold ${isSuccess ? 'text-green-600' : 'text-red-600'}`;
+                    setTimeout(() => { element.textContent = ''; }, 3000);
                 }
 
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        const maxWidth = 800;
-                        const maxHeight = 600;
-                        let width = img.width;
-                        let height = img.height;
+                function calculateAge(dob) {
+                    if (!dob) return null;
+                    const birthDate = new Date(dob);
+                    const today = new Date();
+                    let age = today.getFullYear() - birthDate.getFullYear();
+                    const m = today.getMonth() - birthDate.getMonth();
+                    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+                    return age;
+                }
 
-                        if (width > height) {
-                            if (width > maxWidth) {
-                                height = Math.round((height * maxWidth) / width);
-                                width = maxWidth;
-                            }
-                        } else {
-                            if (height > maxHeight) {
-                                width = Math.round((width * maxHeight) / height);
-                                height = maxHeight;
-                            }
+                function calculateBmi() {
+                    const weight = parseFloat(profileWeight.value);
+                    const height = parseFloat(profileHeight.value);
+                    if (!weight || !height || height <= 0) {
+                        bmiDisplay.innerHTML = '';
+                        return;
+                    }
+                    const heightInMeters = height / 100;
+                    const bmi = (weight / (heightInMeters * heightInMeters)).toFixed(1);
+                    
+                    let bmiInfo = {};
+                    if (bmi < 18.5) bmiInfo = { text: 'น้ำหนักน้อยกว่าเกณฑ์', color: 'text-blue-500' };
+                    else if (bmi >= 18.5 && bmi <= 22.9) bmiInfo = { text: 'สมส่วน', color: 'text-green-500' };
+                    else if (bmi >= 23 && bmi <= 24.9) bmiInfo = { text: 'น้ำหนักเกิน', color: 'text-yellow-500' };
+                    else if (bmi >= 25 && bmi <= 29.9) bmiInfo = { text: 'โรคอ้วน', color: 'text-orange-500' };
+                    else bmiInfo = { text: 'โรคอ้วนอันตราย', color: 'text-red-500' };
+
+                    bmiDisplay.innerHTML = `<div class="mt-4 p-4 bg-gray-100 rounded-lg text-center"><h3 class="font-bold text-lg">ค่าดัชนีมวลกาย (BMI)</h3><p class="text-3xl font-bold">${bmi}</p><p class="font-semibold ${bmiInfo.color}">${bmiInfo.text}</p></div>`;
+                }
+
+                // --- Data Functions (Using localStorage with LIFF UserID) ---
+                function getStorageKey(baseKey) {
+                    return `${baseKey}_${liffUserId}`;
+                }
+
+                function getProfileData() {
+                    const profileData = JSON.parse(localStorage.getItem(getStorageKey('healthTrackerProfile')));
+                    return profileData || { dob: '', gender: '', weightHistory: [], heightHistory: [] };
+                }
+
+                function saveProfile() {
+                    const profileData = getProfileData();
+                    profileData.dob = profileDob.value;
+                    profileData.gender = profileGender.value;
+                    const newWeight = parseFloat(profileWeight.value);
+                    const newHeight = parseFloat(profileHeight.value);
+                    const today = new Date().toISOString();
+                    if (newWeight) profileData.weightHistory.push({ value: newWeight, date: today });
+                    if (newHeight) profileData.heightHistory.push({ value: newHeight, date: today });
+                    localStorage.setItem(getStorageKey('healthTrackerProfile'), JSON.stringify(profileData));
+                    showMessage(profileMessage, 'บันทึกข้อมูลสำเร็จ!', true);
+                    renderWeightChart();
+                }
+
+                function loadProfile() {
+                    const profileData = getProfileData();
+                    profileDob.value = profileData.dob || '';
+                    profileGender.value = profileData.gender || '';
+                    const lastWeightEntry = profileData.weightHistory[profileData.weightHistory.length - 1];
+                    if(lastWeightEntry) profileWeight.value = lastWeightEntry.value;
+                    const lastHeightEntry = profileData.heightHistory[profileData.heightHistory.length - 1];
+                    if(lastHeightEntry) profileHeight.value = lastHeightEntry.value;
+                    updateProfileCalculations();
+                    renderWeightChart();
+                }
+                
+                function updateProfileCalculations() {
+                     const age = calculateAge(profileDob.value);
+                     ageDisplay.textContent = age !== null ? `อายุ: ${age} ปี` : '';
+                     calculateBmi();
+                }
+                
+                function renderWeightChart() {
+                    const profileData = getProfileData();
+                    const ctx = weightChartCanvas.getContext('2d');
+                    if (weightChart) weightChart.destroy();
+                    if (profileData.weightHistory.length < 2) {
+                        ctx.clearRect(0, 0, weightChartCanvas.width, weightChartCanvas.height);
+                        ctx.font = "16px Sarabun";
+                        ctx.fillStyle = "rgb(107, 114, 128)";
+                        ctx.textAlign = "center";
+                        ctx.fillText("ต้องการข้อมูลน้ำหนักอย่างน้อย 2 ครั้งเพื่อสร้างกราฟ", weightChartCanvas.width / 2, weightChartCanvas.height / 2);
+                        return;
+                    }
+                    const labels = profileData.weightHistory.map((entry, index) => `ครั้งที่ ${index + 1}`);
+                    const data = profileData.weightHistory.map(entry => entry.value);
+                    weightChart = new Chart(ctx, {
+                        type: 'line',
+                        data: { labels, datasets: [{ label: 'น้ำหนัก (kg)', data, borderColor: 'rgb(79, 70, 229)', backgroundColor: 'rgba(79, 70, 229, 0.1)', fill: true, tension: 0.1 }] },
+                        options: {
+                            responsive: true, maintainAspectRatio: true,
+                            scales: { y: { beginAtZero: false }, x: { title: { display: true, text: 'ครั้งที่บันทึก' } } },
+                            plugins: { legend: { display: false }, tooltip: { callbacks: {
+                                title: (tooltipItems) => new Date(profileData.weightHistory[tooltipItems[0].dataIndex].date).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                                label: (tooltipItem) => `น้ำหนัก: ${tooltipItem.formattedValue} kg`
+                            }}}
                         }
+                    });
+                }
 
-                        const canvas = document.createElement('canvas');
-                        canvas.width = width;
-                        canvas.height = height;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, width, height);
-                        
-                        const resizedBase64 = canvas.toDataURL('image/jpeg', 0.85);
+                function saveLog() {
+                    if (!logImageBase64) {
+                        showMessage(logMessage, 'กรุณาเลือกรูปภาพ', false);
+                        return;
+                    }
+                    const logs = JSON.parse(localStorage.getItem(getStorageKey('healthTrackerLogs'))) || [];
+                    const newLog = { id: Date.now(), type: currentLogType, description: logDescription.value, imageUrl: logImageBase64, timestamp: new Date().toISOString() };
+                    
+                    if (currentLogType === 'exercise') {
+                        newLog.exerciseType = logExerciseType.value;
+                    }
+                    if (currentLogType === 'food') {
+                        newLog.kcal = logKcal.value || 0;
+                    }
 
-                        logImageBase64 = resizedBase64;
-                        logPreview.src = resizedBase64;
-                        logPreview.classList.remove('hidden');
-                        logPlaceholderIcon.classList.add('hidden');
+                    logs.unshift(newLog);
+                    localStorage.setItem(getStorageKey('healthTrackerLogs'), JSON.stringify(logs));
+                    showMessage(logMessage, 'บันทึกกิจกรรมสำเร็จ!', true);
+                    resetLogForm();
+                    if (document.getElementById('history-page').classList.contains('active')) loadHistory();
+                }
+
+                function loadHistory() {
+                    const logs = JSON.parse(localStorage.getItem(getStorageKey('healthTrackerLogs'))) || [];
+                    const profileData = getProfileData();
+                    let combinedHistory = [];
+                    combinedHistory.push(...logs.map(log => ({ ...log, sortDate: new Date(log.timestamp) })));
+                    combinedHistory.push(...profileData.weightHistory.map(entry => ({ id: `weight-${entry.date}`, type: 'weight', value: entry.value, timestamp: entry.date, sortDate: new Date(entry.date) })));
+                    combinedHistory.push(...profileData.heightHistory.map(entry => ({ id: `height-${entry.date}`, type: 'height', value: entry.value, timestamp: entry.date, sortDate: new Date(entry.date) })));
+                    combinedHistory.sort((a, b) => b.sortDate - a.sortDate);
+                    historyContainer.innerHTML = '';
+                    if (combinedHistory.length === 0) {
+                        historyContainer.innerHTML = '<p class="text-center text-gray-500">ยังไม่มีข้อมูลบันทึก</p>';
+                        return;
+                    }
+                    combinedHistory.forEach(item => {
+                        const logDate = new Date(item.sortDate).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+                        const logElement = document.createElement('div');
+                        if (item.type === 'exercise' || item.type === 'food') {
+                            const logTypeDisplay = item.type === 'exercise' ? { text: 'ออกกำลังกาย', bg: 'bg-blue-100', text_color: 'text-blue-800' } : { text: 'อาหาร', bg: 'bg-green-100', text_color: 'text-green-800' };
+                            const kcalHtml = item.type === 'food' ? `<p class="mt-1 font-semibold text-orange-600">${item.kcal || 0} kcal</p>` : '';
+                            const exerciseTypeHtml = item.type === 'exercise' ? `<p class="mt-1 font-semibold text-blue-600">${exerciseTypeMap[item.exerciseType] || 'ออกกำลังกาย'}</p>` : '';
+                            logElement.className = 'flex items-start space-x-4 p-4 border border-gray-200 rounded-lg';
+                            logElement.innerHTML = `<img src="${item.imageUrl}" alt="${item.description || 'log image'}" class="w-24 h-24 object-cover rounded-md bg-gray-200"><div class="flex-1"><div class="flex justify-between items-center"><span class="px-2 py-1 text-xs font-semibold rounded-full ${logTypeDisplay.bg} ${logTypeDisplay.text_color}">${logTypeDisplay.text}</span><span class="text-sm text-gray-500">${logDate}</span></div><p class="mt-2 text-gray-700">${item.description || 'ไม่มีคำอธิบาย'}</p>${kcalHtml}${exerciseTypeHtml}</div>`;
+                        } else if (item.type === 'weight') {
+                            logElement.className = 'flex items-center space-x-4 p-4 border border-gray-200 rounded-lg';
+                            logElement.innerHTML = `<div class="flex-shrink-0 w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center"><svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div><div class="flex-1"><div class="flex justify-between items-center"><span class="font-semibold text-gray-800">อัปเดตน้ำหนัก</span><span class="text-sm text-gray-500">${logDate}</span></div><p class="mt-1 text-lg text-gray-700 font-bold">${item.value} kg</p></div>`;
+                        } else if (item.type === 'height') {
+                             logElement.className = 'flex items-center space-x-4 p-4 border border-gray-200 rounded-lg';
+                             logElement.innerHTML = `<div class="flex-shrink-0 w-12 h-12 rounded-full bg-teal-100 flex items-center justify-center"><svg class="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div><div class="flex-1"><div class="flex justify-between items-center"><span class="font-semibold text-gray-800">อัปเดตส่วนสูง</span><span class="text-sm text-gray-500">${logDate}</span></div><p class="mt-1 text-lg text-gray-700 font-bold">${item.value} cm</p></div>`;
+                        }
+                        historyContainer.appendChild(logElement);
+                    });
+                }
+                
+                function resetLogForm() {
+                    logDescription.value = ''; logFileInput.value = ''; logKcal.value = '';
+                    logExerciseType.value = 'running';
+                    logImageBase64 = null; logPreview.src = '';
+                    logPreview.classList.add('hidden'); logPlaceholderIcon.classList.remove('hidden');
+                }
+
+                // --- Event Listeners ---
+                navButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        const targetPageId = button.dataset.page + '-page';
+                        pages.forEach(page => page.classList.remove('active'));
+                        document.getElementById(targetPageId).classList.add('active');
+                        navButtons.forEach(btn => { btn.classList.remove('bg-indigo-600', 'text-white'); btn.classList.add('text-gray-700', 'bg-gray-200', 'hover:bg-gray-300'); });
+                        button.classList.add('bg-indigo-600', 'text-white');
+                        button.classList.remove('text-gray-700', 'bg-gray-200', 'hover:bg-gray-300');
+                        if (button.dataset.page === 'history') loadHistory();
+                        if (button.dataset.page === 'profile') renderWeightChart();
+                    });
+                });
+
+                [profileDob, profileWeight, profileHeight, profileGender].forEach(input => input.addEventListener('input', updateProfileCalculations));
+                saveProfileBtn.addEventListener('click', saveProfile);
+                logTypeButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        currentLogType = button.dataset.logType;
+                        logUploadLabel.textContent = `อัปโหลดรูปภาพ${currentLogType === 'exercise' ? 'การออกกำลังกาย' : 'อาหาร'}`;
+                        kcalInputContainer.classList.toggle('hidden', currentLogType !== 'food');
+                        exerciseTypeContainer.classList.toggle('hidden', currentLogType !== 'exercise');
+                        logTypeButtons.forEach(btn => { btn.classList.remove('border-indigo-500', 'text-indigo-600'); btn.classList.add('text-gray-500'); });
+                        button.classList.add('border-indigo-500', 'text-indigo-600');
+                    });
+                });
+
+                logFileInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const maxWidth = 800, maxHeight = 600;
+                            let { width, height } = img;
+                            if (width > height) { if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
+                            } else { if (height > maxHeight) { width = Math.round((width * maxHeight) / height); height = maxHeight; } }
+                            const canvas = document.createElement('canvas');
+                            canvas.width = width; canvas.height = height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, width, height);
+                            const resizedBase64 = canvas.toDataURL('image/jpeg', 0.85);
+                            logImageBase64 = resizedBase64;
+                            logPreview.src = resizedBase64;
+                            logPreview.classList.remove('hidden');
+                            logPlaceholderIcon.classList.add('hidden');
+                        };
+                        img.src = event.target.result;
                     };
-                    img.src = event.target.result;
-                };
-                reader.readAsDataURL(file);
-            });
+                    reader.readAsDataURL(file);
+                });
 
-            logSubmitBtn.addEventListener('click', saveLog);
+                logSubmitBtn.addEventListener('click', saveLog);
 
-            // --- Initial Load ---
-            loadProfile();
-            // loadHistory is now called when navigating to the page
+                // --- Initial Load ---
+                loadProfile();
+            }
         });
     </script>
 </body>
