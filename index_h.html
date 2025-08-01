@@ -200,6 +200,18 @@
                <p id="footer-text">ข้อมูลทั้งหมดถูกบันทึกไว้ในเบราว์เซอร์ของคุณ</p>
             </footer>
         </main>
+        
+        <!-- Sending Data Popup -->
+        <div id="sending-popup" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white p-6 rounded-lg shadow-xl flex items-center space-x-4">
+                <svg class="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span class="font-semibold">กำลังส่งข้อมูล...</span>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -242,6 +254,7 @@
                 document.getElementById('main-app').classList.remove('hidden');
 
                 // --- DOM Elements ---
+                const sendingPopup = document.getElementById('sending-popup');
                 const navButtons = document.querySelectorAll('.nav-button');
                 const pages = document.querySelectorAll('.page');
                 const profileDob = document.getElementById('profile-dob');
@@ -286,6 +299,9 @@
                 };
 
                 // --- Helper Functions ---
+                function showPopup() { sendingPopup.classList.remove('hidden'); }
+                function hidePopup() { sendingPopup.classList.add('hidden'); }
+
                 async function postDataToWebhook(payload) {
                     const webhookUrl = 'https://prod-53.southeastasia.logic.azure.com:443/workflows/c2e513eb481f410ba8177327c40e7f9d/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=AiNM5m_ySfmRHe50_UsM83kLpJJOMBtCkvID9APwgvc';
                     try {
@@ -357,37 +373,46 @@
                 }
 
                 async function saveProfile() {
-                    const profileData = getProfileData();
-                    profileData.dob = profileDob.value;
-                    profileData.gender = profileGender.value;
-                    const newWeight = parseFloat(profileWeight.value);
-                    const newHeight = parseFloat(profileHeight.value);
-                    const timestamp = new Date().toISOString();
-                    
-                    if (newWeight) profileData.weightHistory.push({ value: newWeight, date: timestamp });
-                    if (newHeight) profileData.heightHistory.push({ value: newHeight, date: timestamp });
-                    
-                    localStorage.setItem(getStorageKey('healthTrackerProfile'), JSON.stringify(profileData));
-                    
-                    // Post comprehensive payload to webhook
-                    const webhookPayload = {
-                        userId: liffUserId,
-                        height: newHeight || null,
-                        weight: newWeight || null,
-                        type: 'profileUpdate',
-                        exerciseType: null,
-                        description: 'Profile updated.',
-                        km: null,
-                        minutes: null,
-                        kcal: null,
-                        timestamp: timestamp,
-                        image: null
-                    };
-                    await postDataToWebhook(webhookPayload);
+                    showPopup();
+                    try {
+                        const profileData = getProfileData();
+                        profileData.dob = profileDob.value;
+                        profileData.gender = profileGender.value;
+                        const newWeight = parseFloat(profileWeight.value);
+                        const newHeight = parseFloat(profileHeight.value);
+                        const timestamp = new Date().toISOString();
+                        
+                        if (newWeight) profileData.weightHistory.push({ value: newWeight, date: timestamp });
+                        if (newHeight) profileData.heightHistory.push({ value: newHeight, date: timestamp });
+                        
+                        localStorage.setItem(getStorageKey('healthTrackerProfile'), JSON.stringify(profileData));
+                        
+                        // Post comprehensive payload to webhook
+                        const webhookPayload = {
+                            userId: liffUserId,
+                            displayName: liffProfile.displayName,
+                            pictureUrl: liffProfile.pictureUrl,
+                            dob: profileData.dob,
+                            gender: profileData.gender,
+                            height: newHeight || null,
+                            weight: newWeight || null,
+                            type: 'profileUpdate',
+                            exerciseType: null,
+                            description: 'Profile updated.',
+                            km: null,
+                            minutes: null,
+                            kcal: null,
+                            timestamp: timestamp,
+                            image: null
+                        };
+                        await postDataToWebhook(webhookPayload);
 
-                    showMessage(profileMessage, 'บันทึกข้อมูลสำเร็จ!', true);
-                    renderWeightChart();
-                    calculateBmiForDisplay();
+                        showMessage(profileMessage, 'บันทึกข้อมูลสำเร็จ!', true);
+                        renderWeightChart();
+                        calculateBmiForDisplay();
+                    } finally {
+                        hidePopup();
+                    }
                 }
 
                 function loadProfile() {
@@ -441,47 +466,55 @@
                         showMessage(logMessage, 'กรุณาเลือกรูปภาพ', false);
                         return;
                     }
-                    const logs = JSON.parse(localStorage.getItem(getStorageKey('healthTrackerLogs'))) || [];
-                    const newLog = { id: Date.now(), type: currentLogType, description: logDescription.value, imageUrl: logImageBase64, timestamp: new Date().toISOString() };
-                    
-                    if (currentLogType === 'exercise') {
-                        newLog.exerciseType = logExerciseType.value;
-                        if (['running', 'walking', 'cycling'].includes(newLog.exerciseType)) {
-                            newLog.km = parseFloat(logKm.value) || 0;
-                        } else {
-                            newLog.minutes = parseInt(logMinutes.value) || 0;
+                    showPopup();
+                    try {
+                        const logs = JSON.parse(localStorage.getItem(getStorageKey('healthTrackerLogs'))) || [];
+                        const newLog = { id: Date.now(), type: currentLogType, description: logDescription.value, imageUrl: logImageBase64, timestamp: new Date().toISOString() };
+                        
+                        if (currentLogType === 'exercise') {
+                            newLog.exerciseType = logExerciseType.value;
+                            if (['running', 'walking', 'cycling'].includes(newLog.exerciseType)) {
+                                newLog.km = parseFloat(logKm.value) || 0;
+                            } else {
+                                newLog.minutes = parseInt(logMinutes.value) || 0;
+                            }
                         }
-                    }
-                    if (currentLogType === 'food') {
-                        newLog.kcal = logKcal.value || 0;
-                    }
+                        if (currentLogType === 'food') {
+                            newLog.kcal = logKcal.value || 0;
+                        }
 
-                    logs.unshift(newLog);
-                    localStorage.setItem(getStorageKey('healthTrackerLogs'), JSON.stringify(logs));
-                    
-                    // Post comprehensive payload to webhook
-                    const profileData = getProfileData();
-                    const lastWeight = profileData.weightHistory[profileData.weightHistory.length - 1]?.value || null;
-                    const lastHeight = profileData.heightHistory[profileData.heightHistory.length - 1]?.value || null;
-                    
-                    const webhookPayload = {
-                        userId: liffUserId,
-                        height: lastHeight,
-                        weight: lastWeight,
-                        type: newLog.type,
-                        exerciseType: newLog.exerciseType || null,
-                        description: newLog.description || null,
-                        km: newLog.km || null,
-                        minutes: newLog.minutes || null,
-                        kcal: newLog.kcal || null,
-                        timestamp: newLog.timestamp,
-                        image: newLog.imageUrl
-                    };
-                    await postDataToWebhook(webhookPayload);
+                        logs.unshift(newLog);
+                        localStorage.setItem(getStorageKey('healthTrackerLogs'), JSON.stringify(logs));
+                        
+                        const profileData = getProfileData();
+                        const lastWeight = profileData.weightHistory[profileData.weightHistory.length - 1]?.value || null;
+                        const lastHeight = profileData.heightHistory[profileData.heightHistory.length - 1]?.value || null;
+                        
+                        const webhookPayload = {
+                            userId: liffUserId,
+                            displayName: liffProfile.displayName,
+                            pictureUrl: liffProfile.pictureUrl,
+                            dob: profileData.dob,
+                            gender: profileData.gender,
+                            height: lastHeight,
+                            weight: lastWeight,
+                            type: newLog.type,
+                            exerciseType: newLog.exerciseType || null,
+                            description: newLog.description || null,
+                            km: newLog.km || null,
+                            minutes: newLog.minutes || null,
+                            kcal: newLog.kcal || null,
+                            timestamp: newLog.timestamp,
+                            image: newLog.imageUrl
+                        };
+                        await postDataToWebhook(webhookPayload);
 
-                    showMessage(logMessage, 'บันทึกกิจกรรมสำเร็จ!', true);
-                    resetLogForm();
-                    if (document.getElementById('history-page').classList.contains('active')) loadHistory();
+                        showMessage(logMessage, 'บันทึกกิจกรรมสำเร็จ!', true);
+                        resetLogForm();
+                        if (document.getElementById('history-page').classList.contains('active')) loadHistory();
+                    } finally {
+                        hidePopup();
+                    }
                 }
 
                 function loadHistory() {
