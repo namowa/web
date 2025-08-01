@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Health Tracker (LIFF)</title>
+    <title>Health Tracker</title>
     <!-- LIFF SDK -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <!-- Tailwind CSS for styling -->
@@ -772,11 +772,19 @@
                         currentLogType = button.dataset.logType;
                         const isExercise = currentLogType === 'exercise';
                         logUploadLabel.textContent = `อัปโหลดรูปภาพ${isExercise ? 'การออกกำลังกาย' : 'อาหาร'}`;
-                        kcalInputContainer.classList.toggle('hidden', !isExercise);
-                        exerciseTypeContainer.classList.toggle('hidden', !isExercise);
-                        kcalInputContainer.classList.toggle('hidden', isExercise);
-                        // Trigger change on exercise type to set correct input field
-                        if (isExercise) logExerciseType.dispatchEvent(new Event('change'));
+                        
+                        // New logic for showing/hiding inputs
+                        if (isExercise) {
+                            exerciseTypeContainer.classList.remove('hidden');
+                            kcalInputContainer.classList.add('hidden');
+                            // Trigger change to show/hide km or minutes input
+                            logExerciseType.dispatchEvent(new Event('change'));
+                        } else { // Food
+                            exerciseTypeContainer.classList.add('hidden');
+                            kcalInputContainer.classList.remove('hidden');
+                            kmInputContainer.classList.add('hidden');
+                            minutesInputContainer.classList.add('hidden');
+                        }
 
                         logTypeButtons.forEach(btn => { btn.classList.remove('border-indigo-500', 'text-indigo-600'); btn.classList.add('text-gray-500'); });
                         button.classList.add('border-indigo-500', 'text-indigo-600');
