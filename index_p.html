@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PM Application Clickable Prototype (HTML)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f7f6;
+        }
+        .form-input {
+            @apply shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200;
+        }
+        .page {
+            display: none;
+        }
+        .page.active {
+            display: block;
+        }
+        .web-layout {
+            display: none;
+        }
+        .web-layout.active {
+            display: flex;
+        }
+    </style>
+</head>
+<body>
+    <!-- Main container for the app -->
+    <div id="app-root">
+        <!-- Login Page -->
+        <div id="login-page" class="page active"></div>
+
+        <!-- Web App Layout -->
+        <div id="web-layout" class="web-layout min-h-screen bg-gray-100 font-sans">
+            <div id="sidebar-container"></div>
+            <div class="flex-1 flex flex-col">
+                <div id="navbar-container"></div>
+                <div id="web-content" class="flex-1">
+                    <div id="web-dashboard-page" class="page"></div>
+                    <div id="web-machine-register-page" class="page"></div>
+                    <div id="web-machine-detail-page" class="page"></div>
+                    <div id="web-job-management-page" class="page"></div>
+                    <div id="web-job-detail-page" class="page"></div>
+                    <div id="web-store-confirmation-page" class="page"></div>
+                    <div id="web-store-parts-summary-page" class="page"></div>
+                    <div id="web-pc-confirmation-page" class="page"></div>
+                    <div id="web-reports-page" class="page"></div>
+                    <div id="web-monthly-plan-page" class="page"></div>
+                    <div id="web-user-management-page" class="page"></div>
+                    <div id="web-settings-page" class="page"></div>
+                    <div id="web-admin-workflow-page" class="page"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile App Layout -->
+        <div id="mobile-layout" class="page min-h-screen bg-gray-100 font-sans">
+             <div id="mobile-my-jobs-page" class="page"></div>
+             <div id="mobile-job-detail-page" class="page"></div>
+        </div>
+    </div>
+
+    <!-- Loading and Error Modals -->
+    <div id="loading-overlay" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="text-center text-white">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-300 mx-auto mb-4"></div>
+            <p class="text-lg">Loading...</p>
+        </div>
+    </div>
+    <div id="error-modal" class="fixed inset-0 bg-red-600 bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div class="text-center p-8 rounded-lg shadow-md bg-white">
+            <h2 class="text-2xl font-bold text-red-700 mb-4">Application Error</h2>
+            <p id="error-message" class="text-gray-700">An unexpected error occurred.</p>
+            <p class="text-gray-500 mt-4">Please try refreshing the page.</p>
+        </div>
+    </div>
+
+
+    <script type="module">
+        // Firebase Imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Global Variables & State ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let db, auth;
+
+        const state = {
+            currentPage: 'login',
+            loggedInUser: null,
+            machines: [],
+            jobs: [],
+            plans: [],
+            selectedJob: null,
+            selectedMachine: null,
+            loading: true,
+            error: null,
+            userId: null,
+            machineRegistersCache: {},
+            ganttChartDate: new Date(),
+            monthlyPlanDate: new Date(),
+        };
+
+        // --- UI Containers ---
+        const appRoot = document.getElementById('app-root');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const errorModal = document.getElementById('error-modal');
+
+        // --- Helper Functions ---
+        const showLoading = (isLoading) => {
+            loadingOverlay.classList.toggle('hidden', !isLoading);
+        };
+
+        const showError = (message) => {
+            document.getElementById('error-message').textContent = message;
+            errorModal.classList.remove('hidden');
+        };
+        
+        const calculateNextPMDate = (lastPMDate, frequency) => {
+            if (!lastPMDate) return 'N/A';
+            const date = new Date(lastPMDate);
+            if (isNaN(date.getTime())) return 'Invalid Date';
+
+            let nextDate = new Date(date);
+            switch (frequency.toLowerCase()) {
+                case 'daily': nextDate.setDate(date.getDate() + 1); break;
+                case 'weekly': nextDate.setDate(date.getDate() + 7); break;
+                case 'monthly': nextDate.setMonth(date.getMonth() + 1); break;
+                case 'quarterly': nextDate.setMonth(date.getMonth() + 3); break;
+                case 'semi-annually': nextDate.setMonth(date.getMonth() + 6); break;
+                case 'annually': nextDate.setFullYear(date.getFullYear() + 1); break;
+                default: return 'N/A (Custom)';
+            }
+            return nextDate.toISOString().split('T')[0];
+        };
+
+        const getTodaysLastJobNumber = async () => {
+            const today = new Date();
+            const year = today.getFullYear().toString().slice(-2);
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            const prefix = `PM${year}${month}${day}`;
+
+            const jobsCollectionRef = collection(db, `artifacts/${appId}/public/data/jobs`);
+            const q = query(jobsCollectionRef, where('id', '>=', prefix), where('id', '<', prefix + 'zzz'), orderBy('id', 'desc'), limit(1));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+                const lastJobId = querySnapshot.docs[0].id;
+                return parseInt(lastJobId.slice(-3), 10);
+            }
+            return 0;
+        };
+
+        const generateSingleNewJobId = async () => {
+            const lastNumber = await getTodaysLastJobNumber();
+            const newNumber = lastNumber + 1;
+            const today = new Date();
+            const year = today.getFullYear().toString().slice(-2);
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            const prefix = `PM${year}${month}${day}`;
+            return `${prefix}${String(newNumber).padStart(3, '0')}`;
+        };
+
+        // --- Navigation ---
+        const navigate = (page, data = null) => {
+            state.currentPage = page;
+            if (page === 'web-job-detail' || page === 'mobile-job-detail') {
+                state.selectedJob = data;
+            } else if (page === 'web-machine-detail') {
+                state.selectedMachine = data;
+            } else {
+                state.selectedJob = null;
+                state.selectedMachine = null;
+            }
+            render();
+        };
+
+        // --- Rendering Engine ---
+        const render = () => {
+            // Hide all pages and layouts first
+            document.querySelectorAll('.page, .web-layout').forEach(el => el.classList.remove('active'));
+
+            if (state.error) {
+                showError(state.error);
+                return;
+            }
+            if (state.loading && !state.loggedInUser) {
+                showLoading(true);
+                return;
+            }
+            showLoading(false);
+
+            if (!state.loggedInUser) {
+                // FIX: Correctly call the render function from the window object.
+                document.getElementById('login-page').innerHTML = window.render_login_page();
+                document.getElementById('login-page').classList.add('active');
+            } else {
+                if (state.loggedInUser.type === 'web') {
+                    // FIX: Correctly call the render functions from the window object.
+                    document.getElementById('sidebar-container').innerHTML = window.renderSidebar();
+                    document.getElementById('navbar-container').innerHTML = window.renderNavbar();
+                    document.getElementById('web-layout').classList.add('active');
+                    
+                    const pageContainer = document.getElementById(`${state.currentPage}-page`);
+                    if (pageContainer) {
+                        // This dynamic call is correct as it accesses the window object.
+                        pageContainer.innerHTML = window[`render_${state.currentPage.replace(/-/g, '_')}`]();
+                        pageContainer.classList.add('active');
+                    }
+                } else { // Mobile
+                    document.getElementById('mobile-layout').classList.add('active');
+                    const pageContainer = document.getElementById(`${state.currentPage}-page`);
+                    if (pageContainer) {
+                        // This dynamic call is also correct.
+                        pageContainer.innerHTML = window[`render_${state.currentPage.replace(/-/g, '_')}`]();
+                        pageContainer.classList.add('active');
+                    }
+                }
+            }
+        };
+
+        // --- Page/Component Render Functions (HTML strings) ---
+
+        window.render_login_page = () => {
+            return `
+                <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-purple-100 p-4">
+                    <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 hover:scale-105">
+                        <div class="flex justify-center mb-6">
+                            <img src="https://img2.pic.in.th/pic/A-professional-and-modern-logo-design-for-a-maintenance-planning-software-called-PM-Sync.-The-logo.png" alt="PM Sync-Up Logo" class="w-24 h-24" />
+                        </div>
+                        <h2 class="text-3xl font-bold text-center text-gray-800 mb-8">PM Sync-Up</h2>
+                        <div id="login-error" class="text-red-500 text-center mb-4 hidden"></div>
+                        <div class="mb-6">
+                            <label class="block text-gray-700 text-sm font-bold mb-2" for="username">Username</label>
+                            <input type="text" id="username" class="form-input" placeholder="Enter your username" />
+                        </div>
+                        <div class="mb-8">
+                            <label class="block text-gray-700 text-sm font-bold mb-2" for="password">Password</label>
+                            <input type="password" id="password" class="form-input" placeholder="********" />
+                        </div>
+                        <button data-action="login" class="w-full bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-700 hover:to-purple-800 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline shadow-lg transform transition-all duration-300 hover:scale-105">
+                            Login
+                        </button>
+                        <p class="text-center text-gray-600 text-sm mt-6">
+                            <span class="font-semibold">Test Accounts:</span><br/>
+                            Admin: \`admin/pass\`<br/>
+                            Planner: \`planner/pass\`<br/>
+                            Supervisor: \`supervisor/pass\`<br/>
+                            Store: \`store/pass\`<br/>
+                            PC: \`pc/pass\`<br/>
+                            Technician: \`technician/pass\`<br/>
+                            Chief Production: \`chiefprod/pass\`<br/>
+                            QC: \`qc/pass\`
+                        </p>
+                    </div>
+                </div>
+            `;
+        };
+
+        window.renderNavbar = () => {
+            if (!state.loggedInUser) return '';
+            return `
+                <nav class="bg-white p-4 text-gray-800 shadow-md rounded-b-lg">
+                    <div class="container mx-auto flex justify-between items-center">
+                        <div class="text-2xl font-bold text-gray-800">PM Sync-Up</div>
+                        <div class="flex items-center space-x-4">
+                            <span class="text-lg font-semibold text-gray-700">${state.loggedInUser.name}</span>
+                            <div class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden">
+                                <img src="https://placehold.co/40x40/cccccc/ffffff?text=User" alt="User Profile" class="w-full h-full object-cover" />
+                            </div>
+                            <button data-action="logout" class="bg-red-500 text-white px-4 py-2 rounded-full shadow-md hover:bg-red-600 transition duration-300 ease-in-out">
+                                Logout
+                            </button>
+                        </div>
+                    </div>
+                </nav>
+            `;
+        };
+
+        window.renderSidebar = () => {
+            if (!state.loggedInUser || state.loggedInUser.type === 'mobile') return '';
+
+            const menuItems = [
+                { id: 'web-dashboard', name: 'Dashboard', icon: 'fas fa-tachometer-alt', roles: ['Admin', 'Planner', 'Supervisor', 'Store', 'PC'] },
+                { id: 'web-machine-register', name: 'Machine Register', icon: 'fas fa-cogs', roles: ['Admin', 'Planner'] },
+                { id: 'web-job-management', name: 'Job Management', icon: 'fas fa-clipboard-list', roles: ['Admin', 'Supervisor'] },
+                { id: 'web-monthly-plan', name: 'Monthly Plan', icon: 'fas fa-calendar-alt', roles: ['Admin', 'Planner', 'Supervisor'] },
+                { id: 'web-store-confirmation', name: 'Store', icon: 'fas fa-warehouse', roles: ['Admin', 'Store'] },
+                { id: 'web-store-parts-summary', name: 'Parts Summary', icon: 'fas fa-boxes', roles: ['Admin', 'Store'] },
+                { id: 'web-pc-confirmation', name: 'PC Confirmation', icon: 'fas fa-industry', roles: ['Admin', 'PC'] },
+                { id: 'web-reports', name: 'Reports', icon: 'fas fa-chart-line', roles: ['Admin', 'Planner', 'Supervisor'] },
+                { id: 'web-user-management', name: 'User Management', icon: 'fas fa-users', roles: ['Admin'] },
+                { id: 'web-settings', name: 'Settings', icon: 'fas fa-cog', roles: ['Admin'] },
+                { id: 'web-admin-workflow', name: 'Admin Workflow', icon: 'fas fa-user-shield', roles: ['Admin'] },
+            ];
+
+            return `
+                <div class="w-64 bg-gray-800 text-white p-4 h-screen shadow-xl rounded-r-lg flex flex-col">
+                    <div class="flex items-center mb-8">
+                        <img src="https://img2.pic.in.th/pic/A-professional-and-modern-logo-design-for-a-maintenance-planning-software-called-PM-Sync.-The-logo.png" alt="PM Sync-Up Logo" class="w-12 h-12 mr-3" />
+                        <span class="text-2xl font-bold">PM Sync-Up</span>
+                    </div>
+                    <ul class="space-y-3 flex-1">
+                        ${menuItems.map(item =>
+                            state.loggedInUser.roles.some(role => item.roles.includes(role)) ? `
+                            <li>
+                                <button data-action="navigate" data-page="${item.id}" class="w-full text-left px-4 py-2 rounded-md flex items-center space-x-3 transition duration-200 ease-in-out ${state.currentPage === item.id ? 'bg-blue-700 text-white shadow-inner' : 'hover:bg-blue-700 hover:text-white'}">
+                                    <i class="${item.icon} text-lg"></i>
+                                    <span>${item.name}</span>
+                                </button>
+                            </li>` : ''
+                        ).join('')}
+                    </ul>
+                </div>
+            `;
+        };
+        
+        // --- Placeholder for other render functions ---
+        window.render_web_dashboard = () => `
+            <div class="flex-1 p-8 bg-gray-100">
+                <h1 class="text-3xl font-bold text-gray-800 mb-8">DASHBOARD</h1>
+                <p>Dashboard content will be rendered here.</p>
+            </div>`;
+        window.render_web_machine_register = () => `<div>Machine Register Page</div>`;
+        window.render_web_machine_detail = () => `<div>Machine Detail Page</div>`;
+        window.render_web_job_management = () => `<div>Job Management Page</div>`;
+        window.render_web_job_detail = () => `<div>Job Detail Page</div>`;
+        window.render_web_store_confirmation = () => `<div>Store Confirmation Page</div>`;
+        window.render_web_store_parts_summary = () => `<div>Store Parts Summary Page</div>`;
+        window.render_web_pc_confirmation = () => `<div>PC Confirmation Page</div>`;
+        window.render_web_reports = () => `<div>Reports Page</div>`;
+        window.render_web_monthly_plan = () => `<div>Monthly Plan Page</div>`;
+        window.render_web_user_management = () => `<div>User Management Page</div>`;
+        window.render_web_settings = () => `<div>Settings Page</div>`;
+        window.render_web_admin_workflow = () => `<div>Admin Workflow Page</div>`;
+        window.render_mobile_my_jobs = () => `<div>My Jobs (Mobile)</div>`;
+        window.render_mobile_job_detail = () => `<div>Job Detail (Mobile)</div>`;
+
+
+        // --- Event Handlers ---
+        const handleLogin = () => {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('login-error');
+            errorDiv.classList.add('hidden');
+            
+            let user = null;
+            let startPage = '';
+
+            if (username === 'planner' && password === 'pass') {
+                user = { id: 'user1', name: 'John Doe', role: 'Planner', roles: ['Planner', 'Supervisor', 'Admin'], type: 'web' };
+                startPage = 'web-dashboard';
+            } else if (username === 'admin' && password === 'pass') {
+                user = { id: 'admin1', name: 'Super Admin', role: 'Admin', roles: ['Admin', 'Planner', 'Supervisor', 'Store', 'PC', 'Technician', 'Chief Production', 'QC'], type: 'web' };
+                startPage = 'web-admin-workflow';
+            } else if (username === 'technician' && password === 'pass') {
+                user = { id: 'user5', name: 'Tom Tech', role: 'Technician', roles: ['Technician'], type: 'mobile' };
+                startPage = 'mobile-my-jobs';
+            } // Add other roles here...
+            else {
+                errorDiv.textContent = 'Invalid username or password.';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+
+            state.loggedInUser = user;
+            navigate(startPage);
+        };
+
+        const handleLogout = () => {
+            state.loggedInUser = null;
+            // In a real app: await auth.signOut();
+            navigate('login');
+        };
+
+        // --- Global Event Listener ---
+        document.body.addEventListener('click', (e) => {
+            const actionTarget = e.target.closest('[data-action]');
+            if (!actionTarget) return;
+            const action = actionTarget.dataset.action;
+
+            switch (action) {
+                case 'login':
+                    handleLogin();
+                    break;
+                case 'logout':
+                    handleLogout();
+                    break;
+                case 'navigate':
+                    const page = actionTarget.dataset.page;
+                    navigate(page);
+                    break;
+                // Add other actions here
+            }
+        });
+        
+        // Add keypress listener for login form
+        document.body.addEventListener('keypress', (e) => {
+            // Only trigger on the login page and if the target is an input field
+            if (state.currentPage === 'login' && e.target.tagName === 'INPUT' && e.key === 'Enter') {
+                handleLogin();
+            }
+        });
+
+
+        // --- Firebase & App Initialization ---
+        const initializeAppFlow = async () => {
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        state.userId = user.uid;
+                        // For this prototype, we don't automatically log in.
+                        // The user must still go through the login page.
+                        // In a real app, you might check for a saved session here.
+                    } else {
+                        state.userId = null;
+                    }
+                    state.loading = false;
+                    render();
+                });
+            } catch (err) {
+                console.error("Firebase initialization error:", err);
+                state.error = "Failed to initialize application.";
+                state.loading = false;
+                render();
+            }
+        };
+
+        // --- Start the application ---
+        initializeAppFlow();
+
+    </script>
+</body>
+</html>
