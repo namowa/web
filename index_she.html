@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>แอปสะสมแต้มพนักงาน</title>
+    <title>SHE Month - สะสมแต้ม</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,7 +33,7 @@
     <!-- หน้าจอ Login -->
     <div id="login-screen" class="min-h-screen flex items-center justify-center bg-gray-100">
         <div class="bg-white p-8 rounded-xl shadow-lg text-center w-full max-w-sm">
-            <h1 class="text-3xl font-bold mb-2 text-gray-800">พนักงานสุขใจ</h1>
+            <h1 class="text-3xl font-bold mb-2 text-gray-800">SHE Month - เดือนแห่งความปลอดภัย</h1>
             <p class="text-gray-500 mb-6">แอปสะสมแต้มและของรางวัล</p>
             <input id="login-userid-input" type="text" placeholder="กรอกรหัสพนักงานของคุณ" class="w-full px-4 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             <button id="login-button" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
@@ -75,7 +75,7 @@
         <header class="bg-white shadow-md">
             <div class="container mx-auto px-4 py-4 flex justify-between items-center">
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-800">พนักงานสุขใจ</h1>
+                    <h1 class="text-2xl font-bold text-gray-800">SHE Month - เดือนแห่งความปลอดภัย</h1>
                     <p id="welcome-message" class="text-gray-500">ยินดีต้อนรับ, </p>
                 </div>
                  <div class="flex items-center">
@@ -86,10 +86,8 @@
                 </div>
             </div>
             <nav class="container mx-auto px-4">
-                <div class="flex border-b">
-                    <button data-page="dashboard" class="nav-button py-3 px-4 font-semibold border-b-2 border-blue-600 text-blue-600">แดชบอร์ด</button>
-                    <button data-page="rewards" class="nav-button py-3 px-4 font-semibold text-gray-500"><span class="inline-block align-middle mr-1">🎁</span> แลกของรางวัล</button>
-                    <button data-page="lottery" class="nav-button py-3 px-4 font-semibold text-gray-500"><span class="inline-block align-middle mr-1">🎟️</span> สลากเสี่ยงโชค</button>
+                <div id="nav-buttons-container" class="flex border-b">
+                    <!-- Nav buttons will be inserted here by JS -->
                 </div>
             </nav>
         </header>
@@ -105,7 +103,7 @@
     <script type="module">
         // Import Firebase SDKs
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, runTransaction } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, runTransaction, deleteDoc } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
 
         // --- Configuration ---
         const firebaseConfig = {
@@ -125,6 +123,7 @@
         let state = {
             currentPage: 'dashboard',
             userId: null,
+            isAdmin: false,
             userData: null,
             activities: [],
             rewards: [],
@@ -138,6 +137,7 @@
         const phoneVerificationScreen = document.getElementById('phone-verification-screen');
         const appContainer = document.getElementById('app-container');
         const mainContent = document.getElementById('main-content');
+        const navButtonsContainer = document.getElementById('nav-buttons-container');
         
         const loginButton = document.getElementById('login-button');
         const loginInput = document.getElementById('login-userid-input');
@@ -154,7 +154,6 @@
         const registerPhoneInput = document.getElementById('register-phone-input');
         const backToLoginButton = document.getElementById('back-to-login-button');
 
-        const navButtons = document.querySelectorAll('.nav-button');
         const logoutButton = document.getElementById('logout-button');
 
         // --- UI Functions ---
@@ -168,15 +167,22 @@
         }
 
         function renderHeader() {
-            if (!state.userData) return;
-            document.getElementById('welcome-message').textContent = `ยินดีต้อนรับ, ${state.userData.name || state.userId}`;
-            document.getElementById('points-display').innerHTML = `
-                <svg class="w-6 h-6 inline-block mr-2 text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path d="M17.25 12.193V6.75a5.25 5.25 0 00-10.5 0v5.443a2.25 2.25 0 01-.88 1.73l-2.12 1.646a.75.75 0 00.58 1.331h14.24a.75.75 0 00.58-1.331l-2.12-1.646a2.25 2.25 0 01-.88-1.73zM16.5 6.75a4.5 4.5 0 00-9 0v4.335a3.75 3.75 0 001.465 2.882l.035.027 2.12 1.646h2.76l2.12-1.646.035-.027a3.75 3.75 0 001.465-2.882V6.75zM5.25 18a.75.75 0 000 1.5h9.5a.75.75 0 000-1.5h-9.5z"></path></svg>
-                <span>${state.userData.points} คะแนน</span>`;
+            const welcomeMessage = document.getElementById('welcome-message');
+            const pointsDisplay = document.getElementById('points-display');
+            if (state.isAdmin) {
+                welcomeMessage.textContent = `ยินดีต้อนรับ, ผู้ดูแลระบบ`;
+                pointsDisplay.classList.add('hidden');
+            } else if (state.userData) {
+                pointsDisplay.classList.remove('hidden');
+                welcomeMessage.textContent = `ยินดีต้อนรับ, ${state.userData.name || state.userId}`;
+                pointsDisplay.innerHTML = `
+                    <svg class="w-6 h-6 inline-block mr-2 text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path d="M17.25 12.193V6.75a5.25 5.25 0 00-10.5 0v5.443a2.25 2.25 0 01-.88 1.73l-2.12 1.646a.75.75 0 00.58 1.331h14.24a.75.75 0 00.58-1.331l-2.12-1.646a2.25 2.25 0 01-.88-1.73zM16.5 6.75a4.5 4.5 0 00-9 0v4.335a3.75 3.75 0 001.465 2.882l.035.027 2.12 1.646h2.76l2.12-1.646.035-.027a3.75 3.75 0 001.465-2.882V6.75zM5.25 18a.75.75 0 000 1.5h9.5a.75.75 0 000-1.5h-9.5z"></path></svg>
+                    <span>${state.userData.points} คะแนน</span>`;
+            }
         }
         
         function render() {
-            if (!state.userData) {
+            if (!state.isAdmin && !state.userData) {
                 mainContent.innerHTML = `<div class="loader"></div>`;
                 return;
             }
@@ -185,9 +191,11 @@
                 case 'dashboard': renderDashboard(); break;
                 case 'rewards': renderRewards(); break;
                 case 'lottery': renderLottery(); break;
+                case 'admin': renderAdminPanel(); break;
             }
         }
         
+        // --- User Pages Rendering ---
         function renderDashboard() {
              const userStamps = state.userData.stamps || [];
             const stampCardHTML = `
@@ -229,7 +237,7 @@
         }
         
         function renderRewards() {
-             mainContent.innerHTML = `
+            const rewardsGridHTML = `
                 <div>
                     <h2 class="text-2xl font-bold mb-4 text-gray-800">ร้านค้าแลกของรางวัล</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -250,23 +258,137 @@
                             </div>`).join('')}
                     </div>
                 </div>`;
+
+            const redeemedHistory = state.userData.redeemedRewards || [];
+            redeemedHistory.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            const historyHTML = `
+                <div class="mt-8">
+                    <h3 class="text-xl font-bold mb-4 text-gray-700 border-t pt-6">ประวัติการแลกของรางวัล</h3>
+                    ${redeemedHistory.length > 0 ? `
+                        <div class="space-y-3 bg-white p-4 rounded-xl shadow-md">
+                            ${redeemedHistory.map(item => `
+                                <div class="flex justify-between items-center border-b pb-2 last:border-b-0">
+                                    <div>
+                                        <p class="font-semibold text-gray-800">${item.name}</p>
+                                        <p class="text-sm text-gray-500">วันที่: ${new Date(item.date).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} น.</p>
+                                    </div>
+                                    <span class="font-bold text-yellow-600">-${item.cost} คะแนน</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : `
+                        <p class="text-gray-500 text-center mt-4">ยังไม่มีประวัติการแลกของรางวัล</p>
+                    `}
+                </div>
+            `;
+            mainContent.innerHTML = rewardsGridHTML + historyHTML;
         }
 
         function renderLottery() {
-            const lottery = state.lotteryData;
+            const lottery = state.lotteryData || {};
+            const allEntries = lottery.entries || [];
+            const userEntries = allEntries.filter(id => id === state.userId).length;
+
             mainContent.innerHTML = `
                 <div class="bg-white p-6 rounded-xl shadow-md text-center">
                     <h2 class="text-2xl font-bold mb-2 text-gray-800">สลากเสี่ยงโชค</h2>
                     <p class="text-gray-600 mb-4">ลุ้นรับรางวัลใหญ่ประจำเดือน!</p>
                     <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 rounded-r-lg mb-6">
-                        <p class="font-bold">รางวัล: ${lottery?.prize || '...'}</p>
+                        <p class="font-bold">รางวัล: ${lottery.prize || '...'}</p>
                     </div>
-                    <p class="text-lg mb-4">ราคา: <span class="font-bold text-yellow-500">${lottery?.ticketCost || 0}</span> คะแนนต่อใบ</p>
+                    <p class="text-lg mb-4">ราคา: <span class="font-bold text-yellow-500">${lottery.ticketCost || 0}</span> คะแนนต่อใบ</p>
                     <button id="buy-ticket-btn" class="w-full max-w-xs mx-auto bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 disabled:bg-gray-400 transition-colors text-lg" ${!lottery || state.userData.points < lottery.ticketCost ? 'disabled' : ''}>
                         ซื้อสลาก
                     </button>
-                    <p class="text-sm text-gray-500 mt-4">จำนวนสลากที่ส่งเข้าร่วมแล้ว: ${lottery?.entries?.length || 0} ใบ</p>
+                    <div class="text-sm text-gray-500 mt-4 space-y-1">
+                        <p>คุณส่งสลากเข้าร่วมแล้ว: <span class="font-bold">${userEntries}</span> ใบ</p>
+                        <p>จำนวนสลากทั้งหมดในระบบ: <span class="font-bold">${allEntries.length}</span> ใบ</p>
+                    </div>
                 </div>`;
+        }
+        
+        // --- Admin Panel Rendering ---
+        function renderAdminPanel() {
+            mainContent.innerHTML = `
+                <div class="space-y-8">
+                    <div id="admin-activities-section" class="bg-white p-6 rounded-xl shadow-md"></div>
+                    <div id="admin-rewards-section" class="bg-white p-6 rounded-xl shadow-md"></div>
+                    <div id="admin-lottery-section" class="bg-white p-6 rounded-xl shadow-md"></div>
+                </div>
+            `;
+            renderAdminActivities();
+            renderAdminRewards();
+            renderAdminLottery();
+        }
+
+        function renderAdminActivities() {
+            const section = document.getElementById('admin-activities-section');
+            section.innerHTML = `
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">จัดการกิจกรรม</h2>
+                <div class="space-y-2 mb-6 max-h-64 overflow-y-auto">
+                    ${state.activities.map(act => `
+                        <div class="flex items-center justify-between p-2 border rounded-lg">
+                            <span class="truncate">${act.id}: ${act.name} (+${act.points})</span>
+                            <div>
+                                <button data-id="${act.id}" class="edit-activity-btn text-blue-500 hover:text-blue-700 mr-2">แก้ไข</button>
+                                <button data-id="${act.id}" class="delete-activity-btn text-red-500 hover:text-red-700">ลบ</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <form id="activity-form" class="space-y-3 border-t pt-4">
+                    <h3 class="font-semibold text-lg">เพิ่ม / แก้ไขกิจกรรม</h3>
+                    <input type="text" id="activity-id" placeholder="ID (e.g., act09)" class="w-full p-2 border rounded" required>
+                    <input type="text" id="activity-name" placeholder="ชื่อกิจกรรม" class="w-full p-2 border rounded" required>
+                    <input type="text" id="activity-description" placeholder="คำอธิบาย" class="w-full p-2 border rounded" required>
+                    <input type="number" id="activity-points" placeholder="คะแนน" class="w-full p-2 border rounded" required>
+                    <input type="text" id="activity-icon" placeholder="ไอคอน (Emoji)" class="w-full p-2 border rounded" required>
+                    <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700">บันทึกกิจกรรม</button>
+                    <button type="button" id="clear-activity-form" class="w-full bg-gray-300 text-gray-800 py-2 rounded-lg font-semibold hover:bg-gray-400 mt-2">ล้างฟอร์ม</button>
+                </form>
+            `;
+        }
+
+        function renderAdminRewards() {
+            const section = document.getElementById('admin-rewards-section');
+            section.innerHTML = `
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">จัดการของรางวัล</h2>
+                <div class="space-y-2 mb-6 max-h-64 overflow-y-auto">
+                    ${state.rewards.map(rew => `
+                        <div class="flex items-center justify-between p-2 border rounded-lg">
+                            <span class="truncate">${rew.id}: ${rew.name} (${rew.cost} คะแนน)</span>
+                            <div>
+                                <button data-id="${rew.id}" class="edit-reward-btn text-blue-500 hover:text-blue-700 mr-2">แก้ไข</button>
+                                <button data-id="${rew.id}" class="delete-reward-btn text-red-500 hover:text-red-700">ลบ</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <form id="reward-form" class="space-y-3 border-t pt-4">
+                    <h3 class="font-semibold text-lg">เพิ่ม / แก้ไขของรางวัล</h3>
+                    <input type="text" id="reward-id" placeholder="ID (e.g., rew05)" class="w-full p-2 border rounded" required>
+                    <input type="text" id="reward-name" placeholder="ชื่อของรางวัล" class="w-full p-2 border rounded" required>
+                    <input type="number" id="reward-cost" placeholder="คะแนนที่ใช้แลก" class="w-full p-2 border rounded" required>
+                    <input type="number" id="reward-stock" placeholder="จำนวนคงเหลือ" class="w-full p-2 border rounded" required>
+                    <input type="text" id="reward-img" placeholder="URL รูปภาพ" class="w-full p-2 border rounded" required>
+                    <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700">บันทึกของรางวัล</button>
+                    <button type="button" id="clear-reward-form" class="w-full bg-gray-300 text-gray-800 py-2 rounded-lg font-semibold hover:bg-gray-400 mt-2">ล้างฟอร์ม</button>
+                </form>
+            `;
+        }
+
+        function renderAdminLottery() {
+            const section = document.getElementById('admin-lottery-section');
+            const lottery = state.lotteryData || {};
+            section.innerHTML = `
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">จัดการสลากเสี่ยงโชค</h2>
+                <form id="lottery-form" class="space-y-3">
+                    <input type="text" id="lottery-prize" placeholder="ของรางวัล" class="w-full p-2 border rounded" value="${lottery.prize || ''}" required>
+                    <input type="number" id="lottery-cost" placeholder="ราคา (คะแนน)" class="w-full p-2 border rounded" value="${lottery.ticketCost || ''}" required>
+                    <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700">บันทึกข้อมูลสลาก</button>
+                </form>
+            `;
         }
 
         // --- Auth & Firestore Functions ---
@@ -280,15 +402,14 @@
             const userRef = doc(db, 'users', id);
             const userSnap = await getDoc(userRef);
 
-            state.userId = id; // Store the ID
+            state.userId = id; 
 
             if (userSnap.exists()) {
-                // User exists, show phone verification screen
-                verifyWelcomeText.innerHTML = `กรุณากรอกเบอร์โทรศัพท์เพื่อยืนยันรหัสพนักงาน: <span class="font-bold">${id}</span>`;
+                const isAdmin = id.toLowerCase() === 'admin';
+                verifyWelcomeText.innerHTML = `กรุณากรอกเบอร์โทรศัพท์เพื่อยืนยันรหัส${isAdmin ? 'ผู้ดูแลระบบ' : 'พนักงาน'}: <span class="font-bold">${id}</span>`;
                 loginScreen.classList.add('hidden');
                 phoneVerificationScreen.classList.remove('hidden');
             } else {
-                // User does not exist, show registration screen
                 registerWelcomeText.innerHTML = `กรอกข้อมูลสำหรับรหัสพนักงาน: <span class="font-bold">${id}</span>`;
                 loginScreen.classList.add('hidden');
                 registrationScreen.classList.remove('hidden');
@@ -308,7 +429,8 @@
             const userSnap = await getDoc(userRef);
 
             if (userSnap.exists() && userSnap.data().phone === phone) {
-                loginSuccess(id);
+                const isAdmin = id.toLowerCase() === 'admin';
+                loginSuccess(id, isAdmin);
             } else {
                 showToast("เบอร์โทรศัพท์ไม่ถูกต้อง", true);
             }
@@ -340,25 +462,24 @@
             loginSuccess(id);
         }
 
-        function loginSuccess(userId) {
+        function loginSuccess(userId, isAdmin = false) {
             state.userId = userId;
+            state.isAdmin = isAdmin;
+            
             loginScreen.classList.add('hidden');
             registrationScreen.classList.add('hidden');
             phoneVerificationScreen.classList.add('hidden');
             appContainer.classList.remove('hidden');
+
+            setupNav();
             attachListeners();
         }
 
         function handleLogout() {
             state.unsubscribers.forEach(unsub => unsub());
-            state.unsubscribers = [];
-            
-            state.userId = null;
-            state.userData = null;
+            state = { currentPage: 'dashboard', userId: null, isAdmin: false, userData: null, activities: [], rewards: [], lotteryData: null, unsubscribers: [] };
 
             appContainer.classList.add('hidden');
-            registrationScreen.classList.add('hidden');
-            phoneVerificationScreen.classList.add('hidden');
             loginScreen.classList.remove('hidden');
             loginInput.value = '';
             verifyPhoneInput.value = '';
@@ -399,8 +520,20 @@
                     
                     if (userDoc.data().points < reward.cost) throw "คะแนนไม่เพียงพอ";
                     if (rewardDoc.data().stock <= 0) throw "ของรางวัลหมดแล้ว";
+                    
+                    const newRedeemedList = [
+                        ...(userDoc.data().redeemedRewards || []),
+                        {
+                            name: reward.name,
+                            cost: reward.cost,
+                            date: new Date().toISOString()
+                        }
+                    ];
 
-                    transaction.update(userRef, { points: userDoc.data().points - reward.cost });
+                    transaction.update(userRef, { 
+                        points: userDoc.data().points - reward.cost,
+                        redeemedRewards: newRedeemedList
+                    });
                     transaction.update(rewardRef, { stock: rewardDoc.data().stock - 1 });
                 });
                 showToast(`แลก "${reward.name}" สำเร็จ!`);
@@ -431,30 +564,130 @@
                 console.error("Buy Ticket Transaction failed: ", e);
             }
         }
+
+        // --- Admin Action Handlers ---
+        async function handleActivitySave(e) {
+            e.preventDefault();
+            const id = document.getElementById('activity-id').value.trim();
+            if (!id) { showToast("กรุณากรอก Activity ID", true); return; }
+            const activityData = {
+                id: id,
+                name: document.getElementById('activity-name').value.trim(),
+                description: document.getElementById('activity-description').value.trim(),
+                points: Number(document.getElementById('activity-points').value),
+                stampIcon: document.getElementById('activity-icon').value.trim()
+            };
+            await setDoc(doc(db, "activities", id), activityData);
+            showToast("บันทึกกิจกรรมสำเร็จ!");
+            e.target.reset();
+        }
+
+        async function handleActivityDelete(id) {
+            if (confirm(`คุณต้องการลบกิจกรรม ID: ${id} ใช่หรือไม่?`)) {
+                await deleteDoc(doc(db, "activities", id));
+                showToast("ลบกิจกรรมสำเร็จ!");
+            }
+        }
+
+        async function handleRewardSave(e) {
+            e.preventDefault();
+            const id = document.getElementById('reward-id').value.trim();
+            if (!id) { showToast("กรุณากรอก Reward ID", true); return; }
+            const rewardData = {
+                id: id,
+                name: document.getElementById('reward-name').value.trim(),
+                cost: Number(document.getElementById('reward-cost').value),
+                stock: Number(document.getElementById('reward-stock').value),
+                img: document.getElementById('reward-img').value.trim()
+            };
+            await setDoc(doc(db, "rewards", id), rewardData);
+            showToast("บันทึกของรางวัลสำเร็จ!");
+            e.target.reset();
+        }
+
+        async function handleRewardDelete(id) {
+            if (confirm(`คุณต้องการลบของรางวัล ID: ${id} ใช่หรือไม่?`)) {
+                await deleteDoc(doc(db, "rewards", id));
+                showToast("ลบของรางวัลสำเร็จ!");
+            }
+        }
+
+        async function handleLotterySave(e) {
+            e.preventDefault();
+            const lotteryData = {
+                prize: document.getElementById('lottery-prize').value.trim(),
+                ticketCost: Number(document.getElementById('lottery-cost').value),
+                entries: state.lotteryData.entries || [] // Preserve entries
+            };
+            await setDoc(doc(db, "lottery", "current"), lotteryData);
+            showToast("บันทึกข้อมูลสลากสำเร็จ!");
+        }
         
         // --- Event Listeners Setup ---
         function attachListeners() {
             state.unsubscribers.forEach(unsub => unsub());
             state.unsubscribers = [];
 
-            const unsubUser = onSnapshot(doc(db, "users", state.userId), (doc) => {
-                state.userData = doc.data();
-                render();
-            });
+            if (!state.isAdmin) {
+                const unsubUser = onSnapshot(doc(db, "users", state.userId), (doc) => {
+                    state.userData = doc.data();
+                    render();
+                });
+                state.unsubscribers.push(unsubUser);
+            }
+
             const unsubActivities = onSnapshot(collection(db, "activities"), (snapshot) => {
-                state.activities = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                render();
+                state.activities = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => a.id.localeCompare(b.id));
+                if(state.userId) render();
             });
             const unsubRewards = onSnapshot(collection(db, "rewards"), (snapshot) => {
-                state.rewards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                render();
+                state.rewards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => a.id.localeCompare(b.id));
+                if(state.userId) render();
             });
             const unsubLottery = onSnapshot(doc(db, "lottery", "current"), (doc) => {
                 state.lotteryData = doc.data();
-                render();
+                if(state.userId) render();
             });
             
-            state.unsubscribers.push(unsubUser, unsubActivities, unsubRewards, unsubLottery);
+            state.unsubscribers.push(unsubActivities, unsubRewards, unsubLottery);
+        }
+
+        function setupNav() {
+            navButtonsContainer.innerHTML = ''; // Clear existing buttons
+            let navs = [
+                { page: 'dashboard', icon: '📊', text: 'แดชบอร์ด' },
+                { page: 'rewards', icon: '🎁', text: 'แลกของรางวัล' },
+                { page: 'lottery', icon: '🎟️', text: 'สลากเสี่ยงโชค' }
+            ];
+
+            if (state.isAdmin) {
+                state.currentPage = 'admin';
+                navs = [{ page: 'admin', icon: '⚙️', text: 'ผู้ดูแลระบบ' }];
+            } else {
+                state.currentPage = 'dashboard';
+            }
+
+            navs.forEach(nav => {
+                const btn = document.createElement('button');
+                btn.dataset.page = nav.page;
+                btn.className = 'nav-button py-3 px-4 font-semibold text-gray-500';
+                btn.innerHTML = `<span class="inline-block align-middle mr-1">${nav.icon}</span> ${nav.text}`;
+                navButtonsContainer.appendChild(btn);
+            });
+            
+            updateNavStyling();
+        }
+
+        function updateNavStyling() {
+            document.querySelectorAll('.nav-button').forEach(btn => {
+                btn.classList.remove('border-blue-600', 'text-blue-600');
+                btn.classList.add('text-gray-500');
+            });
+            const activeBtn = document.querySelector(`.nav-button[data-page="${state.currentPage}"]`);
+            if (activeBtn) {
+                activeBtn.classList.add('border-blue-600', 'text-blue-600');
+                activeBtn.classList.remove('text-gray-500');
+            }
         }
 
         // --- Initialization ---
@@ -475,19 +708,16 @@
             
             logoutButton.addEventListener('click', handleLogout);
             
-            navButtons.forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    state.currentPage = e.currentTarget.dataset.page;
-                    navButtons.forEach(b => {
-                        b.classList.remove('border-blue-600', 'text-blue-600');
-                        b.classList.add('text-gray-500');
-                    });
-                    e.currentTarget.classList.add('border-blue-600', 'text-blue-600');
+            navButtonsContainer.addEventListener('click', (e) => {
+                if (e.target.closest('.nav-button')) {
+                    state.currentPage = e.target.closest('.nav-button').dataset.page;
+                    updateNavStyling();
                     render();
-                });
+                }
             });
 
             mainContent.addEventListener('click', (e) => {
+                // User actions
                 if (e.target.closest('.join-activity-btn')) {
                     handleJoinActivity(e.target.closest('.join-activity-btn').dataset.activityId);
                 }
@@ -497,6 +727,48 @@
                 if (e.target.closest('#buy-ticket-btn')) {
                     handleBuyTicket();
                 }
+                // Admin actions
+                if (e.target.matches('.edit-activity-btn')) {
+                    const id = e.target.dataset.id;
+                    const act = state.activities.find(a => a.id === id);
+                    if (act) {
+                        document.getElementById('activity-id').value = act.id;
+                        document.getElementById('activity-name').value = act.name;
+                        document.getElementById('activity-description').value = act.description;
+                        document.getElementById('activity-points').value = act.points;
+                        document.getElementById('activity-icon').value = act.stampIcon;
+                    }
+                }
+                if (e.target.matches('.delete-activity-btn')) {
+                    handleActivityDelete(e.target.dataset.id);
+                }
+                if (e.target.matches('#clear-activity-form')) {
+                    document.getElementById('activity-form').reset();
+                }
+                if (e.target.matches('.edit-reward-btn')) {
+                    const id = e.target.dataset.id;
+                    const rew = state.rewards.find(r => r.id === id);
+                    if (rew) {
+                        document.getElementById('reward-id').value = rew.id;
+                        document.getElementById('reward-name').value = rew.name;
+                        document.getElementById('reward-cost').value = rew.cost;
+                        document.getElementById('reward-stock').value = rew.stock;
+                        document.getElementById('reward-img').value = rew.img;
+                    }
+                }
+                if (e.target.matches('.delete-reward-btn')) {
+                    handleRewardDelete(e.target.dataset.id);
+                }
+                if (e.target.matches('#clear-reward-form')) {
+                    document.getElementById('reward-form').reset();
+                }
+            });
+
+            mainContent.addEventListener('submit', (e) => {
+                e.preventDefault();
+                if (e.target.id === 'activity-form') handleActivitySave(e);
+                if (e.target.id === 'reward-form') handleRewardSave(e);
+                if (e.target.id === 'lottery-form') handleLotterySave(e);
             });
         });
     </script>
