@@ -37,8 +37,36 @@
             <p class="text-gray-500 mb-6">แอปสะสมแต้มและของรางวัล</p>
             <input id="login-userid-input" type="text" placeholder="กรอกรหัสพนักงานของคุณ" class="w-full px-4 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             <button id="login-button" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
-                เข้าสู่ระบบ
+                ต่อไป
             </button>
+        </div>
+    </div>
+
+    <!-- หน้าจอยืนยันเบอร์โทรศัพท์ -->
+    <div id="phone-verification-screen" class="hidden min-h-screen flex items-center justify-center bg-gray-100">
+        <div class="bg-white p-8 rounded-xl shadow-lg text-center w-full max-w-sm">
+            <h1 class="text-3xl font-bold mb-2 text-gray-800">ยืนยันตัวตน</h1>
+            <p id="verify-welcome-text" class="text-gray-500 mb-6">กรุณากรอกเบอร์โทรศัพท์เพื่อยืนยันรหัสพนักงาน:</p>
+            <input id="verify-phone-input" type="tel" placeholder="กรอกเบอร์โทรศัพท์" class="w-full px-4 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <button id="verify-button" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                ยืนยัน
+            </button>
+            <button id="back-to-login-from-verify-button" class="mt-4 text-sm text-gray-500 hover:text-blue-600">กลับไปหน้าเข้าสู่ระบบ</button>
+        </div>
+    </div>
+
+    <!-- หน้าจอลงทะเบียน -->
+    <div id="registration-screen" class="hidden min-h-screen flex items-center justify-center bg-gray-100">
+        <div class="bg-white p-8 rounded-xl shadow-lg text-center w-full max-w-sm">
+            <h1 class="text-3xl font-bold mb-2 text-gray-800">ลงทะเบียน</h1>
+            <p id="register-welcome-text" class="text-gray-500 mb-6">กรอกข้อมูลสำหรับรหัสพนักงาน: </p>
+            <input id="register-firstname-input" type="text" placeholder="ชื่อจริง" class="w-full px-4 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input id="register-lastname-input" type="text" placeholder="นามสกุล" class="w-full px-4 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input id="register-phone-input" type="tel" placeholder="เบอร์โทรศัพท์" class="w-full px-4 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <button id="register-button" class="w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 transition-colors">
+                ยืนยันการลงทะเบียน
+            </button>
+             <button id="back-to-login-button" class="mt-4 text-sm text-gray-500 hover:text-blue-600">กลับไปหน้าเข้าสู่ระบบ</button>
         </div>
     </div>
 
@@ -50,8 +78,11 @@
                     <h1 class="text-2xl font-bold text-gray-800">พนักงานสุขใจ</h1>
                     <p id="welcome-message" class="text-gray-500">ยินดีต้อนรับ, </p>
                 </div>
-                <div id="points-display" class="bg-yellow-100 border border-yellow-300 text-yellow-800 font-bold px-4 py-2 rounded-full flex items-center">
-                    <!-- Points will be rendered here -->
+                 <div class="flex items-center">
+                    <div id="points-display" class="bg-yellow-100 border border-yellow-300 text-yellow-800 font-bold px-4 py-2 rounded-full flex items-center mr-4">
+                        <!-- Points will be rendered here -->
+                    </div>
+                    <button id="logout-button" class="text-sm text-gray-500 hover:text-red-600">ออกจากระบบ</button>
                 </div>
             </div>
             <nav class="container mx-auto px-4">
@@ -72,11 +103,11 @@
     <div id="toast-container" class="fixed bottom-5 right-5 z-50"></div>
 
     <script type="module">
-        // Import a specific version of Firebase SDKs
+        // Import Firebase SDKs
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, getDocs, runTransaction } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, runTransaction } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
 
-        // --- Firebase Configuration ---
+        // --- Configuration ---
         const firebaseConfig = {
           apiKey: "AIzaSyDATchWwmazw3wPnuNk4i-d79rnyBpSDM0",
           authDomain: "line-liff-a543c.firebaseapp.com",
@@ -90,7 +121,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- State ของแอปพลิเคชัน ---
+        // --- Global State ---
         let state = {
             currentPage: 'dashboard',
             userId: null,
@@ -98,16 +129,33 @@
             activities: [],
             rewards: [],
             lotteryData: null,
-            unsubscribers: [] // To store unsubscribe functions for cleanup
+            unsubscribers: []
         };
 
         // --- DOM Elements ---
         const loginScreen = document.getElementById('login-screen');
+        const registrationScreen = document.getElementById('registration-screen');
+        const phoneVerificationScreen = document.getElementById('phone-verification-screen');
         const appContainer = document.getElementById('app-container');
         const mainContent = document.getElementById('main-content');
+        
         const loginButton = document.getElementById('login-button');
         const loginInput = document.getElementById('login-userid-input');
+        
+        const verifyButton = document.getElementById('verify-button');
+        const verifyWelcomeText = document.getElementById('verify-welcome-text');
+        const verifyPhoneInput = document.getElementById('verify-phone-input');
+        const backToLoginFromVerifyButton = document.getElementById('back-to-login-from-verify-button');
+
+        const registerButton = document.getElementById('register-button');
+        const registerWelcomeText = document.getElementById('register-welcome-text');
+        const registerFirstnameInput = document.getElementById('register-firstname-input');
+        const registerLastnameInput = document.getElementById('register-lastname-input');
+        const registerPhoneInput = document.getElementById('register-phone-input');
+        const backToLoginButton = document.getElementById('back-to-login-button');
+
         const navButtons = document.querySelectorAll('.nav-button');
+        const logoutButton = document.getElementById('logout-button');
 
         // --- UI Functions ---
         function showToast(message, isError = false) {
@@ -121,7 +169,7 @@
 
         function renderHeader() {
             if (!state.userData) return;
-            document.getElementById('welcome-message').textContent = `ยินดีต้อนรับ, ${state.userId}`;
+            document.getElementById('welcome-message').textContent = `ยินดีต้อนรับ, ${state.userData.name || state.userId}`;
             document.getElementById('points-display').innerHTML = `
                 <svg class="w-6 h-6 inline-block mr-2 text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path d="M17.25 12.193V6.75a5.25 5.25 0 00-10.5 0v5.443a2.25 2.25 0 01-.88 1.73l-2.12 1.646a.75.75 0 00.58 1.331h14.24a.75.75 0 00.58-1.331l-2.12-1.646a2.25 2.25 0 01-.88-1.73zM16.5 6.75a4.5 4.5 0 00-9 0v4.335a3.75 3.75 0 001.465 2.882l.035.027 2.12 1.646h2.76l2.12-1.646.035-.027a3.75 3.75 0 001.465-2.882V6.75zM5.25 18a.75.75 0 000 1.5h9.5a.75.75 0 000-1.5h-9.5z"></path></svg>
                 <span>${state.userData.points} คะแนน</span>`;
@@ -139,9 +187,9 @@
                 case 'lottery': renderLottery(); break;
             }
         }
-
+        
         function renderDashboard() {
-            const userStamps = state.userData.stamps || [];
+             const userStamps = state.userData.stamps || [];
             const stampCardHTML = `
                 <div class="bg-white p-6 rounded-xl shadow-md">
                     <h2 class="text-2xl font-bold mb-4 text-gray-800">บัตรสะสมแสตมป์</h2>
@@ -221,23 +269,99 @@
                 </div>`;
         }
 
-        // --- Firestore Functions ---
+        // --- Auth & Firestore Functions ---
         async function handleLogin() {
             const id = loginInput.value.trim();
-            if (!id) return;
+            if (!id) {
+                showToast("กรุณากรอกรหัสพนักงาน", true);
+                return;
+            }
 
             const userRef = doc(db, 'users', id);
             const userSnap = await getDoc(userRef);
 
-            if (!userSnap.exists()) {
-                await setDoc(userRef, { id: id, points: 0, stamps: [], redeemedRewards: [] });
+            state.userId = id; // Store the ID
+
+            if (userSnap.exists()) {
+                // User exists, show phone verification screen
+                verifyWelcomeText.innerHTML = `กรุณากรอกเบอร์โทรศัพท์เพื่อยืนยันรหัสพนักงาน: <span class="font-bold">${id}</span>`;
+                loginScreen.classList.add('hidden');
+                phoneVerificationScreen.classList.remove('hidden');
+            } else {
+                // User does not exist, show registration screen
+                registerWelcomeText.innerHTML = `กรอกข้อมูลสำหรับรหัสพนักงาน: <span class="font-bold">${id}</span>`;
+                loginScreen.classList.add('hidden');
+                registrationScreen.classList.remove('hidden');
             }
-            state.userId = id;
-            
+        }
+
+        async function handlePhoneVerification() {
+            const phone = verifyPhoneInput.value.trim();
+            const id = state.userId;
+
+            if (!phone) {
+                showToast("กรุณากรอกเบอร์โทรศัพท์", true);
+                return;
+            }
+
+            const userRef = doc(db, 'users', id);
+            const userSnap = await getDoc(userRef);
+
+            if (userSnap.exists() && userSnap.data().phone === phone) {
+                loginSuccess(id);
+            } else {
+                showToast("เบอร์โทรศัพท์ไม่ถูกต้อง", true);
+            }
+        }
+
+        async function handleRegistration() {
+            const firstname = registerFirstnameInput.value.trim();
+            const lastname = registerLastnameInput.value.trim();
+            const phone = registerPhoneInput.value.trim();
+            const id = state.userId; 
+
+            if (!firstname || !lastname || !phone) {
+                showToast("กรุณากรอกข้อมูลให้ครบทุกช่อง", true);
+                return;
+            }
+
+            const userRef = doc(db, 'users', id);
+            const newUser = {
+                id: id,
+                name: `${firstname} ${lastname}`,
+                phone: phone,
+                points: 0,
+                stamps: [],
+                redeemedRewards: []
+            };
+
+            await setDoc(userRef, newUser);
+            showToast("ลงทะเบียนสำเร็จ!");
+            loginSuccess(id);
+        }
+
+        function loginSuccess(userId) {
+            state.userId = userId;
             loginScreen.classList.add('hidden');
+            registrationScreen.classList.add('hidden');
+            phoneVerificationScreen.classList.add('hidden');
             appContainer.classList.remove('hidden');
-            
             attachListeners();
+        }
+
+        function handleLogout() {
+            state.unsubscribers.forEach(unsub => unsub());
+            state.unsubscribers = [];
+            
+            state.userId = null;
+            state.userData = null;
+
+            appContainer.classList.add('hidden');
+            registrationScreen.classList.add('hidden');
+            phoneVerificationScreen.classList.add('hidden');
+            loginScreen.classList.remove('hidden');
+            loginInput.value = '';
+            verifyPhoneInput.value = '';
         }
 
         async function handleJoinActivity(activityId) {
@@ -248,7 +372,7 @@
             try {
                 await runTransaction(db, async (transaction) => {
                     const userDoc = await transaction.get(userRef);
-                    if (!userDoc.exists() || userDoc.data().stamps.includes(activityId)) return;
+                    if (!userDoc.exists() || (userDoc.data().stamps && userDoc.data().stamps.includes(activityId))) return;
                     
                     const newPoints = (userDoc.data().points || 0) + activity.points;
                     const newStamps = [...(userDoc.data().stamps || []), activityId];
@@ -307,14 +431,12 @@
                 console.error("Buy Ticket Transaction failed: ", e);
             }
         }
-
+        
         // --- Event Listeners Setup ---
         function attachListeners() {
-            // Detach old listeners
             state.unsubscribers.forEach(unsub => unsub());
             state.unsubscribers = [];
 
-            // Attach new listeners
             const unsubUser = onSnapshot(doc(db, "users", state.userId), (doc) => {
                 state.userData = doc.data();
                 render();
@@ -338,14 +460,28 @@
         // --- Initialization ---
         document.addEventListener('DOMContentLoaded', () => {
             loginButton.addEventListener('click', handleLogin);
-            loginInput.addEventListener('keyup', (e) => {
-                if (e.key === 'Enter') handleLogin();
-            });
+            registerButton.addEventListener('click', handleRegistration);
+            verifyButton.addEventListener('click', handlePhoneVerification);
 
+            const goBack = () => {
+                registrationScreen.classList.add('hidden');
+                phoneVerificationScreen.classList.add('hidden');
+                loginScreen.classList.remove('hidden');
+                loginInput.value = '';
+                state.userId = null;
+            };
+            backToLoginButton.addEventListener('click', goBack);
+            backToLoginFromVerifyButton.addEventListener('click', goBack);
+            
+            logoutButton.addEventListener('click', handleLogout);
+            
             navButtons.forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     state.currentPage = e.currentTarget.dataset.page;
-                    navButtons.forEach(b => b.classList.remove('border-blue-600', 'text-blue-600'));
+                    navButtons.forEach(b => {
+                        b.classList.remove('border-blue-600', 'text-blue-600');
+                        b.classList.add('text-gray-500');
+                    });
                     e.currentTarget.classList.add('border-blue-600', 'text-blue-600');
                     render();
                 });
