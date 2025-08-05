@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>แอปสะสมแต้มพนักงาน (HTML)</title>
+    <title>แอปสะสมแต้มพนักงาน (HTML + Firestore)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,9 +12,19 @@
         body {
             font-family: 'Kanit', sans-serif;
         }
-        /* ซ่อน/แสดงหน้าจอ */
-        .hidden {
-            display: none;
+        .hidden { display: none; }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -23,7 +33,7 @@
     <!-- หน้าจอ Login -->
     <div id="login-screen" class="min-h-screen flex items-center justify-center bg-gray-100">
         <div class="bg-white p-8 rounded-xl shadow-lg text-center w-full max-w-sm">
-            <h1 class="text-3xl font-bold mb-2 text-gray-800">พนักงานสุขใจ (HTML)</h1>
+            <h1 class="text-3xl font-bold mb-2 text-gray-800">พนักงานสุขใจ</h1>
             <p class="text-gray-500 mb-6">แอปสะสมแต้มและของรางวัล</p>
             <input id="login-userid-input" type="text" placeholder="กรอกรหัสพนักงานของคุณ" class="w-full px-4 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             <button id="login-button" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
@@ -46,144 +56,109 @@
             </div>
             <nav class="container mx-auto px-4">
                 <div class="flex border-b">
-                    <button data-page="dashboard" class="nav-button py-3 px-4 font-semibold border-b-2 border-blue-600 text-blue-600">
-                        แดชบอร์ด
-                    </button>
-                    <button data-page="rewards" class="nav-button py-3 px-4 font-semibold text-gray-500">
-                        <span class="inline-block align-middle mr-1">🎁</span> แลกของรางวัล
-                    </button>
-                    <button data-page="lottery" class="nav-button py-3 px-4 font-semibold text-gray-500">
-                        <span class="inline-block align-middle mr-1">🎟️</span> สลากเสี่ยงโชค
-                    </button>
+                    <button data-page="dashboard" class="nav-button py-3 px-4 font-semibold border-b-2 border-blue-600 text-blue-600">แดชบอร์ด</button>
+                    <button data-page="rewards" class="nav-button py-3 px-4 font-semibold text-gray-500"><span class="inline-block align-middle mr-1">🎁</span> แลกของรางวัล</button>
+                    <button data-page="lottery" class="nav-button py-3 px-4 font-semibold text-gray-500"><span class="inline-block align-middle mr-1">🎟️</span> สลากเสี่ยงโชค</button>
                 </div>
             </nav>
         </header>
 
         <main id="main-content" class="container mx-auto p-4 md:p-6">
-            <!-- Content will be rendered here -->
+            <div class="loader"></div>
         </main>
     </div>
 
     <!-- ส่วนแสดงข้อความแจ้งเตือน -->
     <div id="toast-container" class="fixed bottom-5 right-5 z-50"></div>
 
-    <script>
-        // --- ข้อมูลเริ่มต้น ---
-        const initialActivities = [
-            { id: 'act01', name: 'ออกกำลังกายตอนเช้า', description: 'ร่วมสร้างสุขภาพดีรับวันใหม่', points: 10, stampIcon: '💪' },
-            { id: 'act02', name: 'เวิร์คช็อปจัดการความเครียด', description: 'เรียนรู้วิธีผ่อนคลายจากผู้เชี่ยวชาญ', points: 20, stampIcon: '🧘' },
-            { id: 'act03', name: 'อบรมพัฒนาทักษะ', description: 'เพิ่มศักยภาพการทำงานของคุณ', points: 10, stampIcon: '📚' },
-            { id: 'act04', name: 'วันทำความสะอาดออฟฟิศ', description: 'Big Cleaning Day เพื่อสภาพแวดล้อมที่ดี', points: 10, stampIcon: '🧹' },
-            { id: 'act05', name: 'แข่งขันกีฬาภายใน', description: 'สนุกกับเกมและสร้างทีมเวิร์ค', points: 30, stampIcon: '🏆' },
-            { id: 'act06', name: 'บริจาคโลหิต', description: 'ทำความดีเพื่อสังคมร่วมกัน', points: 20, stampIcon: '🩸' },
-            { id: 'act07', name: 'ปลูกต้นไม้ลดโลกร้อน', description: 'เพิ่มพื้นที่สีเขียวให้โลกของเรา', points: 10, stampIcon: '🌳' },
-            { id: 'act08', name: 'ปาร์ตี้สิ้นเดือน', description: 'ฉลองความสำเร็จร่วมกัน', points: 10, stampIcon: '🎉' },
-        ];
-        const initialRewards = [
-            { id: 'rew01', name: 'แก้วน้ำเก็บความเย็น', cost: 50, stock: 100, img: 'https://placehold.co/300x200/a7f3d0/14532d?text=แก้วน้ำ' },
-            { id: 'rew02', name: 'คูปองกาแฟ', cost: 30, stock: 200, img: 'https://placehold.co/300x200/fef08a/854d0e?text=คูปองกาแฟ' },
-            { id: 'rew03', name: 'บัตรชมภาพยนตร์', cost: 80, stock: 50, img: 'https://placehold.co/300x200/fecaca/991b1b?text=บัตรหนัง' },
-            { id: 'rew04', name: 'วันหยุดพิเศษ 1 วัน', cost: 200, stock: 10, img: 'https://placehold.co/300x200/c7d2fe/3730a3?text=วันหยุด' },
-        ];
-        const initialLottery = {
-            id: 'current', ticketCost: 15, prize: 'บัตรกำนัลมูลค่า 1,000 บาท', entries: []
+    <script type="module">
+        // Import a specific version of Firebase SDKs
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, getDocs, runTransaction } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
+
+        // --- Firebase Configuration ---
+        const firebaseConfig = {
+          apiKey: "AIzaSyDATchWwmazw3wPnuNk4i-d79rnyBpSDM0",
+          authDomain: "line-liff-a543c.firebaseapp.com",
+          projectId: "line-liff-a543c",
+          storageBucket: "line-liff-a543c.appspot.com",
+          messagingSenderId: "617440448369",
+          appId: "1:617440448369:web:182dc1785335950c6c30d0"
         };
+        
+        // --- Initialize Firebase ---
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
 
         // --- State ของแอปพลิเคชัน ---
         let state = {
             currentPage: 'dashboard',
             userId: null,
-            allUsersData: {},
+            userData: null,
             activities: [],
             rewards: [],
-            lotteryData: {}
+            lotteryData: null,
+            unsubscribers: [] // To store unsubscribe functions for cleanup
         };
 
         // --- DOM Elements ---
         const loginScreen = document.getElementById('login-screen');
         const appContainer = document.getElementById('app-container');
         const mainContent = document.getElementById('main-content');
-        const welcomeMessage = document.getElementById('welcome-message');
-        const pointsDisplay = document.getElementById('points-display');
-        const toastContainer = document.getElementById('toast-container');
         const loginButton = document.getElementById('login-button');
         const loginInput = document.getElementById('login-userid-input');
         const navButtons = document.querySelectorAll('.nav-button');
 
-        // --- Functions ---
-
-        // ฟังก์ชันสำหรับบันทึกข้อมูลทั้งหมดลง localStorage
-        function saveData() {
-            localStorage.setItem('app_state', JSON.stringify(state));
+        // --- UI Functions ---
+        function showToast(message, isError = false) {
+            const toastContainer = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `text-white py-2 px-4 rounded-lg shadow-lg mb-2 animate-bounce ${isError ? 'bg-red-500' : 'bg-green-500'}`;
+            toast.textContent = message;
+            toastContainer.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
         }
 
-        // ฟังก์ชันสำหรับโหลดข้อมูลจาก localStorage
-        function loadData() {
-            const savedState = localStorage.getItem('app_state');
-            if (savedState) {
-                state = JSON.parse(savedState);
-                // ตั้งค่าเริ่มต้นหากข้อมูลบางส่วนไม่มีอยู่
-                if (!state.activities || state.activities.length === 0) state.activities = initialActivities;
-                if (!state.rewards || state.rewards.length === 0) state.rewards = initialRewards;
-                if (!state.lotteryData || !state.lotteryData.id) state.lotteryData = initialLottery;
-                if (!state.allUsersData) state.allUsersData = {};
-            } else {
-                // ตั้งค่าเริ่มต้นหากไม่มีข้อมูลเลย
-                state.activities = initialActivities;
-                state.rewards = initialRewards;
-                state.lotteryData = initialLottery;
+        function renderHeader() {
+            if (!state.userData) return;
+            document.getElementById('welcome-message').textContent = `ยินดีต้อนรับ, ${state.userId}`;
+            document.getElementById('points-display').innerHTML = `
+                <svg class="w-6 h-6 inline-block mr-2 text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path d="M17.25 12.193V6.75a5.25 5.25 0 00-10.5 0v5.443a2.25 2.25 0 01-.88 1.73l-2.12 1.646a.75.75 0 00.58 1.331h14.24a.75.75 0 00.58-1.331l-2.12-1.646a2.25 2.25 0 01-.88-1.73zM16.5 6.75a4.5 4.5 0 00-9 0v4.335a3.75 3.75 0 001.465 2.882l.035.027 2.12 1.646h2.76l2.12-1.646.035-.027a3.75 3.75 0 001.465-2.882V6.75zM5.25 18a.75.75 0 000 1.5h9.5a.75.75 0 000-1.5h-9.5z"></path></svg>
+                <span>${state.userData.points} คะแนน</span>`;
+        }
+        
+        function render() {
+            if (!state.userData) {
+                mainContent.innerHTML = `<div class="loader"></div>`;
+                return;
+            }
+            renderHeader();
+            switch (state.currentPage) {
+                case 'dashboard': renderDashboard(); break;
+                case 'rewards': renderRewards(); break;
+                case 'lottery': renderLottery(); break;
             }
         }
 
-        // ฟังก์ชันแสดง Toast
-        function showToast(message) {
-            const toast = document.createElement('div');
-            toast.className = 'bg-green-500 text-white py-2 px-4 rounded-lg shadow-lg mb-2 animate-bounce';
-            toast.textContent = message;
-            toastContainer.appendChild(toast);
-            setTimeout(() => {
-                toast.remove();
-            }, 3000);
-        }
-        
-        // --- Rendering Functions ---
-        
-        function renderHeader() {
-            const currentUser = state.allUsersData[state.userId];
-            welcomeMessage.textContent = `ยินดีต้อนรับ, ${state.userId}`;
-            pointsDisplay.innerHTML = `
-                <svg class="w-6 h-6 inline-block mr-2 text-yellow-500" fill="currentColor" viewBox="0 0 20 20"><path d="M17.25 12.193V6.75a5.25 5.25 0 00-10.5 0v5.443a2.25 2.25 0 01-.88 1.73l-2.12 1.646a.75.75 0 00.58 1.331h14.24a.75.75 0 00.58-1.331l-2.12-1.646a2.25 2.25 0 01-.88-1.73zM16.5 6.75a4.5 4.5 0 00-9 0v4.335a3.75 3.75 0 001.465 2.882l.035.027 2.12 1.646h2.76l2.12-1.646.035-.027a3.75 3.75 0 001.465-2.882V6.75zM5.25 18a.75.75 0 000 1.5h9.5a.75.75 0 000-1.5h-9.5z"></path></svg>
-                <span>${currentUser.points} คะแนน</span>
-            `;
-        }
-
         function renderDashboard() {
-            const currentUser = state.allUsersData[state.userId];
-            const completedStampCount = currentUser.stamps.length;
-            
+            const userStamps = state.userData.stamps || [];
             const stampCardHTML = `
                 <div class="bg-white p-6 rounded-xl shadow-md">
                     <h2 class="text-2xl font-bold mb-4 text-gray-800">บัตรสะสมแสตมป์</h2>
-                    <div class="grid grid-cols-4 gap-4">
+                    <div class="grid grid-cols-4 sm:grid-cols-8 gap-4">
                         ${state.activities.map(act => {
-                            const completed = currentUser.stamps.includes(act.id);
+                            const completed = userStamps.includes(act.id);
                             return `
                                 <div class="flex flex-col items-center text-center">
                                     <svg class="w-16 h-16 transition-all duration-500 ${completed ? 'text-green-500 transform scale-110' : 'text-gray-300'}" viewBox="0 0 24 24" fill="currentColor">
                                         <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,16.5L6.5,12L7.91,10.59L11,13.67L16.59,8.09L18,9.5L11,16.5Z" />
                                     </svg>
                                     <span class="mt-2 text-sm font-medium ${completed ? 'text-gray-700' : 'text-gray-400'}">${act.stampIcon} ${act.name}</span>
-                                </div>
-                            `;
+                                </div>`;
                         }).join('')}
                     </div>
-                    ${completedStampCount === state.activities.length ? `
-                        <div class="mt-4 text-center p-3 bg-yellow-100 border-l-4 border-yellow-400 text-yellow-700 rounded-r-lg">
-                            <p class="font-bold">ยินดีด้วย! คุณสะสมแสตมป์ครบทุกดวงแล้ว!</p>
-                        </div>
-                    ` : ''}
-                </div>
-            `;
+                    ${userStamps.length === state.activities.length ? `<div class="mt-4 text-center p-3 bg-yellow-100 border-l-4 border-yellow-400 text-yellow-700 rounded-r-lg"><p class="font-bold">ยินดีด้วย! คุณสะสมแสตมป์ครบทุกดวงแล้ว!</p></div>` : ''}
+                </div>`;
 
             const activityListHTML = `
                 <div class="mt-6">
@@ -196,169 +171,198 @@
                                     <p class="text-sm text-gray-500">${act.description}</p>
                                     <p class="text-sm font-bold text-green-600">+${act.points} คะแนน</p>
                                 </div>
-                                <button data-activity-id="${act.id}" class="join-activity-btn px-4 py-2 rounded-lg font-semibold text-white transition-colors ${currentUser.stamps.includes(act.id) ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}">
-                                    ${currentUser.stamps.includes(act.id) ? 'เข้าร่วมแล้ว' : 'เข้าร่วม'}
+                                <button data-activity-id="${act.id}" class="join-activity-btn px-4 py-2 rounded-lg font-semibold text-white transition-colors ${userStamps.includes(act.id) ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}" ${userStamps.includes(act.id) ? 'disabled' : ''}>
+                                    ${userStamps.includes(act.id) ? 'เข้าร่วมแล้ว' : 'เข้าร่วม'}
                                 </button>
-                            </div>
-                        `).join('')}
+                            </div>`).join('')}
                     </div>
-                </div>
-            `;
-            
+                </div>`;
             mainContent.innerHTML = stampCardHTML + activityListHTML;
         }
-
+        
         function renderRewards() {
-             const currentUser = state.allUsersData[state.userId];
              mainContent.innerHTML = `
                 <div>
                     <h2 class="text-2xl font-bold mb-4 text-gray-800">ร้านค้าแลกของรางวัล</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         ${state.rewards.map(reward => `
                             <div class="bg-white rounded-xl shadow-md overflow-hidden flex flex-col">
-                                <img src="${reward.img}" alt="${reward.name}" class="w-full h-40 object-cover">
+                                <img src="${reward.img}" alt="${reward.name}" class="w-full h-40 object-cover" onerror="this.onerror=null;this.src='https://placehold.co/300x200/cccccc/ffffff?text=Image+Not+Found';">
                                 <div class="p-4 flex flex-col flex-grow">
                                     <h3 class="text-lg font-semibold text-gray-800">${reward.name}</h3>
                                     <p class="text-sm text-gray-500 mb-2">คงเหลือ: ${reward.stock} ชิ้น</p>
                                     <div class="flex-grow"></div>
                                     <div class="flex items-center justify-between mt-4">
                                         <span class="text-xl font-bold text-yellow-500">${reward.cost} คะแนน</span>
-                                        <button data-reward-id="${reward.id}" class="redeem-reward-btn bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors" ${currentUser.points < reward.cost || reward.stock <= 0 ? 'disabled' : ''}>
+                                        <button data-reward-id="${reward.id}" class="redeem-reward-btn bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors" ${state.userData.points < reward.cost || reward.stock <= 0 ? 'disabled' : ''}>
                                             แลกรางวัล
                                         </button>
                                     </div>
                                 </div>
-                            </div>
-                        `).join('')}
+                            </div>`).join('')}
                     </div>
-                </div>
-             `;
+                </div>`;
         }
 
         function renderLottery() {
-            const currentUser = state.allUsersData[state.userId];
+            const lottery = state.lotteryData;
             mainContent.innerHTML = `
                 <div class="bg-white p-6 rounded-xl shadow-md text-center">
                     <h2 class="text-2xl font-bold mb-2 text-gray-800">สลากเสี่ยงโชค</h2>
                     <p class="text-gray-600 mb-4">ลุ้นรับรางวัลใหญ่ประจำเดือน!</p>
                     <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 rounded-r-lg mb-6">
-                        <p class="font-bold">รางวัล: ${state.lotteryData.prize}</p>
+                        <p class="font-bold">รางวัล: ${lottery?.prize || '...'}</p>
                     </div>
-                    <p class="text-lg mb-4">ราคา: <span class="font-bold text-yellow-500">${state.lotteryData.ticketCost}</span> คะแนนต่อใบ</p>
-                    <button id="buy-ticket-btn" class="w-full max-w-xs mx-auto bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 disabled:bg-gray-400 transition-colors text-lg" ${currentUser.points < state.lotteryData.ticketCost ? 'disabled' : ''}>
+                    <p class="text-lg mb-4">ราคา: <span class="font-bold text-yellow-500">${lottery?.ticketCost || 0}</span> คะแนนต่อใบ</p>
+                    <button id="buy-ticket-btn" class="w-full max-w-xs mx-auto bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 disabled:bg-gray-400 transition-colors text-lg" ${!lottery || state.userData.points < lottery.ticketCost ? 'disabled' : ''}>
                         ซื้อสลาก
                     </button>
-                    <p class="text-sm text-gray-500 mt-4">จำนวนสลากที่ส่งเข้าร่วมแล้ว: ${state.lotteryData.entries?.length || 0} ใบ</p>
-                </div>
-            `;
+                    <p class="text-sm text-gray-500 mt-4">จำนวนสลากที่ส่งเข้าร่วมแล้ว: ${lottery?.entries?.length || 0} ใบ</p>
+                </div>`;
         }
 
-        // --- Main Render Function ---
-        function render() {
-            renderHeader();
-            switch (state.currentPage) {
-                case 'dashboard':
-                    renderDashboard();
-                    break;
-                case 'rewards':
-                    renderRewards();
-                    break;
-                case 'lottery':
-                    renderLottery();
-                    break;
-            }
-        }
-
-        // --- Event Handlers ---
-        function handleLogin() {
+        // --- Firestore Functions ---
+        async function handleLogin() {
             const id = loginInput.value.trim();
             if (!id) return;
-            
-            state.userId = id;
-            if (!state.allUsersData[id]) {
-                state.allUsersData[id] = {
-                    id: id, points: 0, stamps: [], redeemedRewards: [],
-                };
+
+            const userRef = doc(db, 'users', id);
+            const userSnap = await getDoc(userRef);
+
+            if (!userSnap.exists()) {
+                await setDoc(userRef, { id: id, points: 0, stamps: [], redeemedRewards: [] });
             }
+            state.userId = id;
             
             loginScreen.classList.add('hidden');
             appContainer.classList.remove('hidden');
             
-            saveData();
-            render();
+            attachListeners();
         }
 
-        function handleNavClick(e) {
-            const page = e.currentTarget.dataset.page;
-            state.currentPage = page;
-            
-            navButtons.forEach(btn => {
-                btn.classList.remove('border-blue-600', 'text-blue-600');
-                btn.classList.add('text-gray-500');
+        async function handleJoinActivity(activityId) {
+            const activity = state.activities.find(a => a.id === activityId);
+            if (!activity) return;
+
+            const userRef = doc(db, 'users', state.userId);
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const userDoc = await transaction.get(userRef);
+                    if (!userDoc.exists() || userDoc.data().stamps.includes(activityId)) return;
+                    
+                    const newPoints = (userDoc.data().points || 0) + activity.points;
+                    const newStamps = [...(userDoc.data().stamps || []), activityId];
+                    transaction.update(userRef, { points: newPoints, stamps: newStamps });
+                });
+                showToast(`เข้าร่วม "${activity.name}" สำเร็จ!`);
+            } catch (e) {
+                console.error("Join Activity Transaction failed: ", e);
+                showToast("เกิดข้อผิดพลาด กรุณาลองใหม่", true);
+            }
+        }
+
+        async function handleRedeemReward(rewardId) {
+            const reward = state.rewards.find(r => r.id === rewardId);
+            if (!reward) return;
+
+            const userRef = doc(db, 'users', state.userId);
+            const rewardRef = doc(db, 'rewards', rewardId);
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const userDoc = await transaction.get(userRef);
+                    const rewardDoc = await transaction.get(rewardRef);
+                    if (!userDoc.exists() || !rewardDoc.exists()) throw "Document does not exist!";
+                    
+                    if (userDoc.data().points < reward.cost) throw "คะแนนไม่เพียงพอ";
+                    if (rewardDoc.data().stock <= 0) throw "ของรางวัลหมดแล้ว";
+
+                    transaction.update(userRef, { points: userDoc.data().points - reward.cost });
+                    transaction.update(rewardRef, { stock: rewardDoc.data().stock - 1 });
+                });
+                showToast(`แลก "${reward.name}" สำเร็จ!`);
+            } catch (e) {
+                showToast(typeof e === 'string' ? e : "เกิดข้อผิดพลาดในการแลก", true);
+                console.error("Redeem Reward Transaction failed: ", e);
+            }
+        }
+
+        async function handleBuyTicket() {
+            const userRef = doc(db, 'users', state.userId);
+            const lotteryRef = doc(db, 'lottery', 'current');
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const userDoc = await transaction.get(userRef);
+                    const lotteryDoc = await transaction.get(lotteryRef);
+                    if (!userDoc.exists() || !lotteryDoc.exists()) throw "Document does not exist!";
+                    
+                    if (userDoc.data().points < state.lotteryData.ticketCost) throw "คะแนนไม่เพียงพอ";
+                    
+                    const newEntries = [...(lotteryDoc.data().entries || []), state.userId];
+                    transaction.update(userRef, { points: userDoc.data().points - state.lotteryData.ticketCost });
+                    transaction.update(lotteryRef, { entries: newEntries });
+                });
+                showToast("ซื้อสลากเสี่ยงโชคสำเร็จ!");
+            } catch (e) {
+                showToast(typeof e === 'string' ? e : "เกิดข้อผิดพลาด กรุณาลองใหม่", true);
+                console.error("Buy Ticket Transaction failed: ", e);
+            }
+        }
+
+        // --- Event Listeners Setup ---
+        function attachListeners() {
+            // Detach old listeners
+            state.unsubscribers.forEach(unsub => unsub());
+            state.unsubscribers = [];
+
+            // Attach new listeners
+            const unsubUser = onSnapshot(doc(db, "users", state.userId), (doc) => {
+                state.userData = doc.data();
+                render();
             });
-            e.currentTarget.classList.add('border-blue-600', 'text-blue-600');
-            e.currentTarget.classList.remove('text-gray-500');
+            const unsubActivities = onSnapshot(collection(db, "activities"), (snapshot) => {
+                state.activities = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                render();
+            });
+            const unsubRewards = onSnapshot(collection(db, "rewards"), (snapshot) => {
+                state.rewards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                render();
+            });
+            const unsubLottery = onSnapshot(doc(db, "lottery", "current"), (doc) => {
+                state.lotteryData = doc.data();
+                render();
+            });
             
-            render();
-        }
-
-        function handleMainContentClick(e) {
-            // Join Activity
-            if (e.target.matches('.join-activity-btn')) {
-                const activityId = e.target.dataset.activityId;
-                const activity = state.activities.find(a => a.id === activityId);
-                const currentUser = state.allUsersData[state.userId];
-
-                if (!currentUser.stamps.includes(activityId)) {
-                    currentUser.points += activity.points;
-                    currentUser.stamps.push(activityId);
-                    showToast(`เข้าร่วม "${activity.name}" สำเร็จ!`);
-                    saveData();
-                    render();
-                }
-            }
-            // Redeem Reward
-            if (e.target.matches('.redeem-reward-btn')) {
-                const rewardId = e.target.dataset.rewardId;
-                const reward = state.rewards.find(r => r.id === rewardId);
-                const currentUser = state.allUsersData[state.userId];
-
-                if (currentUser.points >= reward.cost && reward.stock > 0) {
-                    currentUser.points -= reward.cost;
-                    reward.stock -= 1;
-                    if (!currentUser.redeemedRewards) currentUser.redeemedRewards = [];
-                    currentUser.redeemedRewards.push({ id: reward.id, name: reward.name, date: new Date().toISOString() });
-                    showToast(`แลก "${reward.name}" สำเร็จ!`);
-                    saveData();
-                    render();
-                }
-            }
-            // Buy Ticket
-            if (e.target.matches('#buy-ticket-btn')) {
-                const currentUser = state.allUsersData[state.userId];
-                if (currentUser.points >= state.lotteryData.ticketCost) {
-                    currentUser.points -= state.lotteryData.ticketCost;
-                    state.lotteryData.entries.push(state.userId);
-                    showToast("ซื้อสลากเสี่ยงโชคสำเร็จ!");
-                    saveData();
-                    render();
-                }
-            }
+            state.unsubscribers.push(unsubUser, unsubActivities, unsubRewards, unsubLottery);
         }
 
         // --- Initialization ---
         document.addEventListener('DOMContentLoaded', () => {
-            loadData();
-            
             loginButton.addEventListener('click', handleLogin);
             loginInput.addEventListener('keyup', (e) => {
                 if (e.key === 'Enter') handleLogin();
             });
 
-            navButtons.forEach(btn => btn.addEventListener('click', handleNavClick));
-            mainContent.addEventListener('click', handleMainContentClick);
-        });
+            navButtons.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    state.currentPage = e.currentTarget.dataset.page;
+                    navButtons.forEach(b => b.classList.remove('border-blue-600', 'text-blue-600'));
+                    e.currentTarget.classList.add('border-blue-600', 'text-blue-600');
+                    render();
+                });
+            });
 
+            mainContent.addEventListener('click', (e) => {
+                if (e.target.closest('.join-activity-btn')) {
+                    handleJoinActivity(e.target.closest('.join-activity-btn').dataset.activityId);
+                }
+                if (e.target.closest('.redeem-reward-btn')) {
+                    handleRedeemReward(e.target.closest('.redeem-reward-btn').dataset.rewardId);
+                }
+                if (e.target.closest('#buy-ticket-btn')) {
+                    handleBuyTicket();
+                }
+            });
+        });
     </script>
 </body>
 </html>
