@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แอปสะสมแต้มพนักงาน (HTML)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Kanit', sans-serif;
+        }
+        /* ซ่อน/แสดงหน้าจอ */
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <!-- หน้าจอ Login -->
+    <div id="login-screen" class="min-h-screen flex items-center justify-center bg-gray-100">
+        <div class="bg-white p-8 rounded-xl shadow-lg text-center w-full max-w-sm">
+            <h1 class="text-3xl font-bold mb-2 text-gray-800">พนักงานสุขใจ (HTML)</h1>
+            <p class="text-gray-500 mb-6">แอปสะสมแต้มและของรางวัล</p>
+            <input id="login-userid-input" type="text" placeholder="กรอกรหัสพนักงานของคุณ" class="w-full px-4 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <button id="login-button" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                เข้าสู่ระบบ
+            </button>
+        </div>
+    </div>
+
+    <!-- ส่วนหลักของแอป (ซ่อนไว้ตอนแรก) -->
+    <div id="app-container" class="hidden">
+        <header class="bg-white shadow-md">
+            <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">พนักงานสุขใจ</h1>
+                    <p id="welcome-message" class="text-gray-500">ยินดีต้อนรับ, </p>
+                </div>
+                <div id="points-display" class="bg-yellow-100 border border-yellow-300 text-yellow-800 font-bold px-4 py-2 rounded-full flex items-center">
+                    <!-- Points will be rendered here -->
+                </div>
+            </div>
+            <nav class="container mx-auto px-4">
+                <div class="flex border-b">
+                    <button data-page="dashboard" class="nav-button py-3 px-4 font-semibold border-b-2 border-blue-600 text-blue-600">
+                        แดชบอร์ด
+                    </button>
+                    <button data-page="rewards" class="nav-button py-3 px-4 font-semibold text-gray-500">
+                        <span class="inline-block align-middle mr-1">🎁</span> แลกของรางวัล
+                    </button>
+                    <button data-page="lottery" class="nav-button py-3 px-4 font-semibold text-gray-500">
+                        <span class="inline-block align-middle mr-1">🎟️</span> สลากเสี่ยงโชค
+                    </button>
+                </div>
+            </nav>
+        </header>
+
+        <main id="main-content" class="container mx-auto p-4 md:p-6">
+            <!-- Content will be rendered here -->
+        </main>
+    </div>
+
+    <!-- ส่วนแสดงข้อความแจ้งเตือน -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50"></div>
+
+    <script>
+        // --- ข้อมูลเริ่มต้น ---
+        const initialActivities = [
+            { id: 'act01', name: 'ออกกำลังกายตอนเช้า', description: 'ร่วมสร้างสุขภาพดีรับวันใหม่', points: 10, stampIcon: '💪' },
+            { id: 'act02', name: 'เวิร์คช็อปจัดการความเครียด', description: 'เรียนรู้วิธีผ่อนคลายจากผู้เชี่ยวชาญ', points: 20, stampIcon: '🧘' },
+            { id: 'act03', name: 'อบรมพัฒนาทักษะ', description: 'เพิ่มศักยภาพการทำงานของคุณ', points: 10, stampIcon: '📚' },
+            { id: 'act04', name: 'วันทำความสะอาดออฟฟิศ', description: 'Big Cleaning Day เพื่อสภาพแวดล้อมที่ดี', points: 10, stampIcon: '🧹' },
+            { id: 'act05', name: 'แข่งขันกีฬาภายใน', description: 'สนุกกับเกมและสร้างทีมเวิร์ค', points: 30, stampIcon: '🏆' },
+            { id: 'act06', name: 'บริจาคโลหิต', description: 'ทำความดีเพื่อสังคมร่วมกัน', points: 20, stampIcon: '🩸' },
+            { id: 'act07', name: 'ปลูกต้นไม้ลดโลกร้อน', description: 'เพิ่มพื้นที่สีเขียวให้โลกของเรา', points: 10, stampIcon: '🌳' },
+            { id: 'act08', name: 'ปาร์ตี้สิ้นเดือน', description: 'ฉลองความสำเร็จร่วมกัน', points: 10, stampIcon: '🎉' },
+        ];
+        const initialRewards = [
+            { id: 'rew01', name: 'แก้วน้ำเก็บความเย็น', cost: 50, stock: 100, img: 'https://placehold.co/300x200/a7f3d0/14532d?text=แก้วน้ำ' },
+            { id: 'rew02', name: 'คูปองกาแฟ', cost: 30, stock: 200, img: 'https://placehold.co/300x200/fef08a/854d0e?text=คูปองกาแฟ' },
+            { id: 'rew03', name: 'บัตรชมภาพยนตร์', cost: 80, stock: 50, img: 'https://placehold.co/300x200/fecaca/991b1b?text=บัตรหนัง' },
+            { id: 'rew04', name: 'วันหยุดพิเศษ 1 วัน', cost: 200, stock: 10, img: 'https://placehold.co/300x200/c7d2fe/3730a3?text=วันหยุด' },
+        ];
+        const initialLottery = {
+            id: 'current', ticketCost: 15, prize: 'บัตรกำนัลมูลค่า 1,000 บาท', entries: []
+        };
+
+        // --- State ของแอปพลิเคชัน ---
+        let state = {
+            currentPage: 'dashboard',
+            userId: null,
+            allUsersData: {},
+            activities: [],
+            rewards: [],
+            lotteryData: {}
+        };
+
+        // --- DOM Elements ---
+        const loginScreen = document.getElementById('login-screen');
+        const appContainer = document.getElementById('app-container');
+        const mainContent = document.getElementById('main-content');
+        const welcomeMessage = document.getElementById('welcome-message');
+        const pointsDisplay = document.getElementById('points-display');
+        const toastContainer = document.getElementById('toast-container');
+        const loginButton = document.getElementById('login-button');
+        const loginInput = document.getElementById('login-userid-input');
+        const navButtons = document.querySelectorAll('.nav-button');
+
+        // --- Functions ---
+
+        // ฟังก์ชันสำหรับบันทึกข้อมูลทั้งหมดลง localStorage
+        function saveData() {
+            localStorage.setItem('app_state', JSON.stringify(state));
+        }
+
+        // ฟังก์ชันสำหรับโหลดข้อมูลจาก localStorage
+        function loadData() {
+            const savedState = localStorage.getItem('app_state');
+            if (savedState) {
+                state = JSON.parse(savedState);
+                // ตั้งค่าเริ่มต้นหากข้อมูลบางส่วนไม่มีอยู่
+                if (!state.activities || state.activities.length === 0) state.activities = initialActivities;
+                if (!state.rewards || state.rewards.length === 0) state.rewards = initialRewards;
+                if (!state.lotteryData || !state.lotteryData.id) state.lotteryData = initialLottery;
+                if (!state.allUsersData) state.allUsersData = {};
+            } else {
+                // ตั้งค่าเริ่มต้นหากไม่มีข้อมูลเลย
+                state.activities = initialActivities;
+                state.rewards = initialRewards;
+                state.lotteryData = initialLottery;
+            }
+        }
+
+        // ฟังก์ชันแสดง Toast
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'bg-green-500 text-white py-2 px-4 rounded-lg shadow-lg mb-2 animate-bounce';
+            toast.textContent = message;
+            toastContainer.appendChild(toast);
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+        
+        // --- Rendering Functions ---
+        
+        function renderHeader() {
+            const currentUser = state.allUsersData[state.userId];
+            welcomeMessage.textContent = `ยินดีต้อนรับ, ${state.userId}`;
+            pointsDisplay.innerHTML = `
+                <svg class="w-6 h-6 inline-block mr-2 text-yellow-500" fill="currentColor" viewBox="0 0 20 20"><path d="M17.25 12.193V6.75a5.25 5.25 0 00-10.5 0v5.443a2.25 2.25 0 01-.88 1.73l-2.12 1.646a.75.75 0 00.58 1.331h14.24a.75.75 0 00.58-1.331l-2.12-1.646a2.25 2.25 0 01-.88-1.73zM16.5 6.75a4.5 4.5 0 00-9 0v4.335a3.75 3.75 0 001.465 2.882l.035.027 2.12 1.646h2.76l2.12-1.646.035-.027a3.75 3.75 0 001.465-2.882V6.75zM5.25 18a.75.75 0 000 1.5h9.5a.75.75 0 000-1.5h-9.5z"></path></svg>
+                <span>${currentUser.points} คะแนน</span>
+            `;
+        }
+
+        function renderDashboard() {
+            const currentUser = state.allUsersData[state.userId];
+            const completedStampCount = currentUser.stamps.length;
+            
+            const stampCardHTML = `
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h2 class="text-2xl font-bold mb-4 text-gray-800">บัตรสะสมแสตมป์</h2>
+                    <div class="grid grid-cols-4 gap-4">
+                        ${state.activities.map(act => {
+                            const completed = currentUser.stamps.includes(act.id);
+                            return `
+                                <div class="flex flex-col items-center text-center">
+                                    <svg class="w-16 h-16 transition-all duration-500 ${completed ? 'text-green-500 transform scale-110' : 'text-gray-300'}" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,16.5L6.5,12L7.91,10.59L11,13.67L16.59,8.09L18,9.5L11,16.5Z" />
+                                    </svg>
+                                    <span class="mt-2 text-sm font-medium ${completed ? 'text-gray-700' : 'text-gray-400'}">${act.stampIcon} ${act.name}</span>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                    ${completedStampCount === state.activities.length ? `
+                        <div class="mt-4 text-center p-3 bg-yellow-100 border-l-4 border-yellow-400 text-yellow-700 rounded-r-lg">
+                            <p class="font-bold">ยินดีด้วย! คุณสะสมแสตมป์ครบทุกดวงแล้ว!</p>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+
+            const activityListHTML = `
+                <div class="mt-6">
+                    <h2 class="text-2xl font-bold mb-4 text-gray-800">กิจกรรมประจำเดือน</h2>
+                    <div class="space-y-4">
+                        ${state.activities.map(act => `
+                            <div class="bg-white p-4 rounded-xl shadow-md flex items-center justify-between">
+                                <div>
+                                    <p class="text-lg font-semibold text-gray-800">${act.stampIcon} ${act.name}</p>
+                                    <p class="text-sm text-gray-500">${act.description}</p>
+                                    <p class="text-sm font-bold text-green-600">+${act.points} คะแนน</p>
+                                </div>
+                                <button data-activity-id="${act.id}" class="join-activity-btn px-4 py-2 rounded-lg font-semibold text-white transition-colors ${currentUser.stamps.includes(act.id) ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}">
+                                    ${currentUser.stamps.includes(act.id) ? 'เข้าร่วมแล้ว' : 'เข้าร่วม'}
+                                </button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            
+            mainContent.innerHTML = stampCardHTML + activityListHTML;
+        }
+
+        function renderRewards() {
+             const currentUser = state.allUsersData[state.userId];
+             mainContent.innerHTML = `
+                <div>
+                    <h2 class="text-2xl font-bold mb-4 text-gray-800">ร้านค้าแลกของรางวัล</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        ${state.rewards.map(reward => `
+                            <div class="bg-white rounded-xl shadow-md overflow-hidden flex flex-col">
+                                <img src="${reward.img}" alt="${reward.name}" class="w-full h-40 object-cover">
+                                <div class="p-4 flex flex-col flex-grow">
+                                    <h3 class="text-lg font-semibold text-gray-800">${reward.name}</h3>
+                                    <p class="text-sm text-gray-500 mb-2">คงเหลือ: ${reward.stock} ชิ้น</p>
+                                    <div class="flex-grow"></div>
+                                    <div class="flex items-center justify-between mt-4">
+                                        <span class="text-xl font-bold text-yellow-500">${reward.cost} คะแนน</span>
+                                        <button data-reward-id="${reward.id}" class="redeem-reward-btn bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors" ${currentUser.points < reward.cost || reward.stock <= 0 ? 'disabled' : ''}>
+                                            แลกรางวัล
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+             `;
+        }
+
+        function renderLottery() {
+            const currentUser = state.allUsersData[state.userId];
+            mainContent.innerHTML = `
+                <div class="bg-white p-6 rounded-xl shadow-md text-center">
+                    <h2 class="text-2xl font-bold mb-2 text-gray-800">สลากเสี่ยงโชค</h2>
+                    <p class="text-gray-600 mb-4">ลุ้นรับรางวัลใหญ่ประจำเดือน!</p>
+                    <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 rounded-r-lg mb-6">
+                        <p class="font-bold">รางวัล: ${state.lotteryData.prize}</p>
+                    </div>
+                    <p class="text-lg mb-4">ราคา: <span class="font-bold text-yellow-500">${state.lotteryData.ticketCost}</span> คะแนนต่อใบ</p>
+                    <button id="buy-ticket-btn" class="w-full max-w-xs mx-auto bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 disabled:bg-gray-400 transition-colors text-lg" ${currentUser.points < state.lotteryData.ticketCost ? 'disabled' : ''}>
+                        ซื้อสลาก
+                    </button>
+                    <p class="text-sm text-gray-500 mt-4">จำนวนสลากที่ส่งเข้าร่วมแล้ว: ${state.lotteryData.entries?.length || 0} ใบ</p>
+                </div>
+            `;
+        }
+
+        // --- Main Render Function ---
+        function render() {
+            renderHeader();
+            switch (state.currentPage) {
+                case 'dashboard':
+                    renderDashboard();
+                    break;
+                case 'rewards':
+                    renderRewards();
+                    break;
+                case 'lottery':
+                    renderLottery();
+                    break;
+            }
+        }
+
+        // --- Event Handlers ---
+        function handleLogin() {
+            const id = loginInput.value.trim();
+            if (!id) return;
+            
+            state.userId = id;
+            if (!state.allUsersData[id]) {
+                state.allUsersData[id] = {
+                    id: id, points: 0, stamps: [], redeemedRewards: [],
+                };
+            }
+            
+            loginScreen.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+            
+            saveData();
+            render();
+        }
+
+        function handleNavClick(e) {
+            const page = e.currentTarget.dataset.page;
+            state.currentPage = page;
+            
+            navButtons.forEach(btn => {
+                btn.classList.remove('border-blue-600', 'text-blue-600');
+                btn.classList.add('text-gray-500');
+            });
+            e.currentTarget.classList.add('border-blue-600', 'text-blue-600');
+            e.currentTarget.classList.remove('text-gray-500');
+            
+            render();
+        }
+
+        function handleMainContentClick(e) {
+            // Join Activity
+            if (e.target.matches('.join-activity-btn')) {
+                const activityId = e.target.dataset.activityId;
+                const activity = state.activities.find(a => a.id === activityId);
+                const currentUser = state.allUsersData[state.userId];
+
+                if (!currentUser.stamps.includes(activityId)) {
+                    currentUser.points += activity.points;
+                    currentUser.stamps.push(activityId);
+                    showToast(`เข้าร่วม "${activity.name}" สำเร็จ!`);
+                    saveData();
+                    render();
+                }
+            }
+            // Redeem Reward
+            if (e.target.matches('.redeem-reward-btn')) {
+                const rewardId = e.target.dataset.rewardId;
+                const reward = state.rewards.find(r => r.id === rewardId);
+                const currentUser = state.allUsersData[state.userId];
+
+                if (currentUser.points >= reward.cost && reward.stock > 0) {
+                    currentUser.points -= reward.cost;
+                    reward.stock -= 1;
+                    if (!currentUser.redeemedRewards) currentUser.redeemedRewards = [];
+                    currentUser.redeemedRewards.push({ id: reward.id, name: reward.name, date: new Date().toISOString() });
+                    showToast(`แลก "${reward.name}" สำเร็จ!`);
+                    saveData();
+                    render();
+                }
+            }
+            // Buy Ticket
+            if (e.target.matches('#buy-ticket-btn')) {
+                const currentUser = state.allUsersData[state.userId];
+                if (currentUser.points >= state.lotteryData.ticketCost) {
+                    currentUser.points -= state.lotteryData.ticketCost;
+                    state.lotteryData.entries.push(state.userId);
+                    showToast("ซื้อสลากเสี่ยงโชคสำเร็จ!");
+                    saveData();
+                    render();
+                }
+            }
+        }
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            
+            loginButton.addEventListener('click', handleLogin);
+            loginInput.addEventListener('keyup', (e) => {
+                if (e.key === 'Enter') handleLogin();
+            });
+
+            navButtons.forEach(btn => btn.addEventListener('click', handleNavClick));
+            mainContent.addEventListener('click', handleMainContentClick);
+        });
+
+    </script>
+</body>
+</html>
