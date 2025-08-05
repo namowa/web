@@ -86,7 +86,7 @@
                 </div>
             </div>
             <nav class="container mx-auto px-4">
-                <div id="nav-buttons-container" class="flex border-b">
+                <div id="nav-buttons-container" class="flex border-b overflow-x-auto">
                     <!-- Nav buttons will be inserted here by JS -->
                 </div>
             </nav>
@@ -103,7 +103,7 @@
     <script type="module">
         // Import Firebase SDKs
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, runTransaction, deleteDoc } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, runTransaction, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
 
         // --- Configuration ---
         const firebaseConfig = {
@@ -128,6 +128,7 @@
             activities: [],
             rewards: [],
             lotteryData: null,
+            numberedLotteryData: {}, // Store as an object for quick lookup
             unsubscribers: []
         };
 
@@ -191,6 +192,7 @@
                 case 'dashboard': renderDashboard(); break;
                 case 'rewards': renderRewards(); break;
                 case 'lottery': renderLottery(); break;
+                case 'numberedLottery': renderNumberedLottery(); break;
                 case 'admin': renderAdminPanel(); break;
             }
         }
@@ -292,7 +294,7 @@
 
             mainContent.innerHTML = `
                 <div class="bg-white p-6 rounded-xl shadow-md text-center">
-                    <h2 class="text-2xl font-bold mb-2 text-gray-800">สลากเสี่ยงโชค</h2>
+                    <h2 class="text-2xl font-bold mb-2 text-gray-800">สลากรางวัลใหญ่</h2>
                     <p class="text-gray-600 mb-4">ลุ้นรับรางวัลใหญ่ประจำเดือน!</p>
                     <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 rounded-r-lg mb-6">
                         <p class="font-bold">รางวัล: ${lottery.prize || '...'}</p>
@@ -306,6 +308,50 @@
                         <p>จำนวนสลากทั้งหมดในระบบ: <span class="font-bold">${allEntries.length}</span> ใบ</p>
                     </div>
                 </div>`;
+        }
+
+        function renderNumberedLottery() {
+            const NUMBERED_LOTTERY_COST = 20;
+            const ticketsOwned = Object.values(state.numberedLotteryData).filter(ticket => ticket.ownerId === state.userId).length;
+            const canBuyMore = ticketsOwned < 5;
+            const hasEnoughPoints = state.userData.points >= NUMBERED_LOTTERY_COST;
+
+            let numbersHTML = '';
+            for (let i = 0; i < 1000; i++) {
+                const numberStr = String(i).padStart(3, '0');
+                const ticketData = state.numberedLotteryData[numberStr];
+                
+                if (ticketData && ticketData.isSold) {
+                    numbersHTML += `
+                        <div class="p-2 text-center rounded-lg bg-gray-200 text-gray-500">
+                            <p class="font-bold text-lg">${numberStr}</p>
+                            <p class="text-xs font-mono">SOLD</p>
+                            <p class="text-xs font-mono truncate">${ticketData.ownerId}</p>
+                        </div>
+                    `;
+                } else {
+                    const isDisabled = !canBuyMore || !hasEnoughPoints;
+                    numbersHTML += `
+                        <button data-number="${numberStr}" class="buy-numbered-ticket-btn p-2 text-center rounded-lg bg-green-100 text-green-800 hover:bg-green-200 transition-colors ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}" ${isDisabled ? 'disabled' : ''}>
+                            <p class="font-bold text-lg">${numberStr}</p>
+                            <p class="text-xs">ว่าง</p>
+                        </button>
+                    `;
+                }
+            }
+
+            mainContent.innerHTML = `
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="text-center mb-4">
+                        <h2 class="text-2xl font-bold mb-2 text-gray-800">สลากเรียงเบอร์</h2>
+                        <p class="text-gray-600">เลือกซื้อเบอร์ที่คุณต้องการ (ใช้ ${NUMBERED_LOTTERY_COST} คะแนนต่อใบ, ซื้อได้สูงสุด 5 ใบ)</p>
+                        <p class="mt-2 font-semibold text-blue-600">คุณซื้อไปแล้ว: ${ticketsOwned} / 5 ใบ</p>
+                    </div>
+                    <div class="grid grid-cols-5 sm:grid-cols-10 gap-2 max-h-96 overflow-y-auto p-2 bg-gray-50 rounded-lg">
+                        ${numbersHTML}
+                    </div>
+                </div>
+            `;
         }
         
         // --- Admin Panel Rendering ---
@@ -477,7 +523,7 @@
 
         function handleLogout() {
             state.unsubscribers.forEach(unsub => unsub());
-            state = { currentPage: 'dashboard', userId: null, isAdmin: false, userData: null, activities: [], rewards: [], lotteryData: null, unsubscribers: [] };
+            state = { currentPage: 'dashboard', userId: null, isAdmin: false, userData: null, activities: [], rewards: [], lotteryData: null, numberedLotteryData: {}, unsubscribers: [] };
 
             appContainer.classList.add('hidden');
             loginScreen.classList.remove('hidden');
@@ -564,6 +610,54 @@
                 console.error("Buy Ticket Transaction failed: ", e);
             }
         }
+        
+        async function handleBuyNumberedTicket(numberStr) {
+            const NUMBERED_LOTTERY_COST = 20;
+            if (state.userData.points < NUMBERED_LOTTERY_COST) {
+                showToast(`คุณต้องมี ${NUMBERED_LOTTERY_COST} คะแนนเพื่อซื้อสลาก`, true);
+                return;
+            }
+
+            const ticketsOwned = Object.values(state.numberedLotteryData).filter(ticket => ticket.ownerId === state.userId).length;
+            if (ticketsOwned >= 5) {
+                showToast("คุณซื้อสลากครบ 5 ใบแล้ว", true);
+                return;
+            }
+
+            const ticketRef = doc(db, 'numberedLottery', numberStr);
+            const userRef = doc(db, 'users', state.userId);
+
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const ticketDoc = await transaction.get(ticketRef);
+                    const userDoc = await transaction.get(userRef);
+
+                    if (!userDoc.exists()) {
+                        throw "ไม่พบข้อมูลผู้ใช้";
+                    }
+                    if (ticketDoc.exists() && ticketDoc.data().isSold) {
+                        throw "เบอร์นี้ถูกซื้อไปแล้ว";
+                    }
+                    if (userDoc.data().points < NUMBERED_LOTTERY_COST) {
+                        throw "คะแนนไม่เพียงพอ";
+                    }
+
+                    const newPoints = userDoc.data().points - NUMBERED_LOTTERY_COST;
+                    transaction.update(userRef, { points: newPoints });
+
+                    transaction.set(ticketRef, {
+                        isSold: true,
+                        ownerId: state.userId,
+                        ownerName: state.userData.name,
+                        purchaseDate: new Date().toISOString()
+                    });
+                });
+                showToast(`ซื้อเบอร์ ${numberStr} สำเร็จ!`);
+            } catch (e) {
+                showToast(typeof e === 'string' ? e : "เกิดข้อผิดพลาด กรุณาลองใหม่", true);
+                console.error("Buy Numbered Ticket Transaction failed: ", e);
+            }
+        }
 
         // --- Admin Action Handlers ---
         async function handleActivitySave(e) {
@@ -648,16 +742,24 @@
                 state.lotteryData = doc.data();
                 if(state.userId) render();
             });
+            const unsubNumberedLottery = onSnapshot(collection(db, "numberedLottery"), (snapshot) => {
+                state.numberedLotteryData = {};
+                snapshot.forEach(doc => {
+                    state.numberedLotteryData[doc.id] = doc.data();
+                });
+                if(state.userId && state.currentPage === 'numberedLottery') render();
+            });
             
-            state.unsubscribers.push(unsubActivities, unsubRewards, unsubLottery);
+            state.unsubscribers.push(unsubActivities, unsubRewards, unsubLottery, unsubNumberedLottery);
         }
 
         function setupNav() {
-            navButtonsContainer.innerHTML = ''; // Clear existing buttons
+            navButtonsContainer.innerHTML = '';
             let navs = [
                 { page: 'dashboard', icon: '📊', text: 'แดชบอร์ด' },
                 { page: 'rewards', icon: '🎁', text: 'แลกของรางวัล' },
-                { page: 'lottery', icon: '🎟️', text: 'สลากเสี่ยงโชค' }
+                { page: 'lottery', icon: '🎟️', text: 'สลากรางวัลใหญ่' },
+                { page: 'numberedLottery', icon: '🔢', text: 'สลากเรียงเบอร์' }
             ];
 
             if (state.isAdmin) {
@@ -670,7 +772,7 @@
             navs.forEach(nav => {
                 const btn = document.createElement('button');
                 btn.dataset.page = nav.page;
-                btn.className = 'nav-button py-3 px-4 font-semibold text-gray-500';
+                btn.className = 'nav-button py-3 px-4 font-semibold text-gray-500 whitespace-nowrap';
                 btn.innerHTML = `<span class="inline-block align-middle mr-1">${nav.icon}</span> ${nav.text}`;
                 navButtonsContainer.appendChild(btn);
             });
@@ -726,6 +828,9 @@
                 }
                 if (e.target.closest('#buy-ticket-btn')) {
                     handleBuyTicket();
+                }
+                if (e.target.closest('.buy-numbered-ticket-btn')) {
+                    handleBuyNumberedTicket(e.target.closest('.buy-numbered-ticket-btn').dataset.number);
                 }
                 // Admin actions
                 if (e.target.matches('.edit-activity-btn')) {
