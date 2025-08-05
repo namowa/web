@@ -4,17 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Health Tracker</title>
-    <!-- LIFF SDK -->
+
+    <!-- External Libraries -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js for graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
-    <!-- Google Fonts: Sarabun -->
+
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- Custom Styles -->
     <style>
         body {
             font-family: 'Sarabun', sans-serif;
@@ -26,9 +28,10 @@
 <body class="bg-gray-50">
 
     <div id="app-container">
+        <!-- App Header -->
         <header class="bg-white shadow-sm">
             <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex justify-between items-center">
-                 <div>
+                <div>
                     <h1 class="text-3xl font-bold text-gray-900">Health Tracker</h1>
                     <p class="text-gray-500">ระบบส่งเสริมสุขภาพพนักงาน</p>
                 </div>
@@ -43,26 +46,28 @@
             </div>
         </header>
 
+        <!-- Main Content -->
         <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <!-- Loading indicator for the main app -->
+            <!-- Loading Indicator -->
             <div id="app-loading" class="text-center p-10">
                 <p>กรุณารอสักครู่...</p>
             </div>
             
-            <!-- Main content, hidden until LIFF is ready -->
+            <!-- Main Application (Hidden until LIFF is ready) -->
             <div id="main-app" class="hidden">
-                <div class="mb-6">
+                <!-- Navigation -->
+                <nav class="mb-6">
                     <div class="flex space-x-2 p-2 bg-gray-200 rounded-lg">
-                        <!-- Navigation Buttons -->
                         <button data-page="dashboard" class="nav-button px-4 py-2 rounded-md text-sm font-medium transition-colors bg-indigo-600 text-white">ภาพรวม</button>
                         <button data-page="profile" class="nav-button px-4 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 bg-gray-200 hover:bg-gray-300">โปรไฟล์</button>
                         <button data-page="log" class="nav-button px-4 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 bg-gray-200 hover:bg-gray-300">บันทึกกิจกรรม</button>
                         <button data-page="history" class="nav-button px-4 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 bg-gray-200 hover:bg-gray-300">ประวัติ</button>
                     </div>
-                </div>
+                </nav>
 
+                <!-- Content Pages -->
                 <div id="content-pages">
-                     <!-- Dashboard Page -->
+                    <!-- Dashboard Page -->
                     <div id="dashboard-page" class="page active">
                         <div class="p-6 bg-white rounded-xl shadow-lg">
                             <h2 class="text-2xl font-bold mb-4 text-gray-800">ภาพรวมสุขภาพ</h2>
@@ -76,14 +81,15 @@
                                 </div>
                                 <!-- Exercise Summary -->
                                 <div class="flex flex-col">
-                                     <h3 class="text-lg font-semibold text-gray-700 mb-2">สรุปการออกกำลังกาย</h3>
-                                     <div id="exercise-summary-container" class="space-y-3">
+                                    <h3 class="text-lg font-semibold text-gray-700 mb-2">สรุปการออกกำลังกาย</h3>
+                                    <div id="exercise-summary-container" class="space-y-3">
                                         <!-- Summary data will be injected here -->
-                                     </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+
                     <!-- Profile Page -->
                     <div id="profile-page" class="page">
                         <div class="p-6 bg-white rounded-xl shadow-lg">
@@ -117,13 +123,14 @@
                             <p id="profile-message" class="mt-4 text-center font-semibold"></p>
                             <div id="bmi-display" class="mt-4"></div>
                             <div class="mt-8">
-                                 <h3 class="text-xl font-bold text-gray-800 mb-4">กราฟติดตามน้ำหนัก</h3>
-                                 <div class="bg-gray-50 p-4 rounded-lg">
+                                <h3 class="text-xl font-bold text-gray-800 mb-4">กราฟติดตามน้ำหนัก</h3>
+                                <div class="bg-gray-50 p-4 rounded-lg">
                                     <canvas id="weightChart"></canvas>
-                                 </div>
+                                </div>
                             </div>
                         </div>
                     </div>
+
                     <!-- Log Entry Page -->
                     <div id="log-page" class="page">
                          <div class="p-6 bg-white rounded-xl shadow-lg">
@@ -186,6 +193,7 @@
                              <p id="log-message" class="mt-4 text-center font-semibold"></p>
                         </div>
                     </div>
+
                     <!-- History Page -->
                     <div id="history-page" class="page">
                          <div class="p-6 bg-white rounded-xl shadow-lg">
@@ -196,12 +204,13 @@
                 </div>
             </div>
 
+            <!-- Footer -->
             <footer class="text-center mt-8 text-gray-400 text-xs">
                <p id="footer-text">ข้อมูลทั้งหมดถูกบันทึกไว้ในเบราว์เซอร์ของคุณ</p>
             </footer>
         </main>
         
-        <!-- Sending Data Popup -->
+        <!-- Modals and Popups -->
         <div id="sending-popup" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
             <div class="bg-white p-6 rounded-lg shadow-xl flex items-center space-x-4">
                 <svg class="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -212,7 +221,6 @@
             </div>
         </div>
         
-        <!-- Confirmation Modal -->
         <div id="confirm-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
             <div class="bg-white p-6 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
                 <h3 class="text-lg font-bold text-gray-900 mb-2">ยืนยันการลบ</h3>
@@ -227,629 +235,787 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', async () => {
-            // --- LIFF Initialization ---
-            const liffId = "1654435774-wze0oX67"; 
-            let liffUserId = null;
-            let liffProfile = null;
-
-            async function initializeLiff() {
-                try {
-                    await liff.init({ liffId: liffId });
-                    
-                    if (!liff.isLoggedIn()) {
-                        liff.login(); 
-                    } else {
-                        liffProfile = await liff.getProfile();
-                        liffUserId = liffProfile.userId;
-
-                        document.getElementById('liff-display-name').textContent = liffProfile.displayName;
-                        document.getElementById('liff-picture-url').src = liffProfile.pictureUrl;
-                        document.getElementById('liff-profile').classList.remove('hidden');
-                        document.getElementById('liff-loading').classList.add('hidden');
-                        document.getElementById('footer-text').textContent = `UserID: ${liffUserId}`;
-
-                        initializeApp();
-                    }
-                } catch (error) {
-                    console.error("LIFF Initialization failed", error);
-                    document.getElementById('liff-loading').textContent = "ไม่สามารถเชื่อมต่อกับ LINE ได้";
-                    document.getElementById('app-loading').classList.add('hidden');
-                }
+    document.addEventListener('DOMContentLoaded', () => {
+        
+        // --- Configuration and Constants ---
+        const CONFIG = {
+            LIFF_ID: "1654435774-wze0oX67",
+            WEBHOOK_URL: 'https://prod-53.southeastasia.logic.azure.com:443/workflows/c2e513eb481f410ba8177327c40e7f9d/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=AiNM5m_ySfmRHe50_UsM83kLpJJOMBtCkvID9APwgvc',
+            STORAGE_KEYS: {
+                PROFILE: 'healthTrackerProfile',
+                LOGS: 'healthTrackerLogs'
+            },
+            EXERCISE_TYPE_MAP: {
+                running: 'การวิ่ง',
+                walking: 'เดิน',
+                cycling: 'ปั่นจักรยาน',
+                other: 'กีฬาอื่นๆ'
             }
-            
-            await initializeLiff();
+        };
 
-            // --- Main App Logic (runs after LIFF is ready) ---
-            function initializeApp() {
-                document.getElementById('app-loading').classList.add('hidden');
-                document.getElementById('main-app').classList.remove('hidden');
+        // --- DOM Element References ---
+        const DOM = {
+            appLoading: document.getElementById('app-loading'),
+            mainApp: document.getElementById('main-app'),
+            // LIFF
+            liffLoading: document.getElementById('liff-loading'),
+            liffProfileContainer: document.getElementById('liff-profile'),
+            liffDisplayName: document.getElementById('liff-display-name'),
+            liffPictureUrl: document.getElementById('liff-picture-url'),
+            footerText: document.getElementById('footer-text'),
+            // Navigation
+            navButtons: document.querySelectorAll('.nav-button'),
+            pages: document.querySelectorAll('.page'),
+            // Profile Page
+            profile: {
+                dob: document.getElementById('profile-dob'),
+                gender: document.getElementById('profile-gender'),
+                weight: document.getElementById('profile-weight'),
+                height: document.getElementById('profile-height'),
+                saveBtn: document.getElementById('save-profile-btn'),
+                ageDisplay: document.getElementById('age-display'),
+                bmiDisplay: document.getElementById('bmi-display'),
+                message: document.getElementById('profile-message'),
+                weightChartCanvas: document.getElementById('weightChart'),
+            },
+            // Log Page
+            log: {
+                typeButtons: document.querySelectorAll('.log-type-btn'),
+                exerciseTypeContainer: document.getElementById('exercise-type-container'),
+                exerciseType: document.getElementById('log-exercise-type'),
+                kcalInputContainer: document.getElementById('kcal-input-container'),
+                kcal: document.getElementById('log-kcal'),
+                kmInputContainer: document.getElementById('km-input-container'),
+                km: document.getElementById('log-km'),
+                minutesInputContainer: document.getElementById('minutes-input-container'),
+                minutes: document.getElementById('log-minutes'),
+                uploadLabel: document.getElementById('log-upload-label'),
+                fileInput: document.getElementById('log-file-upload'),
+                preview: document.getElementById('log-preview'),
+                placeholderIcon: document.getElementById('log-placeholder-icon'),
+                description: document.getElementById('log-description'),
+                submitBtn: document.getElementById('log-submit-btn'),
+                message: document.getElementById('log-message'),
+            },
+            // History Page
+            historyContainer: document.getElementById('history-container'),
+            // Dashboard Page
+            dashboard: {
+                 bmiGaugeChartCanvas: document.getElementById('bmiGaugeChart'),
+                 exerciseSummaryContainer: document.getElementById('exercise-summary-container'),
+            },
+            // Modals
+            sendingPopup: document.getElementById('sending-popup'),
+            confirmModal: {
+                container: document.getElementById('confirm-modal'),
+                confirmBtn: document.getElementById('confirm-delete-btn'),
+                cancelBtn: document.getElementById('cancel-delete-btn'),
+            }
+        };
 
-                // --- DOM Elements ---
-                const sendingPopup = document.getElementById('sending-popup');
-                const confirmModal = document.getElementById('confirm-modal');
-                const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
-                const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
-                const navButtons = document.querySelectorAll('.nav-button');
-                const pages = document.querySelectorAll('.page');
-                const profileDob = document.getElementById('profile-dob');
-                const profileGender = document.getElementById('profile-gender');
-                const profileWeight = document.getElementById('profile-weight');
-                const profileHeight = document.getElementById('profile-height');
-                const saveProfileBtn = document.getElementById('save-profile-btn');
-                const ageDisplay = document.getElementById('age-display');
-                const bmiDisplay = document.getElementById('bmi-display');
-                const profileMessage = document.getElementById('profile-message');
-                const weightChartCanvas = document.getElementById('weightChart');
-                const bmiGaugeChartCanvas = document.getElementById('bmiGaugeChart');
-                const exerciseSummaryContainer = document.getElementById('exercise-summary-container');
-                const logTypeButtons = document.querySelectorAll('.log-type-btn');
-                const exerciseTypeContainer = document.getElementById('exercise-type-container');
-                const logExerciseType = document.getElementById('log-exercise-type');
-                const kcalInputContainer = document.getElementById('kcal-input-container');
-                const logKcal = document.getElementById('log-kcal');
-                const kmInputContainer = document.getElementById('km-input-container');
-                const logKm = document.getElementById('log-km');
-                const minutesInputContainer = document.getElementById('minutes-input-container');
-                const logMinutes = document.getElementById('log-minutes');
-                const logUploadLabel = document.getElementById('log-upload-label');
-                const logFileInput = document.getElementById('log-file-upload');
-                const logPreview = document.getElementById('log-preview');
-                const logPlaceholderIcon = document.getElementById('log-placeholder-icon');
-                const logDescription = document.getElementById('log-description');
-                const logSubmitBtn = document.getElementById('log-submit-btn');
-                const logMessage = document.getElementById('log-message');
-                const historyContainer = document.getElementById('history-container');
+        // --- Application State ---
+        let state = {
+            liffUserId: null,
+            liffProfile: null,
+            currentLogType: 'exercise',
+            logImageBase64: null,
+            weightChartInstance: null,
+            bmiGaugeChartInstance: null,
+            itemToDeleteId: null,
+        };
 
-                let currentLogType = 'exercise';
-                let logImageBase64 = null;
-                let weightChart = null;
-                let bmiGaugeChart = null;
-                let itemToDeleteId = null;
+        // --- Helper & Utility Functions ---
 
-                const exerciseTypeMap = {
-                    running: 'การวิ่ง',
-                    walking: 'เดิน',
-                    cycling: 'ปั่นจักรยาน',
-                    other: 'กีฬาอื่นๆ'
-                };
+        /** Shows or hides a DOM element. */
+        const setElementVisibility = (element, isVisible) => {
+            element.classList.toggle('hidden', !isVisible);
+        };
 
-                // --- Helper Functions ---
-                function showPopup() { sendingPopup.classList.remove('hidden'); }
-                function hidePopup() { sendingPopup.classList.add('hidden'); }
+        /** Shows a message to the user and fades it out. */
+        const showUserMessage = (element, text, isSuccess) => {
+            element.textContent = text;
+            element.className = `mt-4 text-center font-semibold ${isSuccess ? 'text-green-600' : 'text-red-600'}`;
+            setTimeout(() => { element.textContent = ''; }, 3000);
+        };
 
-                async function postDataToWebhook(payload) {
-                    const webhookUrl = 'https://prod-53.southeastasia.logic.azure.com:443/workflows/c2e513eb481f410ba8177327c40e7f9d/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=AiNM5m_ySfmRHe50_UsM83kLpJJOMBtCkvID9APwgvc';
-                    
-                    console.log("Attempting to POST to webhook:", webhookUrl);
-                    console.log("Payload being sent:", JSON.stringify(payload, null, 2));
+        /** Generates a unique storage key for the current LIFF user. */
+        const getStorageKey = (baseKey) => `${baseKey}_${state.liffUserId}`;
 
-                    try {
-                        const response = await fetch(webhookUrl, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload)
-                        });
-
-                        console.log('Webhook Response Status:', response.status);
-                        if (response.status !== 200 && response.status !== 202) {
-                            const errorText = await response.text();
-                            console.error('Webhook response was not OK:', response.statusText, errorText);
-                            throw new Error(`Server responded with status: ${response.status}`);
+        /** Resizes an image file to a Base64 string. */
+        const resizeImage = (file, maxWidth = 800, maxHeight = 600, quality = 0.85) => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onerror = reject;
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onerror = reject;
+                    img.onload = () => {
+                        let { width, height } = img;
+                        if (width > height) {
+                            if (width > maxWidth) {
+                                height = Math.round((height * maxWidth) / width);
+                                width = maxWidth;
+                            }
+                        } else {
+                            if (height > maxHeight) {
+                                width = Math.round((width * maxHeight) / height);
+                                height = maxHeight;
+                            }
                         }
-                        
-                        console.log('Data posted to webhook successfully.');
-                    } catch (error) {
-                        console.error('Error posting data to webhook:', error);
-                    }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL('image/jpeg', quality));
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        };
+
+        // --- Data Management (LocalStorage) ---
+
+        /** Retrieves profile data from localStorage. */
+        const getProfileData = () => {
+            const data = JSON.parse(localStorage.getItem(getStorageKey(CONFIG.STORAGE_KEYS.PROFILE)));
+            return data || { dob: '', gender: '', weightHistory: [], heightHistory: [] };
+        };
+
+        /** Retrieves all activity logs from localStorage. */
+        const getLogsData = () => {
+            return JSON.parse(localStorage.getItem(getStorageKey(CONFIG.STORAGE_KEYS.LOGS))) || [];
+        };
+
+        // --- API & Webhook Communication ---
+
+        /** Cleans the payload by removing null/undefined properties and sends it to the webhook. */
+        const postToWebhook = async (payload) => {
+            // Create a new object with null/undefined values removed.
+            const cleanedPayload = Object.entries(payload).reduce((acc, [key, value]) => {
+                if (value !== null && value !== undefined) {
+                    acc[key] = value;
                 }
+                return acc;
+            }, {});
 
-                function showMessage(element, text, isSuccess) {
-                    element.textContent = text;
-                    element.className = `mt-4 text-center font-semibold ${isSuccess ? 'text-green-600' : 'text-red-600'}`;
-                    setTimeout(() => { element.textContent = ''; }, 3000);
+            console.log("Sending cleaned payload to webhook:", JSON.stringify(cleanedPayload, null, 2));
+            try {
+                const response = await fetch(CONFIG.WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(cleanedPayload) // Send the cleaned payload
+                });
+                if (![200, 202].includes(response.status)) {
+                    const errorText = await response.text();
+                    throw new Error(`Server responded with status: ${response.status}. ${errorText}`);
                 }
+                console.log('Data posted successfully.');
+            } catch (error) {
+                console.error('Error posting data to webhook:', error);
+                // Optionally show an error message to the user
+            }
+        };
 
-                function calculateAge(dob) {
-                    if (!dob) return null;
-                    const birthDate = new Date(dob);
-                    const today = new Date();
-                    let age = today.getFullYear() - birthDate.getFullYear();
-                    const m = today.getMonth() - birthDate.getMonth();
-                    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-                    return age;
-                }
+        // --- Business Logic (Calculations) ---
 
-                function getBmi() {
-                    const profileData = getProfileData();
-                    const lastWeight = profileData.weightHistory[profileData.weightHistory.length - 1]?.value;
-                    const lastHeight = profileData.heightHistory[profileData.heightHistory.length - 1]?.value;
+        /** Calculates age from a date of birth string. */
+        const calculateAge = (dobString) => {
+            if (!dobString) return null;
+            const birthDate = new Date(dobString);
+            const today = new Date();
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                age--;
+            }
+            return age;
+        };
+        
+        /** Calculates BMI and returns value and interpretation. */
+        const calculateBmi = () => {
+            const profileData = getProfileData();
+            const lastWeight = profileData.weightHistory.at(-1)?.value;
+            const lastHeight = profileData.heightHistory.at(-1)?.value;
 
-                    if (!lastWeight || !lastHeight || lastHeight <= 0) {
-                        return { value: null, info: null };
-                    }
-                    const heightInMeters = lastHeight / 100;
-                    const bmiValue = (lastWeight / (heightInMeters * heightInMeters)).toFixed(1);
-                    
-                    let bmiInfo = {};
-                    if (bmiValue < 18.5) bmiInfo = { text: 'น้ำหนักน้อยกว่าเกณฑ์', color: '#3b82f6' }; // blue-500
-                    else if (bmiValue >= 18.5 && bmiValue <= 22.9) bmiInfo = { text: 'สมส่วน', color: '#22c55e' }; // green-500
-                    else if (bmiValue >= 23 && bmiValue <= 24.9) bmiInfo = { text: 'น้ำหนักเกิน', color: '#f59e0b' }; // amber-500
-                    else if (bmiValue >= 25 && bmiValue <= 29.9) bmiInfo = { text: 'โรคอ้วน', color: '#f97316' }; // orange-500
-                    else bmiInfo = { text: 'โรคอ้วนอันตราย', color: '#ef4444' }; // red-500
+            if (!lastWeight || !lastHeight || lastHeight <= 0) {
+                return { value: null, info: null };
+            }
 
-                    return { value: bmiValue, info: bmiInfo };
-                }
+            const heightInMeters = lastHeight / 100;
+            const bmiValue = (lastWeight / (heightInMeters * heightInMeters)).toFixed(1);
+            
+            let bmiInfo = {};
+            if (bmiValue < 18.5) bmiInfo = { text: 'น้ำหนักน้อยกว่าเกณฑ์', color: '#3b82f6' };
+            else if (bmiValue <= 22.9) bmiInfo = { text: 'สมส่วน', color: '#22c55e' };
+            else if (bmiValue <= 24.9) bmiInfo = { text: 'น้ำหนักเกิน', color: '#f59e0b' };
+            else if (bmiValue <= 29.9) bmiInfo = { text: 'โรคอ้วน', color: '#f97316' };
+            else bmiInfo = { text: 'โรคอ้วนอันตราย', color: '#ef4444' };
 
-                function calculateBmiForDisplay() {
-                    const { value, info } = getBmi();
-                    if (!value) {
-                        bmiDisplay.innerHTML = '';
-                        return;
-                    }
-                    bmiDisplay.innerHTML = `<div class="mt-4 p-4 bg-gray-100 rounded-lg text-center"><h3 class="font-bold text-lg">ค่าดัชนีมวลกาย (BMI)</h3><p class="text-3xl font-bold">${value}</p><p class="font-semibold" style="color:${info.color};">${info.text}</p></div>`;
-                }
+            return { value: bmiValue, info: bmiInfo };
+        };
 
-                // --- Data Functions (Using localStorage with LIFF UserID) ---
-                function getStorageKey(baseKey) {
-                    return `${baseKey}_${liffUserId}`;
-                }
+        // --- UI Rendering & Updates ---
 
-                function getProfileData() {
-                    const profileData = JSON.parse(localStorage.getItem(getStorageKey('healthTrackerProfile')));
-                    return profileData || { dob: '', gender: '', weightHistory: [], heightHistory: [] };
-                }
+        /** Updates the LIFF profile section in the header. */
+        const updateLiffProfileUI = () => {
+            DOM.liffDisplayName.textContent = state.liffProfile.displayName;
+            DOM.liffPictureUrl.src = state.liffProfile.pictureUrl;
+            setElementVisibility(DOM.liffProfileContainer, true);
+            setElementVisibility(DOM.liffLoading, false);
+            DOM.footerText.textContent = `UserID: ${state.liffUserId}`;
+        };
 
-                async function saveProfile() {
-                    showPopup();
-                    try {
-                        const profileData = getProfileData();
-                        profileData.dob = profileDob.value;
-                        profileData.gender = profileGender.value;
-                        const newWeight = parseFloat(profileWeight.value);
-                        const newHeight = parseFloat(profileHeight.value);
-                        const timestamp = new Date().toISOString();
-                        
-                        if (newWeight) profileData.weightHistory.push({ value: newWeight, date: timestamp });
-                        if (newHeight) profileData.heightHistory.push({ value: newHeight, date: timestamp });
-                        
-                        localStorage.setItem(getStorageKey('healthTrackerProfile'), JSON.stringify(profileData));
-                        
-                        const webhookPayload = {
-                            userId: liffUserId,
-                            displayName: liffProfile.displayName,
-                            pictureUrl: liffProfile.pictureUrl,
-                            dob: profileData.dob,
-                            gender: profileData.gender,
-                            height: newHeight || null,
-                            weight: newWeight || null,
-                            type: 'profileUpdate',
-                            exerciseType: null,
-                            description: 'Profile updated.',
-                            km: null,
-                            minutes: null,
-                            kcal: null,
-                            timestamp: timestamp,
-                            image: null
-                        };
-                        await postDataToWebhook(webhookPayload);
+        /** Renders the BMI display on the profile page. */
+        const renderProfileBmiDisplay = () => {
+            const { value, info } = calculateBmi();
+            if (!value) {
+                DOM.profile.bmiDisplay.innerHTML = '';
+                return;
+            }
+            DOM.profile.bmiDisplay.innerHTML = `
+                <div class="mt-4 p-4 bg-gray-100 rounded-lg text-center">
+                    <h3 class="font-bold text-lg">ค่าดัชนีมวลกาย (BMI)</h3>
+                    <p class="text-3xl font-bold">${value}</p>
+                    <p class="font-semibold" style="color:${info.color};">${info.text}</p>
+                </div>`;
+        };
 
-                        showMessage(profileMessage, 'บันทึกข้อมูลสำเร็จ!', true);
-                        renderWeightChart();
-                        calculateBmiForDisplay();
-                    } finally {
-                        hidePopup();
-                    }
-                }
+        /** Updates calculated fields on the profile page (age, BMI). */
+        const updateProfileCalculations = () => {
+            const age = calculateAge(DOM.profile.dob.value);
+            DOM.profile.ageDisplay.textContent = age !== null ? `อายุ: ${age} ปี` : '';
+            renderProfileBmiDisplay();
+        };
 
-                function loadProfile() {
-                    const profileData = getProfileData();
-                    profileDob.value = profileData.dob || '';
-                    profileGender.value = profileData.gender || '';
-                    const lastWeightEntry = profileData.weightHistory[profileData.weightHistory.length - 1];
-                    if(lastWeightEntry) profileWeight.value = lastWeightEntry.value;
-                    const lastHeightEntry = profileData.heightHistory[profileData.heightHistory.length - 1];
-                    if(lastHeightEntry) profileHeight.value = lastHeightEntry.value;
-                    updateProfileCalculations();
-                    renderWeightChart();
-                }
-                
-                function updateProfileCalculations() {
-                     const age = calculateAge(profileDob.value);
-                     ageDisplay.textContent = age !== null ? `อายุ: ${age} ปี` : '';
-                     calculateBmiForDisplay();
-                }
-                
-                function renderWeightChart() {
-                    const profileData = getProfileData();
-                    const ctx = weightChartCanvas.getContext('2d');
-                    if (weightChart) weightChart.destroy();
-                    if (profileData.weightHistory.length < 2) {
-                        ctx.clearRect(0, 0, weightChartCanvas.width, weightChartCanvas.height);
-                        ctx.font = "16px Sarabun";
-                        ctx.fillStyle = "rgb(107, 114, 128)";
-                        ctx.textAlign = "center";
-                        ctx.fillText("ต้องการข้อมูลน้ำหนักอย่างน้อย 2 ครั้งเพื่อสร้างกราฟ", weightChartCanvas.width / 2, weightChartCanvas.height / 2);
-                        return;
-                    }
-                    const labels = profileData.weightHistory.map((entry, index) => `ครั้งที่ ${index + 1}`);
-                    const data = profileData.weightHistory.map(entry => entry.value);
-                    weightChart = new Chart(ctx, {
-                        type: 'line',
-                        data: { labels, datasets: [{ label: 'น้ำหนัก (kg)', data, borderColor: 'rgb(79, 70, 229)', backgroundColor: 'rgba(79, 70, 229, 0.1)', fill: true, tension: 0.1 }] },
-                        options: {
-                            responsive: true, maintainAspectRatio: true,
-                            scales: { y: { beginAtZero: false }, x: { title: { display: true, text: 'ครั้งที่บันทึก' } } },
-                            plugins: { legend: { display: false }, tooltip: { callbacks: {
+        /** Renders the weight history chart. */
+        const renderWeightChart = () => {
+            const profileData = getProfileData();
+            const ctx = DOM.profile.weightChartCanvas.getContext('2d');
+            
+            if (state.weightChartInstance) state.weightChartInstance.destroy();
+
+            if (profileData.weightHistory.length < 2) {
+                ctx.clearRect(0, 0, DOM.profile.weightChartCanvas.width, DOM.profile.weightChartCanvas.height);
+                ctx.font = "16px Sarabun";
+                ctx.fillStyle = "rgb(107, 114, 128)";
+                ctx.textAlign = "center";
+                ctx.fillText("ต้องการข้อมูลน้ำหนักอย่างน้อย 2 ครั้งเพื่อสร้างกราฟ", DOM.profile.weightChartCanvas.width / 2, DOM.profile.weightChartCanvas.height / 2);
+                return;
+            }
+
+            const labels = profileData.weightHistory.map((_, index) => `ครั้งที่ ${index + 1}`);
+            const data = profileData.weightHistory.map(entry => entry.value);
+
+            state.weightChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'น้ำหนัก (kg)',
+                        data,
+                        borderColor: 'rgb(79, 70, 229)',
+                        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: { y: { beginAtZero: false }, x: { title: { display: true, text: 'ครั้งที่บันทึก' } } },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
                                 title: (tooltipItems) => new Date(profileData.weightHistory[tooltipItems[0].dataIndex].date).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
                                 label: (tooltipItem) => `น้ำหนัก: ${tooltipItem.formattedValue} kg`
-                            }}}
-                        }
-                    });
-                }
-
-                async function saveLog() {
-                    if (!logImageBase64) {
-                        showMessage(logMessage, 'กรุณาเลือกรูปภาพ', false);
-                        return;
-                    }
-                    showPopup();
-                    try {
-                        const logs = JSON.parse(localStorage.getItem(getStorageKey('healthTrackerLogs'))) || [];
-                        const newLog = { id: Date.now(), type: currentLogType, description: logDescription.value, imageUrl: logImageBase64, timestamp: new Date().toISOString() };
-                        
-                        if (currentLogType === 'exercise') {
-                            newLog.exerciseType = logExerciseType.value;
-                            if (['running', 'walking', 'cycling'].includes(newLog.exerciseType)) {
-                                newLog.km = parseFloat(logKm.value) || 0;
-                            } else {
-                                newLog.minutes = parseInt(logMinutes.value) || 0;
                             }
                         }
-                        if (currentLogType === 'food') {
-                            newLog.kcal = logKcal.value || 0;
-                        }
-
-                        logs.unshift(newLog);
-                        localStorage.setItem(getStorageKey('healthTrackerLogs'), JSON.stringify(logs));
-                        
-                        const profileData = getProfileData();
-                        const lastWeight = profileData.weightHistory[profileData.weightHistory.length - 1]?.value || null;
-                        const lastHeight = profileData.heightHistory[profileData.heightHistory.length - 1]?.value || null;
-                        
-                        const webhookPayload = {
-                            userId: liffUserId,
-                            displayName: liffProfile.displayName,
-                            pictureUrl: liffProfile.pictureUrl,
-                            dob: profileData.dob,
-                            gender: profileData.gender,
-                            height: lastHeight,
-                            weight: lastWeight,
-                            type: newLog.type,
-                            exerciseType: newLog.exerciseType || null,
-                            description: newLog.description || null,
-                            km: newLog.km || null,
-                            minutes: newLog.minutes || null,
-                            kcal: newLog.kcal || null,
-                            timestamp: newLog.timestamp,
-                            image: newLog.imageUrl
-                        };
-                        await postDataToWebhook(webhookPayload);
-
-                        showMessage(logMessage, 'บันทึกกิจกรรมสำเร็จ!', true);
-                        resetLogForm();
-                        if (document.getElementById('history-page').classList.contains('active')) loadHistory();
-                    } finally {
-                        hidePopup();
                     }
                 }
+            });
+        };
 
-                function loadHistory() {
-                    const logs = JSON.parse(localStorage.getItem(getStorageKey('healthTrackerLogs'))) || [];
-                    const profileData = getProfileData();
-                    let combinedHistory = [];
-                    combinedHistory.push(...logs.map(log => ({ ...log, sortDate: new Date(log.timestamp) })));
-                    combinedHistory.push(...profileData.weightHistory.map(entry => ({ id: `weight-${entry.date}`, type: 'weight', value: entry.value, timestamp: entry.date, sortDate: new Date(entry.date) })));
-                    combinedHistory.push(...profileData.heightHistory.map(entry => ({ id: `height-${entry.date}`, type: 'height', value: entry.value, timestamp: entry.date, sortDate: new Date(entry.date) })));
-                    combinedHistory.sort((a, b) => b.sortDate - a.sortDate);
-                    historyContainer.innerHTML = '';
-                    if (combinedHistory.length === 0) {
-                        historyContainer.innerHTML = '<p class="text-center text-gray-500">ยังไม่มีข้อมูลบันทึก</p>';
-                        return;
-                    }
-                    combinedHistory.forEach(item => {
-                        const logDate = new Date(item.sortDate).toLocaleDateString('en-GB');
-                        const logElement = document.createElement('div');
-                        logElement.className = 'relative flex items-start space-x-4 p-4 border border-gray-200 rounded-lg';
-                        
-                        let contentHtml = '';
-
-                        if (item.type === 'exercise' || item.type === 'food') {
-                            const logTypeDisplay = item.type === 'exercise' ? { text: 'ออกกำลังกาย', bg: 'bg-blue-100', text_color: 'text-blue-800' } : { text: 'อาหาร', bg: 'bg-green-100', text_color: 'text-green-800' };
-                            let detailsHtml = '';
-                            if (item.type === 'food') {
-                                detailsHtml = `<p class="mt-1 font-semibold text-orange-600">${item.kcal || 0} kcal</p>`;
-                            } else if (item.type === 'exercise') {
-                                const typeText = exerciseTypeMap[item.exerciseType] || 'ออกกำลังกาย';
-                                let valueText = '';
-                                if(item.km > 0) valueText = `${item.km} กม.`;
-                                if(item.minutes > 0) valueText = `${item.minutes} นาที`;
-                                detailsHtml = `<p class="mt-1 font-semibold text-blue-600">${typeText}${valueText ? `: ${valueText}` : ''}</p>`;
-                            }
-                            contentHtml = `
-                                <img src="${item.imageUrl}" alt="${item.description || 'log image'}" class="w-24 h-24 object-cover rounded-md bg-gray-200">
-                                <div class="flex-1 flex flex-col">
-                                    <div class="flex-grow pr-6">
-                                        <span class="px-2 py-1 text-xs font-semibold rounded-full ${logTypeDisplay.bg} ${logTypeDisplay.text_color}">${logTypeDisplay.text}</span>
-                                        <p class="mt-2 text-gray-700">${item.description || 'ไม่มีคำอธิบาย'}</p>
-                                        ${detailsHtml}
-                                    </div>
-                                    <div class="text-right text-xs text-gray-400 mt-2">${logDate}</div>
-                                </div>`;
-                        } else if (item.type === 'weight') {
-                            contentHtml = `
-                                <div class="flex-shrink-0 w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center"><svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
-                                <div class="flex-1 flex flex-col">
-                                    <div class="flex-grow pr-6">
-                                        <span class="font-semibold text-gray-800">อัปเดตน้ำหนัก</span>
-                                        <p class="mt-1 text-lg text-gray-700 font-bold">${item.value} kg</p>
-                                    </div>
-                                    <div class="text-right text-xs text-gray-400 mt-1">${logDate}</div>
-                                </div>`;
-                        } else if (item.type === 'height') {
-                             contentHtml = `
-                                <div class="flex-shrink-0 w-12 h-12 rounded-full bg-teal-100 flex items-center justify-center"><svg class="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
-                                <div class="flex-1 flex flex-col">
-                                    <div class="flex-grow pr-6">
-                                        <span class="font-semibold text-gray-800">อัปเดตส่วนสูง</span>
-                                        <p class="mt-1 text-lg text-gray-700 font-bold">${item.value} cm</p>
-                                    </div>
-                                    <div class="text-right text-xs text-gray-400 mt-1">${logDate}</div>
-                                </div>`;
-                        }
-                        
-                        const deleteButtonHtml = `<button class="delete-btn absolute top-2 right-2 text-gray-400 hover:text-red-500" data-id="${item.id}">
-                            <svg class="w-6 h-6 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        </button>`;
-
-                        logElement.innerHTML = contentHtml + deleteButtonHtml;
-                        historyContainer.appendChild(logElement);
-                    });
-                }
-                
-                function resetLogForm() {
-                    logDescription.value = ''; logFileInput.value = ''; logKcal.value = '';
-                    logKm.value = ''; logMinutes.value = '';
-                    logExerciseType.value = 'running';
-                    logImageBase64 = null; logPreview.src = '';
-                    logPreview.classList.add('hidden'); logPlaceholderIcon.classList.remove('hidden');
-                    // Reset input visibility
-                    kmInputContainer.classList.remove('hidden');
-                    minutesInputContainer.classList.add('hidden');
-                }
-
-                function loadDashboard() {
-                    renderBmiGauge();
-                    renderExerciseSummary();
-                }
-
-                function renderBmiGauge() {
-                    const { value, info } = getBmi();
-                    const ctx = bmiGaugeChartCanvas.getContext('2d');
-                    if(bmiGaugeChart) bmiGaugeChart.destroy();
-                    
-                    if (!value) {
-                         ctx.clearRect(0, 0, bmiGaugeChartCanvas.width, bmiGaugeChartCanvas.height);
-                         ctx.font = "16px Sarabun";
-                         ctx.fillStyle = "rgb(107, 114, 128)";
-                         ctx.textAlign = "center";
-                         ctx.fillText("ไม่มีข้อมูล BMI", bmiGaugeChartCanvas.width / 2, bmiGaugeChartCanvas.height / 2);
-                         return;
-                    }
-
-                    const maxBmi = 50; // Set a reasonable max for the gauge
-                    const data = {
-                        datasets: [{
-                            data: [value, maxBmi - value],
-                            backgroundColor: [info.color, '#e5e7eb'],
-                            borderColor: ['#fff', '#fff'],
-                            borderWidth: 2,
-                            circumference: 180,
-                            rotation: -90,
-                        }]
-                    };
-
-                    bmiGaugeChart = new Chart(ctx, {
-                        type: 'doughnut',
-                        data: data,
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            cutout: '60%',
-                            plugins: {
-                                legend: { display: false },
-                                tooltip: { enabled: false },
-                                datalabels: {
-                                    formatter: (value, context) => {
-                                        if (context.dataIndex === 0) {
-                                            return `${value}\n${info.text}`;
-                                        }
-                                        return '';
-                                    },
-                                    color: '#1f2937',
-                                    textAlign: 'center',
-                                    font: {
-                                        size: 18,
-                                        weight: 'bold',
-                                        family: 'Sarabun'
-                                    }
-                                }
-                            }
-                        },
-                        plugins: [ChartDataLabels]
-                    });
-                }
-
-                function renderExerciseSummary() {
-                    const logs = JSON.parse(localStorage.getItem(getStorageKey('healthTrackerLogs'))) || [];
-                    const summary = {
-                        running: { km: 0 },
-                        walking: { km: 0 },
-                        cycling: { km: 0 },
-                        other: { minutes: 0 }
-                    };
-
-                    logs.filter(log => log.type === 'exercise').forEach(log => {
-                        if (log.exerciseType && summary[log.exerciseType]) {
-                            if (log.km) summary[log.exerciseType].km += log.km;
-                            if (log.minutes) summary[log.exerciseType].minutes += log.minutes;
-                        }
-                    });
-
-                    exerciseSummaryContainer.innerHTML = `
-                        <div class="flex justify-between items-center p-3 bg-gray-100 rounded-lg">
-                            <span class="font-semibold text-gray-600">วิ่ง</span>
-                            <span class="font-bold text-lg text-indigo-600">${summary.running.km.toFixed(1)} กม.</span>
-                        </div>
-                        <div class="flex justify-between items-center p-3 bg-gray-100 rounded-lg">
-                            <span class="font-semibold text-gray-600">เดิน</span>
-                            <span class="font-bold text-lg text-indigo-600">${summary.walking.km.toFixed(1)} กม.</span>
-                        </div>
-                        <div class="flex justify-between items-center p-3 bg-gray-100 rounded-lg">
-                            <span class="font-semibold text-gray-600">ปั่นจักรยาน</span>
-                            <span class="font-bold text-lg text-indigo-600">${summary.cycling.km.toFixed(1)} กม.</span>
-                        </div>
-                        <div class="flex justify-between items-center p-3 bg-gray-100 rounded-lg">
-                            <span class="font-semibold text-gray-600">กีฬาอื่นๆ</span>
-                            <span class="font-bold text-lg text-indigo-600">${summary.other.minutes} นาที</span>
-                        </div>
-                    `;
-                }
-
-                async function performDelete(idToDelete) {
-                    if (!idToDelete) return;
-
-                    if (String(idToDelete).startsWith('weight-') || String(idToDelete).startsWith('height-')) {
-                        const profileData = getProfileData();
-                        const type = String(idToDelete).startsWith('weight-') ? 'weightHistory' : 'heightHistory';
-                        const timestamp = String(idToDelete).substring(type === 'weightHistory' ? 7 : 7);
-
-                        profileData[type] = profileData[type].filter(entry => entry.date !== timestamp);
-                        localStorage.setItem(getStorageKey('healthTrackerProfile'), JSON.stringify(profileData));
-                    } else {
-                        let logs = JSON.parse(localStorage.getItem(getStorageKey('healthTrackerLogs'))) || [];
-                        logs = logs.filter(log => log.id != idToDelete);
-                        localStorage.setItem(getStorageKey('healthTrackerLogs'), JSON.stringify(logs));
-                    }
-
-                    // Refresh UI
-                    loadHistory();
-                    loadDashboard(); 
-                    renderWeightChart();
-                }
-
-
-                // --- Event Listeners ---
-                navButtons.forEach(button => {
-                    button.addEventListener('click', () => {
-                        const targetPageId = button.dataset.page + '-page';
-                        pages.forEach(page => page.classList.remove('active'));
-                        document.getElementById(targetPageId).classList.add('active');
-                        navButtons.forEach(btn => { btn.classList.remove('bg-indigo-600', 'text-white'); btn.classList.add('text-gray-700', 'bg-gray-200', 'hover:bg-gray-300'); });
-                        button.classList.add('bg-indigo-600', 'text-white');
-                        button.classList.remove('text-gray-700', 'bg-gray-200', 'hover:bg-gray-300');
-                        if (button.dataset.page === 'history') loadHistory();
-                        if (button.dataset.page === 'profile') renderWeightChart();
-                        if (button.dataset.page === 'dashboard') loadDashboard();
-                    });
-                });
-
-                [profileDob, profileWeight, profileHeight, profileGender].forEach(input => input.addEventListener('input', updateProfileCalculations));
-                saveProfileBtn.addEventListener('click', saveProfile);
-                
-                logTypeButtons.forEach(button => {
-                    button.addEventListener('click', () => {
-                        currentLogType = button.dataset.logType;
-                        const isExercise = currentLogType === 'exercise';
-                        logUploadLabel.textContent = `อัปโหลดรูปภาพ${isExercise ? 'การออกกำลังกาย' : 'อาหาร'}`;
-                        
-                        // New logic for showing/hiding inputs
-                        if (isExercise) {
-                            exerciseTypeContainer.classList.remove('hidden');
-                            kcalInputContainer.classList.add('hidden');
-                            // Trigger change to show/hide km or minutes input
-                            logExerciseType.dispatchEvent(new Event('change'));
-                        } else { // Food
-                            exerciseTypeContainer.classList.add('hidden');
-                            kcalInputContainer.classList.remove('hidden');
-                            kmInputContainer.classList.add('hidden');
-                            minutesInputContainer.classList.add('hidden');
-                        }
-
-                        logTypeButtons.forEach(btn => { btn.classList.remove('border-indigo-500', 'text-indigo-600'); btn.classList.add('text-gray-500'); });
-                        button.classList.add('border-indigo-500', 'text-indigo-600');
-                    });
-                });
-
-                logExerciseType.addEventListener('change', () => {
-                    const selectedType = logExerciseType.value;
-                    const isOther = selectedType === 'other';
-                    kmInputContainer.classList.toggle('hidden', isOther);
-                    minutesInputContainer.classList.toggle('hidden', !isOther);
-                });
-
-                logFileInput.addEventListener('change', (e) => {
-                    const file = e.target.files[0];
-                    if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        const img = new Image();
-                        img.onload = () => {
-                            const maxWidth = 800, maxHeight = 600;
-                            let { width, height } = img;
-                            if (width > height) { if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
-                            } else { if (height > maxHeight) { width = Math.round((width * maxHeight) / height); height = maxHeight; } }
-                            const canvas = document.createElement('canvas');
-                            canvas.width = width; canvas.height = height;
-                            const ctx = canvas.getContext('2d');
-                            ctx.drawImage(img, 0, 0, width, height);
-                            const resizedBase64 = canvas.toDataURL('image/jpeg', 0.85);
-                            logImageBase64 = resizedBase64;
-                            logPreview.src = resizedBase64;
-                            logPreview.classList.remove('hidden');
-                            logPlaceholderIcon.classList.add('hidden');
-                        };
-                        img.src = event.target.result;
-                    };
-                    reader.readAsDataURL(file);
-                });
-
-                logSubmitBtn.addEventListener('click', saveLog);
-                
-                historyContainer.addEventListener('click', (event) => {
-                    const deleteButton = event.target.closest('.delete-btn');
-                    if (deleteButton) {
-                        itemToDeleteId = deleteButton.dataset.id;
-                        confirmModal.classList.remove('hidden');
-                    }
-                });
-
-                cancelDeleteBtn.addEventListener('click', () => {
-                    itemToDeleteId = null;
-                    confirmModal.classList.add('hidden');
-                });
-
-                confirmDeleteBtn.addEventListener('click', () => {
-                    performDelete(itemToDeleteId);
-                    itemToDeleteId = null;
-                    confirmModal.classList.add('hidden');
-                });
-
-                // --- Initial Load ---
-                loadProfile();
-                loadDashboard();
+        /** Renders the BMI gauge chart on the dashboard. */
+        const renderBmiGauge = () => {
+            const { value, info } = calculateBmi();
+            const ctx = DOM.dashboard.bmiGaugeChartCanvas.getContext('2d');
+            if(state.bmiGaugeChartInstance) state.bmiGaugeChartInstance.destroy();
+            
+            if (!value) {
+                ctx.clearRect(0, 0, DOM.dashboard.bmiGaugeChartCanvas.width, DOM.dashboard.bmiGaugeChartCanvas.height);
+                ctx.font = "16px Sarabun";
+                ctx.fillStyle = "rgb(107, 114, 128)";
+                ctx.textAlign = "center";
+                ctx.fillText("ไม่มีข้อมูล BMI", DOM.dashboard.bmiGaugeChartCanvas.width / 2, DOM.dashboard.bmiGaugeChartCanvas.height / 2);
+                return;
             }
-        });
+
+            const maxBmi = 50; // Set a reasonable max for the gauge
+            state.bmiGaugeChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [value, maxBmi - value],
+                        backgroundColor: [info.color, '#e5e7eb'],
+                        borderColor: ['#fff', '#fff'],
+                        borderWidth: 2,
+                        circumference: 180,
+                        rotation: -90,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '60%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false },
+                        datalabels: {
+                            formatter: (val, context) => (context.dataIndex === 0) ? `${val}\n${info.text}` : '',
+                            color: '#1f2937',
+                            textAlign: 'center',
+                            font: { size: 18, weight: 'bold', family: 'Sarabun' }
+                        }
+                    }
+                },
+                plugins: [ChartDataLabels]
+            });
+        };
+
+        /** Renders the exercise summary on the dashboard. */
+        const renderExerciseSummary = () => {
+            const logs = getLogsData();
+            const summary = {
+                running: { km: 0 },
+                walking: { km: 0 },
+                cycling: { km: 0 },
+                other: { minutes: 0 }
+            };
+
+            logs.filter(log => log.type === 'exercise').forEach(log => {
+                if (log.exerciseType && summary[log.exerciseType]) {
+                    if (log.km) summary[log.exerciseType].km += log.km;
+                    if (log.minutes) summary[log.exerciseType].minutes += log.minutes;
+                }
+            });
+
+            DOM.dashboard.exerciseSummaryContainer.innerHTML = `
+                <div class="flex justify-between items-center p-3 bg-gray-100 rounded-lg">
+                    <span class="font-semibold text-gray-600">วิ่ง</span>
+                    <span class="font-bold text-lg text-indigo-600">${summary.running.km.toFixed(1)} กม.</span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-gray-100 rounded-lg">
+                    <span class="font-semibold text-gray-600">เดิน</span>
+                    <span class="font-bold text-lg text-indigo-600">${summary.walking.km.toFixed(1)} กม.</span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-gray-100 rounded-lg">
+                    <span class="font-semibold text-gray-600">ปั่นจักรยาน</span>
+                    <span class="font-bold text-lg text-indigo-600">${summary.cycling.km.toFixed(1)} กม.</span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-gray-100 rounded-lg">
+                    <span class="font-semibold text-gray-600">กีฬาอื่นๆ</span>
+                    <span class="font-bold text-lg text-indigo-600">${summary.other.minutes} นาที</span>
+                </div>
+            `;
+        };
+
+        /** Creates an HTML element for a single history item. */
+        const createHistoryItemHTML = (item) => {
+            const logDate = new Date(item.sortDate).toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' });
+            let contentHtml = '';
+
+            if (item.type === 'exercise' || item.type === 'food') {
+                const isExercise = item.type === 'exercise';
+                const typeDisplay = isExercise 
+                    ? { text: 'ออกกำลังกาย', bg: 'bg-blue-100', textColor: 'text-blue-800' } 
+                    : { text: 'อาหาร', bg: 'bg-green-100', textColor: 'text-green-800' };
+                
+                let detailsHtml = '';
+                if (isExercise) {
+                    const typeText = CONFIG.EXERCISE_TYPE_MAP[item.exerciseType] || 'ออกกำลังกาย';
+                    const valueText = item.km > 0 ? `${item.km} กม.` : (item.minutes > 0 ? `${item.minutes} นาที` : '');
+                    detailsHtml = `<p class="mt-1 font-semibold text-blue-600">${typeText}${valueText ? `: ${valueText}` : ''}</p>`;
+                } else {
+                    detailsHtml = `<p class="mt-1 font-semibold text-orange-600">${item.kcal || 0} kcal</p>`;
+                }
+
+                contentHtml = `
+                    <img src="${item.imageData}" alt="${item.description || 'log image'}" class="w-24 h-24 object-cover rounded-md bg-gray-200 flex-shrink-0">
+                    <div class="flex-1 flex flex-col">
+                        <div class="flex-grow pr-6">
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full ${typeDisplay.bg} ${typeDisplay.textColor}">${typeDisplay.text}</span>
+                            <p class="mt-2 text-gray-700">${item.description || 'ไม่มีคำอธิบาย'}</p>
+                            ${detailsHtml}
+                        </div>
+                        <div class="text-right text-xs text-gray-400 mt-2">${logDate}</div>
+                    </div>`;
+            } else { // Profile updates (weight/height)
+                const isWeight = item.type === 'weight';
+                const iconSvg = isWeight
+                    ? `<svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`
+                    : `<svg class="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+                contentHtml = `
+                    <div class="flex-shrink-0 w-12 h-12 rounded-full ${isWeight ? 'bg-purple-100' : 'bg-teal-100'} flex items-center justify-center">${iconSvg}</div>
+                    <div class="flex-1 flex flex-col">
+                        <div class="flex-grow pr-6">
+                            <span class="font-semibold text-gray-800">อัปเดต${isWeight ? 'น้ำหนัก' : 'ส่วนสูง'}</span>
+                            <p class="mt-1 text-lg text-gray-700 font-bold">${item.value} ${isWeight ? 'kg' : 'cm'}</p>
+                        </div>
+                        <div class="text-right text-xs text-gray-400 mt-1">${logDate}</div>
+                    </div>`;
+            }
+
+            return `
+                <div class="relative flex items-start space-x-4 p-4 border border-gray-200 rounded-lg">
+                    ${contentHtml}
+                    <button class="delete-btn absolute top-2 right-2 text-gray-400 hover:text-red-500" data-id="${item.id}" data-type="${item.type}" data-timestamp="${item.timestamp}">
+                        <svg class="w-6 h-6 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                </div>`;
+        };
+
+        /** Loads and renders all history items. */
+        const loadHistory = () => {
+            const logs = getLogsData();
+            const profileData = getProfileData();
+            
+            const combinedHistory = [
+                ...logs.map(log => ({ ...log, sortDate: new Date(log.timestamp) })),
+                ...profileData.weightHistory.map(entry => ({ id: `weight-${entry.date}`, type: 'weight', value: entry.value, timestamp: entry.date, sortDate: new Date(entry.date) })),
+                ...profileData.heightHistory.map(entry => ({ id: `height-${entry.date}`, type: 'height', value: entry.value, timestamp: entry.date, sortDate: new Date(entry.date) }))
+            ].sort((a, b) => b.sortDate - a.sortDate);
+
+            if (combinedHistory.length === 0) {
+                DOM.historyContainer.innerHTML = '<p class="text-center text-gray-500">ยังไม่มีข้อมูลบันทึก</p>';
+                return;
+            }
+            DOM.historyContainer.innerHTML = combinedHistory.map(createHistoryItemHTML).join('');
+        };
+
+        /** Loads the dashboard with fresh data. */
+        const loadDashboard = () => {
+            renderBmiGauge();
+            renderExerciseSummary();
+        };
+
+        /** Loads profile data into the form fields. */
+        const loadProfileForm = () => {
+            const profileData = getProfileData();
+            DOM.profile.dob.value = profileData.dob || '';
+            DOM.profile.gender.value = profileData.gender || '';
+            DOM.profile.weight.value = profileData.weightHistory.at(-1)?.value || '';
+            DOM.profile.height.value = profileData.heightHistory.at(-1)?.value || '';
+            updateProfileCalculations();
+            renderWeightChart();
+        };
+
+        /** Resets the log form to its default state. */
+        const resetLogForm = () => {
+            DOM.log.description.value = '';
+            DOM.log.fileInput.value = '';
+            DOM.log.kcal.value = '';
+            DOM.log.km.value = '';
+            DOM.log.minutes.value = '';
+            DOM.log.exerciseType.value = 'running';
+            state.logImageBase64 = null;
+            DOM.log.preview.src = '';
+            setElementVisibility(DOM.log.preview, false);
+            setElementVisibility(DOM.log.placeholderIcon, true);
+            // Trigger a change to reset input visibility correctly
+            DOM.log.typeButtons[0].click(); 
+        };
+
+        // --- Event Handlers ---
+
+        /** Handles saving the profile form. */
+        const handleSaveProfile = async () => {
+            setElementVisibility(DOM.sendingPopup, true);
+            try {
+                const profileData = getProfileData();
+                profileData.dob = DOM.profile.dob.value;
+                profileData.gender = DOM.profile.gender.value;
+                
+                const newWeight = parseFloat(DOM.profile.weight.value);
+                const newHeight = parseFloat(DOM.profile.height.value);
+                const timestamp = new Date().toISOString();
+
+                if (newWeight) profileData.weightHistory.push({ value: newWeight, date: timestamp });
+                if (newHeight) profileData.heightHistory.push({ value: newHeight, date: timestamp });
+
+                localStorage.setItem(getStorageKey(CONFIG.STORAGE_KEYS.PROFILE), JSON.stringify(profileData));
+
+                // Create the unified webhook payload
+                const webhookPayload = {
+                    userId: state.liffUserId,
+                    displayName: state.liffProfile.displayName,
+                    pictureUrl: state.liffProfile.pictureUrl,
+                    timestamp: timestamp,
+                    eventType: 'profileUpdate',
+                    description: 'Profile updated.',
+                    imageData: null,
+                    dob: profileData.dob || null,
+                    gender: profileData.gender || null,
+                    height: newHeight || null,
+                    weight: newWeight || null,
+                    exerciseType: null,
+                    km: null,
+                    minutes: null,
+                    kcal: null
+                };
+                await postToWebhook(webhookPayload);
+
+                showUserMessage(DOM.profile.message, 'บันทึกข้อมูลสำเร็จ!', true);
+                renderWeightChart();
+                updateProfileCalculations();
+                loadDashboard(); // Update dashboard after profile change
+            } finally {
+                setElementVisibility(DOM.sendingPopup, false);
+            }
+        };
+
+        /** Handles saving a new activity log. */
+        const handleSaveLog = async () => {
+            if (!state.logImageBase64) {
+                showUserMessage(DOM.log.message, 'กรุณาเลือกรูปภาพ', false);
+                return;
+            }
+            setElementVisibility(DOM.sendingPopup, true);
+            try {
+                // 1. Create the log object for localStorage (with ID)
+                const logToSave = {
+                    id: Date.now(),
+                    type: state.currentLogType,
+                    description: DOM.log.description.value,
+                    imageData: state.logImageBase64,
+                    timestamp: new Date().toISOString(),
+                    exerciseType: null,
+                    km: 0,
+                    minutes: 0,
+                    kcal: 0
+                };
+
+                if (state.currentLogType === 'exercise') {
+                    logToSave.exerciseType = DOM.log.exerciseType.value;
+                    if (['running', 'walking', 'cycling'].includes(logToSave.exerciseType)) {
+                        logToSave.km = parseFloat(DOM.log.km.value) || 0;
+                    } else {
+                        logToSave.minutes = parseInt(DOM.log.minutes.value) || 0;
+                    }
+                } else { // Food
+                    logToSave.kcal = parseInt(DOM.log.kcal.value) || 0;
+                }
+
+                // 2. Save to localStorage
+                const logs = getLogsData();
+                logs.unshift(logToSave);
+                localStorage.setItem(getStorageKey(CONFIG.STORAGE_KEYS.LOGS), JSON.stringify(logs));
+
+                // 3. Create the unified webhook payload (without ID)
+                const profileData = getProfileData();
+                const webhookPayload = {
+                    userId: state.liffUserId,
+                    displayName: state.liffProfile.displayName,
+                    pictureUrl: state.liffProfile.pictureUrl,
+                    timestamp: logToSave.timestamp,
+                    eventType: logToSave.type,
+                    description: logToSave.description || null,
+                    imageData: logToSave.imageData,
+                    dob: null,
+                    gender: null,
+                    height: profileData.heightHistory.at(-1)?.value || null,
+                    weight: profileData.weightHistory.at(-1)?.value || null,
+                    exerciseType: logToSave.exerciseType,
+                    km: logToSave.km > 0 ? logToSave.km : null,
+                    minutes: logToSave.minutes > 0 ? logToSave.minutes : null,
+                    kcal: logToSave.kcal > 0 ? logToSave.kcal : null,
+                };
+                
+                // 4. Post to webhook
+                await postToWebhook(webhookPayload);
+
+                showUserMessage(DOM.log.message, 'บันทึกกิจกรรมสำเร็จ!', true);
+                resetLogForm();
+                if (document.getElementById('history-page').classList.contains('active')) loadHistory();
+                loadDashboard(); // Update dashboard after new log
+            } finally {
+                setElementVisibility(DOM.sendingPopup, false);
+            }
+        };
+
+        /** Handles deleting a history item. */
+        const handleDeleteItem = async () => {
+            if (!state.itemToDeleteId) return;
+
+            const { id, type, timestamp } = state.itemToDeleteId;
+
+            if (type === 'weight' || type === 'height') {
+                const profileData = getProfileData();
+                const historyType = type === 'weight' ? 'weightHistory' : 'heightHistory';
+                profileData[historyType] = profileData[historyType].filter(entry => entry.date !== timestamp);
+                localStorage.setItem(getStorageKey(CONFIG.STORAGE_KEYS.PROFILE), JSON.stringify(profileData));
+            } else {
+                let logs = getLogsData();
+                logs = logs.filter(log => log.id != id);
+                localStorage.setItem(getStorageKey(CONFIG.STORAGE_KEYS.LOGS), JSON.stringify(logs));
+            }
+            
+            // Refresh UI
+            loadHistory();
+            loadDashboard();
+            renderWeightChart();
+            updateProfileCalculations();
+        };
+
+        /** Handles navigation between pages. */
+        const handleNavigation = (event) => {
+            const button = event.currentTarget;
+            const targetPageId = button.dataset.page + '-page';
+            
+            DOM.pages.forEach(page => page.classList.remove('active'));
+            document.getElementById(targetPageId).classList.add('active');
+
+            DOM.navButtons.forEach(btn => {
+                btn.classList.remove('bg-indigo-600', 'text-white');
+                btn.classList.add('text-gray-700', 'bg-gray-200', 'hover:bg-gray-300');
+            });
+            button.classList.add('bg-indigo-600', 'text-white');
+            button.classList.remove('text-gray-700', 'bg-gray-200', 'hover:bg-gray-300');
+
+            // Load data for the activated page
+            switch (button.dataset.page) {
+                case 'history': loadHistory(); break;
+                case 'profile': renderWeightChart(); break;
+                case 'dashboard': loadDashboard(); break;
+            }
+        };
+
+        /** Handles image selection and resizing. */
+        const handleImageSelection = async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            try {
+                const resizedBase64 = await resizeImage(file);
+                state.logImageBase64 = resizedBase64;
+                DOM.log.preview.src = resizedBase64;
+                setElementVisibility(DOM.log.preview, true);
+                setElementVisibility(DOM.log.placeholderIcon, false);
+            } catch (error) {
+                console.error("Image processing failed:", error);
+                showUserMessage(DOM.log.message, 'ประมวลผลรูปภาพไม่สำเร็จ', false);
+            }
+        };
+
+        // --- LIFF & Main Application Initialization ---
+
+        /** Sets up all event listeners for the application. */
+        const setupEventListeners = () => {
+            DOM.navButtons.forEach(button => button.addEventListener('click', handleNavigation));
+            
+            // Profile Page
+            [DOM.profile.dob, DOM.profile.weight, DOM.profile.height, DOM.profile.gender].forEach(input => {
+                input.addEventListener('input', updateProfileCalculations);
+            });
+            DOM.profile.saveBtn.addEventListener('click', handleSaveProfile);
+
+            // Log Page
+            DOM.log.typeButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    state.currentLogType = button.dataset.logType;
+                    const isExercise = state.currentLogType === 'exercise';
+                    DOM.log.uploadLabel.textContent = `อัปโหลดรูปภาพ${isExercise ? 'การออกกำลังกาย' : 'อาหาร'}`;
+                    
+                    setElementVisibility(DOM.log.exerciseTypeContainer, isExercise);
+                    setElementVisibility(DOM.log.kcalInputContainer, !isExercise);
+                    
+                    if (isExercise) {
+                        DOM.log.exerciseType.dispatchEvent(new Event('change'));
+                    } else {
+                        setElementVisibility(DOM.log.kmInputContainer, false);
+                        setElementVisibility(DOM.log.minutesInputContainer, false);
+                    }
+
+                    DOM.log.typeButtons.forEach(btn => {
+                        btn.classList.remove('border-indigo-500', 'text-indigo-600');
+                        btn.classList.add('text-gray-500');
+                    });
+                    button.classList.add('border-indigo-500', 'text-indigo-600');
+                });
+            });
+
+            DOM.log.exerciseType.addEventListener('change', (e) => {
+                const isOther = e.target.value === 'other';
+                setElementVisibility(DOM.log.kmInputContainer, !isOther);
+                setElementVisibility(DOM.log.minutesInputContainer, isOther);
+            });
+
+            DOM.log.fileInput.addEventListener('change', handleImageSelection);
+            DOM.log.submitBtn.addEventListener('click', handleSaveLog);
+
+            // History Page (Delete)
+            DOM.historyContainer.addEventListener('click', (event) => {
+                const deleteButton = event.target.closest('.delete-btn');
+                if (deleteButton) {
+                    state.itemToDeleteId = {
+                        id: deleteButton.dataset.id,
+                        type: deleteButton.dataset.type,
+                        timestamp: deleteButton.dataset.timestamp
+                    };
+                    setElementVisibility(DOM.confirmModal.container, true);
+                }
+            });
+
+            DOM.confirmModal.cancelBtn.addEventListener('click', () => {
+                state.itemToDeleteId = null;
+                setElementVisibility(DOM.confirmModal.container, false);
+            });
+
+            DOM.confirmModal.confirmBtn.addEventListener('click', () => {
+                handleDeleteItem();
+                state.itemToDeleteId = null;
+                setElementVisibility(DOM.confirmModal.container, false);
+            });
+        };
+
+        /** Initializes the main application after LIFF is ready. */
+        const initializeApp = () => {
+            setElementVisibility(DOM.appLoading, false);
+            setElementVisibility(DOM.mainApp, true);
+            
+            setupEventListeners();
+            loadProfileForm();
+            loadDashboard();
+        };
+
+        /** Initializes the LIFF SDK and starts the app. */
+        const main = async () => {
+            try {
+                await liff.init({ liffId: CONFIG.LIFF_ID });
+                
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return; // Stop execution until login completes
+                }
+                
+                state.liffProfile = await liff.getProfile();
+                state.liffUserId = state.liffProfile.userId;
+
+                updateLiffProfileUI();
+                initializeApp();
+
+            } catch (error) {
+                console.error("LIFF Initialization failed", error);
+                DOM.liffLoading.textContent = "ไม่สามารถเชื่อมต่อกับ LINE ได้";
+                setElementVisibility(DOM.appLoading, false);
+            }
+        };
+
+        // --- Start the application ---
+        main();
+    });
     </script>
 </body>
 </html>
