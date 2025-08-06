@@ -11,6 +11,7 @@
     <style>
         body {
             font-family: 'Kanit', sans-serif;
+            -webkit-tap-highlight-color: transparent;
         }
         .hidden { display: none; }
         .loader {
@@ -26,14 +27,36 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        /* Custom modal for confirm dialog */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 90%;
+            width: 350px;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
 
     <!-- หน้าจอ Login -->
-    <div id="login-screen" class="min-h-screen flex items-center justify-center bg-gray-100">
+    <div id="login-screen" class="min-h-screen flex items-center justify-center bg-gray-100 p-4">
         <div class="bg-white p-8 rounded-xl shadow-lg text-center w-full max-w-sm">
-            <h1 class="text-3xl font-bold mb-2 text-gray-800">SHE Month - เดือนแห่งความปลอดภัย</h1>
+            <h1 class="text-3xl font-bold mb-2 text-gray-800">SHE Month</h1>
             <p class="text-gray-500 mb-6">แอปสะสมแต้มและของรางวัล</p>
             <input id="login-userid-input" type="text" placeholder="กรอกรหัสพนักงานของคุณ" class="w-full px-4 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             <button id="login-button" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
@@ -43,7 +66,7 @@
     </div>
 
     <!-- หน้าจอยืนยันเบอร์โทรศัพท์ -->
-    <div id="phone-verification-screen" class="hidden min-h-screen flex items-center justify-center bg-gray-100">
+    <div id="phone-verification-screen" class="hidden min-h-screen flex items-center justify-center bg-gray-100 p-4">
         <div class="bg-white p-8 rounded-xl shadow-lg text-center w-full max-w-sm">
             <h1 class="text-3xl font-bold mb-2 text-gray-800">ยืนยันตัวตน</h1>
             <p id="verify-welcome-text" class="text-gray-500 mb-6">กรุณากรอกเบอร์โทรศัพท์เพื่อยืนยันรหัสพนักงาน:</p>
@@ -56,7 +79,7 @@
     </div>
 
     <!-- หน้าจอลงทะเบียน -->
-    <div id="registration-screen" class="hidden min-h-screen flex items-center justify-center bg-gray-100">
+    <div id="registration-screen" class="hidden min-h-screen flex items-center justify-center bg-gray-100 p-4">
         <div class="bg-white p-8 rounded-xl shadow-lg text-center w-full max-w-sm">
             <h1 class="text-3xl font-bold mb-2 text-gray-800">ลงทะเบียน</h1>
             <p id="register-welcome-text" class="text-gray-500 mb-6">กรอกข้อมูลสำหรับรหัสพนักงาน: </p>
@@ -72,14 +95,14 @@
 
     <!-- ส่วนหลักของแอป (ซ่อนไว้ตอนแรก) -->
     <div id="app-container" class="hidden">
-        <header class="bg-white shadow-md">
+        <header class="bg-white shadow-md sticky top-0 z-40">
             <div class="container mx-auto px-4 py-4 flex justify-between items-center">
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-800">SHE Month - เดือนแห่งความปลอดภัย</h1>
-                    <p id="welcome-message" class="text-gray-500">ยินดีต้อนรับ, </p>
+                    <h1 class="text-xl md:text-2xl font-bold text-gray-800">SHE Month</h1>
+                    <p id="welcome-message" class="text-gray-500 text-sm md:text-base truncate max-w-[150px] md:max-w-full">ยินดีต้อนรับ, </p>
                 </div>
-                 <div class="flex items-center">
-                    <div id="points-display" class="bg-yellow-100 border border-yellow-300 text-yellow-800 font-bold px-4 py-2 rounded-full flex items-center mr-4">
+                <div class="flex items-center">
+                    <div id="points-display" class="bg-yellow-100 border border-yellow-300 text-yellow-800 font-bold px-3 py-2 rounded-full flex items-center mr-2 md:mr-4 text-sm md:text-base">
                         <!-- Points will be rendered here -->
                     </div>
                     <button id="logout-button" class="text-sm text-gray-500 hover:text-red-600">ออกจากระบบ</button>
@@ -99,20 +122,23 @@
 
     <!-- ส่วนแสดงข้อความแจ้งเตือน -->
     <div id="toast-container" class="fixed bottom-5 right-5 z-50"></div>
+    
+    <!-- Modal container -->
+    <div id="modal-container"></div>
 
     <script type="module">
-        // Import Firebase SDKs
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, runTransaction, deleteDoc } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
+        // Import Firebase SDKs - Updated to v11.6.1 for better performance and features
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, runTransaction, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- Configuration ---
         const firebaseConfig = {
-          apiKey: "AIzaSyDATchWwmazw3wPnuNk4i-d79rnyBpSDM0",
-          authDomain: "line-liff-a543c.firebaseapp.com",
-          projectId: "line-liff-a543c",
-          storageBucket: "line-liff-a543c.appspot.com",
-          messagingSenderId: "617440448369",
-          appId: "1:617440448369:web:182dc1785335950c6c30d0"
+         apiKey: "AIzaSyDATchWwmazw3wPnuNk4i-d79rnyBpSDM0",
+         authDomain: "line-liff-a543c.firebaseapp.com",
+         projectId: "line-liff-a543c",
+         storageBucket: "line-liff-a543c.appspot.com",
+         messagingSenderId: "617440448369",
+         appId: "1:617440448369:web:182dc1785335950c6c30d0"
         };
         
         // --- Initialize Firebase ---
@@ -127,7 +153,8 @@
             userData: null,
             activities: [],
             rewards: [],
-            numberedLotteryData: {}, // Store as an object for quick lookup
+            numberedLotteryData: {},
+            pendingRequests: [], // For user: array of pending activity IDs. For admin: array of request objects.
             unsubscribers: []
         };
 
@@ -138,6 +165,7 @@
         const appContainer = document.getElementById('app-container');
         const mainContent = document.getElementById('main-content');
         const navButtonsContainer = document.getElementById('nav-buttons-container');
+        const modalContainer = document.getElementById('modal-container');
         
         const loginButton = document.getElementById('login-button');
         const loginInput = document.getElementById('login-userid-input');
@@ -160,10 +188,56 @@
         function showToast(message, isError = false) {
             const toastContainer = document.getElementById('toast-container');
             const toast = document.createElement('div');
-            toast.className = `text-white py-2 px-4 rounded-lg shadow-lg mb-2 animate-bounce ${isError ? 'bg-red-500' : 'bg-green-500'}`;
+            toast.className = `text-white py-2 px-4 rounded-lg shadow-lg mb-2 transform transition-all duration-300 ease-out ${isError ? 'bg-red-500' : 'bg-green-500'}`;
             toast.textContent = message;
+            
+            // Animate in
+            requestAnimationFrame(() => {
+                toast.style.transform = 'translateY(20px)';
+                toast.style.opacity = '0';
+                requestAnimationFrame(() => {
+                    toast.style.transform = 'translateY(0)';
+                    toast.style.opacity = '1';
+                });
+            });
+
             toastContainer.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
+            setTimeout(() => {
+                // Animate out
+                toast.style.transform = 'translateY(20px)';
+                toast.style.opacity = '0';
+                toast.addEventListener('transitionend', () => toast.remove());
+            }, 3000);
+        }
+
+        function showConfirmModal(message, onConfirm) {
+            const modalBackdrop = document.createElement('div');
+            modalBackdrop.className = 'modal-backdrop';
+            
+            modalBackdrop.innerHTML = `
+                <div class="modal-content">
+                    <p class="mb-4 text-gray-700">${message}</p>
+                    <div class="flex justify-center gap-4">
+                        <button id="modal-confirm-btn" class="bg-red-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-700">ยืนยัน</button>
+                        <button id="modal-cancel-btn" class="bg-gray-300 text-gray-800 px-6 py-2 rounded-lg font-semibold hover:bg-gray-400">ยกเลิก</button>
+                    </div>
+                </div>
+            `;
+            
+            modalContainer.appendChild(modalBackdrop);
+            
+            document.getElementById('modal-confirm-btn').onclick = () => {
+                onConfirm();
+                modalBackdrop.remove();
+            };
+            document.getElementById('modal-cancel-btn').onclick = () => {
+                modalBackdrop.remove();
+            };
+             modalBackdrop.onclick = (e) => {
+                if (e.target === modalBackdrop) {
+                    modalBackdrop.remove();
+                }
+            };
         }
 
         function renderHeader() {
@@ -176,15 +250,15 @@
                 pointsDisplay.classList.remove('hidden');
                 welcomeMessage.textContent = `ยินดีต้อนรับ, ${state.userData.name || state.userId}`;
                 pointsDisplay.innerHTML = `
-                    <svg class="w-6 h-6 inline-block mr-2 text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path d="M17.25 12.193V6.75a5.25 5.25 0 00-10.5 0v5.443a2.25 2.25 0 01-.88 1.73l-2.12 1.646a.75.75 0 00.58 1.331h14.24a.75.75 0 00.58-1.331l-2.12-1.646a2.25 2.25 0 01-.88-1.73zM16.5 6.75a4.5 4.5 0 00-9 0v4.335a3.75 3.75 0 001.465 2.882l.035.027 2.12 1.646h2.76l2.12-1.646.035-.027a3.75 3.75 0 001.465-2.882V6.75zM5.25 18a.75.75 0 000 1.5h9.5a.75.75 0 000-1.5h-9.5z"></path></svg>
+                    <svg class="w-5 h-5 md:w-6 md:h-6 inline-block mr-1 md:mr-2 text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
                     <span>${state.userData.points} คะแนน</span>`;
             }
         }
         
         function render() {
+            mainContent.innerHTML = `<div class="loader"></div>`; // Show loader initially
             if (!state.isAdmin && !state.userData) {
-                mainContent.innerHTML = `<div class="loader"></div>`;
-                return;
+                return; // Wait for data
             }
             renderHeader();
             switch (state.currentPage) {
@@ -197,40 +271,59 @@
         
         // --- User Pages Rendering ---
         function renderDashboard() {
-             const userStamps = state.userData.stamps || [];
+            const userActivityStatus = state.userData.activityStatus || {};
+            const userPendingRequests = state.pendingRequests || [];
+
+            const completedCount = Object.values(userActivityStatus).filter(s => s === 'completed').length;
+
             const stampCardHTML = `
                 <div class="bg-white p-6 rounded-xl shadow-md">
                     <h2 class="text-2xl font-bold mb-4 text-gray-800">บัตรสะสมแสตมป์</h2>
                     <div class="grid grid-cols-4 sm:grid-cols-8 gap-4">
                         ${state.activities.map(act => {
-                            const completed = userStamps.includes(act.id);
+                            const completed = userActivityStatus[act.id] === 'completed';
                             return `
                                 <div class="flex flex-col items-center text-center">
-                                    <svg class="w-16 h-16 transition-all duration-500 ${completed ? 'text-green-500 transform scale-110' : 'text-gray-300'}" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,16.5L6.5,12L7.91,10.59L11,13.67L16.59,8.09L18,9.5L11,16.5Z" />
-                                    </svg>
-                                    <span class="mt-2 text-sm font-medium ${completed ? 'text-gray-700' : 'text-gray-400'}">${act.stampIcon} ${act.name}</span>
+                                    <div class="relative w-16 h-16">
+                                        <svg class="w-16 h-16 transition-all duration-300 ${completed ? 'text-green-500' : 'text-gray-300'}" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,16.5L6.5,12L7.91,10.59L11,13.67L16.59,8.09L18,9.5L11,16.5Z" />
+                                        </svg>
+                                        ${completed ? `<div class="absolute inset-0 flex items-center justify-center text-white text-2xl font-bold transform transition-transform duration-500 scale-100">${act.stampIcon}</div>` : `<div class="absolute inset-0 flex items-center justify-center text-gray-400 text-2xl">${act.stampIcon}</div>`}
+                                    </div>
+                                    <span class="mt-2 text-xs sm:text-sm font-medium ${completed ? 'text-gray-700' : 'text-gray-400'}">${act.name}</span>
                                 </div>`;
                         }).join('')}
                     </div>
-                    ${userStamps.length === state.activities.length ? `<div class="mt-4 text-center p-3 bg-yellow-100 border-l-4 border-yellow-400 text-yellow-700 rounded-r-lg"><p class="font-bold">ยินดีด้วย! คุณสะสมแสตมป์ครบทุกดวงแล้ว!</p></div>` : ''}
+                    ${completedCount === state.activities.length && state.activities.length > 0 ? `<div class="mt-4 text-center p-3 bg-yellow-100 border-l-4 border-yellow-400 text-yellow-700 rounded-r-lg"><p class="font-bold">ยินดีด้วย! คุณสะสมแสตมป์ครบทุกดวงแล้ว!</p></div>` : ''}
                 </div>`;
 
             const activityListHTML = `
                 <div class="mt-6">
                     <h2 class="text-2xl font-bold mb-4 text-gray-800">กิจกรรมประจำเดือน</h2>
                     <div class="space-y-4">
-                        ${state.activities.map(act => `
-                            <div class="bg-white p-4 rounded-xl shadow-md flex items-center justify-between">
-                                <div>
-                                    <p class="text-lg font-semibold text-gray-800">${act.stampIcon} ${act.name}</p>
-                                    <p class="text-sm text-gray-500">${act.description}</p>
-                                    <p class="text-sm font-bold text-green-600">+${act.points} คะแนน</p>
-                                </div>
-                                <button data-activity-id="${act.id}" class="join-activity-btn px-4 py-2 rounded-lg font-semibold text-white transition-colors ${userStamps.includes(act.id) ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}" ${userStamps.includes(act.id) ? 'disabled' : ''}>
-                                    ${userStamps.includes(act.id) ? 'เข้าร่วมแล้ว' : 'เข้าร่วม'}
-                                </button>
-                            </div>`).join('')}
+                        ${state.activities.map(act => {
+                            const isCompleted = userActivityStatus[act.id] === 'completed';
+                            const isPending = userPendingRequests.includes(act.id);
+                            let buttonHTML;
+
+                            if (isCompleted) {
+                                buttonHTML = `<button class="px-4 py-2 rounded-lg font-semibold text-white bg-gray-400 cursor-not-allowed" disabled>เข้าร่วมแล้ว</button>`;
+                            } else if (isPending) {
+                                buttonHTML = `<button class="px-4 py-2 rounded-lg font-semibold text-white bg-yellow-500 cursor-not-allowed" disabled>รอยืนยัน</button>`;
+                            } else {
+                                buttonHTML = `<button data-activity-id="${act.id}" class="join-activity-btn px-4 py-2 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors">เข้าร่วม</button>`;
+                            }
+                            
+                            return `
+                                <div class="bg-white p-4 rounded-xl shadow-md flex items-center justify-between">
+                                    <div>
+                                        <p class="text-lg font-semibold text-gray-800">${act.stampIcon} ${act.name}</p>
+                                        <p class="text-sm text-gray-500">${act.description}</p>
+                                        <p class="text-sm font-bold text-green-600">+${act.points} คะแนน</p>
+                                    </div>
+                                    ${buttonHTML}
+                                </div>`;
+                        }).join('')}
                     </div>
                 </div>`;
             mainContent.innerHTML = stampCardHTML + activityListHTML;
@@ -243,7 +336,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         ${state.rewards.map(reward => `
                             <div class="bg-white rounded-xl shadow-md overflow-hidden flex flex-col">
-                                <img src="${reward.img}" alt="${reward.name}" class="w-full h-40 object-cover" onerror="this.onerror=null;this.src='https://placehold.co/300x200/cccccc/ffffff?text=Image+Not+Found';">
+                                <img src="${reward.img}" alt="${reward.name}" class="w-full h-40 object-cover" onerror="this.onerror=null;this.src='https://placehold.co/400x250/e2e8f0/64748b?text=Image';">
                                 <div class="p-4 flex flex-col flex-grow">
                                     <h3 class="text-lg font-semibold text-gray-800">${reward.name}</h3>
                                     <p class="text-sm text-gray-500 mb-2">คงเหลือ: ${reward.stock} ชิ้น</p>
@@ -278,7 +371,7 @@
                             `).join('')}
                         </div>
                     ` : `
-                        <p class="text-gray-500 text-center mt-4">ยังไม่มีประวัติการแลกของรางวัล</p>
+                        <p class="text-gray-500 text-center mt-4 bg-white p-4 rounded-xl shadow-md">ยังไม่มีประวัติการแลกของรางวัล</p>
                     `}
                 </div>
             `;
@@ -297,11 +390,12 @@
                 const ticketData = state.numberedLotteryData[numberStr];
                 
                 if (ticketData && ticketData.isSold) {
+                    const isOwner = ticketData.ownerId === state.userId;
                     numbersHTML += `
-                        <div class="p-2 text-center rounded-lg bg-gray-200 text-gray-500">
+                        <div class="p-2 text-center rounded-lg ${isOwner ? 'bg-blue-200 text-blue-800 ring-2 ring-blue-400' : 'bg-gray-200 text-gray-500'}">
                             <p class="font-bold text-lg">${numberStr}</p>
-                            <p class="text-xs font-mono">SOLD</p>
-                            <p class="text-xs font-mono truncate">${ticketData.ownerId}</p>
+                            <p class="text-xs font-mono">${isOwner ? 'ของคุณ' : 'SOLD'}</p>
+                            <p class="text-xs font-mono truncate" title="${ticketData.ownerId}">${isOwner ? '' : ticketData.ownerId.slice(0,6)}</p>
                         </div>
                     `;
                 } else {
@@ -322,7 +416,7 @@
                         <p class="text-gray-600">เลือกซื้อเบอร์ที่คุณต้องการ (ใช้ ${NUMBERED_LOTTERY_COST} คะแนนต่อใบ, ซื้อได้สูงสุด 5 ใบ)</p>
                         <p class="mt-2 font-semibold text-blue-600">คุณซื้อไปแล้ว: ${ticketsOwned} / 5 ใบ</p>
                     </div>
-                    <div class="grid grid-cols-5 sm:grid-cols-10 gap-2 max-h-96 overflow-y-auto p-2 bg-gray-50 rounded-lg">
+                    <div class="grid grid-cols-5 sm:grid-cols-10 gap-2 max-h-96 overflow-y-auto p-2 bg-gray-50 rounded-lg border">
                         ${numbersHTML}
                     </div>
                 </div>
@@ -333,22 +427,52 @@
         function renderAdminPanel() {
             mainContent.innerHTML = `
                 <div class="space-y-8">
+                    <div id="admin-pending-section" class="bg-white p-6 rounded-xl shadow-md"></div>
                     <div id="admin-activities-section" class="bg-white p-6 rounded-xl shadow-md"></div>
                     <div id="admin-rewards-section" class="bg-white p-6 rounded-xl shadow-md"></div>
+                    <div id="admin-lottery-section" class="bg-white p-6 rounded-xl shadow-md"></div>
                 </div>
             `;
+            renderAdminPendingRequests();
             renderAdminActivities();
             renderAdminRewards();
+            renderAdminNumberedLottery();
+        }
+
+        function renderAdminPendingRequests() {
+            const section = document.getElementById('admin-pending-section');
+            if (!section) return;
+
+            const pendingRequests = state.pendingRequests || [];
+            pendingRequests.sort((a, b) => new Date(a.requestDate) - new Date(b.requestDate));
+
+            section.innerHTML = `
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">คำขอเข้าร่วมที่รอดำเนินการ (${pendingRequests.length})</h2>
+                <div class="space-y-2 max-h-72 overflow-y-auto border p-2 rounded-lg">
+                    ${pendingRequests.length > 0 ? pendingRequests.map(req => `
+                        <div class="flex items-center justify-between p-2 border rounded-lg bg-yellow-50">
+                            <div>
+                                <p class="font-semibold text-sm">${req.activityName}</p>
+                                <p class="text-xs text-gray-600">โดย: ${req.userName} (${req.userId})</p>
+                            </div>
+                            <div>
+                                <button data-id="${req.id}" class="approve-request-btn text-green-500 hover:text-green-700 mr-2 font-semibold">อนุมัติ</button>
+                                <button data-id="${req.id}" class="reject-request-btn text-red-500 hover:text-red-700 font-semibold">ปฏิเสธ</button>
+                            </div>
+                        </div>
+                    `).join('') : '<p class="text-gray-500 text-center p-4">ไม่มีคำขอที่รอดำเนินการ</p>'}
+                </div>
+            `;
         }
 
         function renderAdminActivities() {
             const section = document.getElementById('admin-activities-section');
             section.innerHTML = `
                 <h2 class="text-2xl font-bold mb-4 text-gray-800">จัดการกิจกรรม</h2>
-                <div class="space-y-2 mb-6 max-h-64 overflow-y-auto">
+                <div class="space-y-2 mb-6 max-h-64 overflow-y-auto border p-2 rounded-lg">
                     ${state.activities.map(act => `
-                        <div class="flex items-center justify-between p-2 border rounded-lg">
-                            <span class="truncate">${act.id}: ${act.name} (+${act.points})</span>
+                        <div class="flex items-center justify-between p-2 border rounded-lg bg-gray-50">
+                            <span class="truncate font-mono text-sm">${act.id}: ${act.name} (+${act.points})</span>
                             <div>
                                 <button data-id="${act.id}" class="edit-activity-btn text-blue-500 hover:text-blue-700 mr-2">แก้ไข</button>
                                 <button data-id="${act.id}" class="delete-activity-btn text-red-500 hover:text-red-700">ลบ</button>
@@ -373,10 +497,10 @@
             const section = document.getElementById('admin-rewards-section');
             section.innerHTML = `
                 <h2 class="text-2xl font-bold mb-4 text-gray-800">จัดการของรางวัล</h2>
-                <div class="space-y-2 mb-6 max-h-64 overflow-y-auto">
+                <div class="space-y-2 mb-6 max-h-64 overflow-y-auto border p-2 rounded-lg">
                     ${state.rewards.map(rew => `
-                        <div class="flex items-center justify-between p-2 border rounded-lg">
-                            <span class="truncate">${rew.id}: ${rew.name} (${rew.cost} คะแนน)</span>
+                        <div class="flex items-center justify-between p-2 border rounded-lg bg-gray-50">
+                            <span class="truncate font-mono text-sm">${rew.id}: ${rew.name} (${rew.cost} คะแนน)</span>
                             <div>
                                 <button data-id="${rew.id}" class="edit-reward-btn text-blue-500 hover:text-blue-700 mr-2">แก้ไข</button>
                                 <button data-id="${rew.id}" class="delete-reward-btn text-red-500 hover:text-red-700">ลบ</button>
@@ -396,6 +520,36 @@
                 </form>
             `;
         }
+
+        function renderAdminNumberedLottery() {
+            const section = document.getElementById('admin-lottery-section');
+            if (!section) return;
+
+            const soldTickets = Object.entries(state.numberedLotteryData)
+                                    .filter(([_, data]) => data.isSold)
+                                    .sort((a, b) => a[0].localeCompare(b[0]));
+
+            section.innerHTML = `
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">จัดการสลากเรียงเบอร์</h2>
+                <div class="space-y-2 mb-6 max-h-64 overflow-y-auto border p-2 rounded-lg">
+                    ${soldTickets.length > 0 ? soldTickets.map(([number, data]) => `
+                        <div class="flex items-center justify-between p-2 border rounded-lg bg-gray-50">
+                            <div>
+                               <span class="font-mono text-sm font-bold">${number}</span>
+                               <span class="text-sm text-gray-600 truncate"> - ${data.ownerName || data.ownerId}</span>
+                            </div>
+                            <button data-id="${number}" class="clear-ticket-btn text-orange-500 hover:text-orange-700 text-sm font-semibold">ล้างค่า</button>
+                        </div>
+                    `).join('') : '<p class="text-gray-500 text-center p-4">ยังไม่มีสลากที่ถูกซื้อ</p>'}
+                </div>
+                <div class="border-t pt-4">
+                     <h3 class="font-semibold text-lg text-red-700">การกระทำที่อันตราย</h3>
+                     <p class="text-sm text-gray-500 mb-2">การกระทำนี้จะลบข้อมูลสลากทั้งหมดและไม่สามารถกู้คืนได้</p>
+                     <button id="clear-all-lottery-btn" class="w-full bg-red-600 text-white py-2 rounded-lg font-semibold hover:bg-red-800 transition-colors">ล้างข้อมูลสลากทั้งหมด</button>
+                </div>
+            `;
+        }
+
 
         // --- Auth & Firestore Functions ---
         async function handleLogin() {
@@ -459,7 +613,7 @@
                 name: `${firstname} ${lastname}`,
                 phone: phone,
                 points: 0,
-                stamps: [],
+                activityStatus: {},
                 redeemedRewards: []
             };
 
@@ -479,35 +633,51 @@
 
             setupNav();
             attachListeners();
+            render(); // Initial render
         }
 
         function handleLogout() {
             state.unsubscribers.forEach(unsub => unsub());
-            state = { currentPage: 'dashboard', userId: null, isAdmin: false, userData: null, activities: [], rewards: [], numberedLotteryData: {}, unsubscribers: [] };
+            state = { currentPage: 'dashboard', userId: null, isAdmin: false, userData: null, activities: [], rewards: [], numberedLotteryData: {}, pendingRequests: [], unsubscribers: [] };
 
             appContainer.classList.add('hidden');
             loginScreen.classList.remove('hidden');
             loginInput.value = '';
             verifyPhoneInput.value = '';
+            registerFirstnameInput.value = '';
+            registerLastnameInput.value = '';
+            registerPhoneInput.value = '';
         }
 
         async function handleJoinActivity(activityId) {
             const activity = state.activities.find(a => a.id === activityId);
             if (!activity) return;
-            
-            const userRef = doc(db, 'users', state.userId);
+
+            if (state.userData.activityStatus && state.userData.activityStatus[activityId] === 'completed') {
+                showToast("คุณเข้าร่วมกิจกรรมนี้แล้ว", true);
+                return;
+            }
+
+            const requestId = `${state.userId}_${activityId}`;
+            const requestRef = doc(db, "pendingRequests", requestId);
+
             try {
-                await runTransaction(db, async (transaction) => {
-                    const userDoc = await transaction.get(userRef);
-                    if (!userDoc.exists() || (userDoc.data().stamps && userDoc.data().stamps.includes(activityId))) return;
-                    
-                    const newPoints = (userDoc.data().points || 0) + activity.points;
-                    const newStamps = [...(userDoc.data().stamps || []), activityId];
-                    transaction.update(userRef, { points: newPoints, stamps: newStamps });
+                const requestSnap = await getDoc(requestRef);
+                if (requestSnap.exists()) {
+                    showToast("คำขอของคุณอยู่ระหว่างการยืนยัน", true);
+                    return;
+                }
+
+                await setDoc(requestRef, {
+                    userId: state.userId,
+                    userName: state.userData.name,
+                    activityId: activityId,
+                    activityName: activity.name,
+                    requestDate: new Date().toISOString()
                 });
-                showToast(`เข้าร่วม "${activity.name}" สำเร็จ!`);
+                showToast(`ส่งคำขอเข้าร่วม "${activity.name}" แล้ว`);
             } catch (e) {
-                console.error("Join Activity Transaction failed: ", e);
+                console.error("Join Activity failed: ", e);
                 showToast("เกิดข้อผิดพลาด กรุณาลองใหม่", true);
             }
         }
@@ -516,37 +686,39 @@
             const reward = state.rewards.find(r => r.id === rewardId);
             if (!reward) return;
 
-            const userRef = doc(db, 'users', state.userId);
-            const rewardRef = doc(db, 'rewards', rewardId);
-            try {
-                await runTransaction(db, async (transaction) => {
-                    const userDoc = await transaction.get(userRef);
-                    const rewardDoc = await transaction.get(rewardRef);
-                    if (!userDoc.exists() || !rewardDoc.exists()) throw "Document does not exist!";
-                    
-                    if (userDoc.data().points < reward.cost) throw "คะแนนไม่เพียงพอ";
-                    if (rewardDoc.data().stock <= 0) throw "ของรางวัลหมดแล้ว";
-                    
-                    const newRedeemedList = [
-                        ...(userDoc.data().redeemedRewards || []),
-                        {
-                            name: reward.name,
-                            cost: reward.cost,
-                            date: new Date().toISOString()
-                        }
-                    ];
+            showConfirmModal(`คุณต้องการใช้ ${reward.cost} คะแนน เพื่อแลก "${reward.name}" ใช่หรือไม่?`, async () => {
+                const userRef = doc(db, 'users', state.userId);
+                const rewardRef = doc(db, 'rewards', rewardId);
+                try {
+                    await runTransaction(db, async (transaction) => {
+                        const userDoc = await transaction.get(userRef);
+                        const rewardDoc = await transaction.get(rewardRef);
+                        if (!userDoc.exists() || !rewardDoc.exists()) throw "Document does not exist!";
+                        
+                        if (userDoc.data().points < reward.cost) throw "คะแนนไม่เพียงพอ";
+                        if (rewardDoc.data().stock <= 0) throw "ของรางวัลหมดแล้ว";
+                        
+                        const newRedeemedList = [
+                            ...(userDoc.data().redeemedRewards || []),
+                            {
+                                name: reward.name,
+                                cost: reward.cost,
+                                date: new Date().toISOString()
+                            }
+                        ];
 
-                    transaction.update(userRef, { 
-                        points: userDoc.data().points - reward.cost,
-                        redeemedRewards: newRedeemedList
+                        transaction.update(userRef, { 
+                            points: userDoc.data().points - reward.cost,
+                            redeemedRewards: newRedeemedList
+                        });
+                        transaction.update(rewardRef, { stock: rewardDoc.data().stock - 1 });
                     });
-                    transaction.update(rewardRef, { stock: rewardDoc.data().stock - 1 });
-                });
-                showToast(`แลก "${reward.name}" สำเร็จ!`);
-            } catch (e) {
-                showToast(typeof e === 'string' ? e : "เกิดข้อผิดพลาดในการแลก", true);
-                console.error("Redeem Reward Transaction failed: ", e);
-            }
+                    showToast(`แลก "${reward.name}" สำเร็จ!`);
+                } catch (e) {
+                    showToast(typeof e === 'string' ? e : "เกิดข้อผิดพลาดในการแลก", true);
+                    console.error("Redeem Reward Transaction failed: ", e);
+                }
+            });
         }
         
         async function handleBuyNumberedTicket(numberStr) {
@@ -562,43 +734,89 @@
                 showToast("คุณซื้อสลากครบ 5 ใบแล้ว", true);
                 return;
             }
+            
+            showConfirmModal(`คุณต้องการใช้ ${NUMBERED_LOTTERY_COST} คะแนน เพื่อซื้อสลากเบอร์ ${numberStr} ใช่หรือไม่?`, async () => {
+                const ticketRef = doc(db, 'numberedLottery', numberStr);
+                const userRef = doc(db, 'users', state.userId);
 
-            const ticketRef = doc(db, 'numberedLottery', numberStr);
-            const userRef = doc(db, 'users', state.userId);
+                try {
+                    await runTransaction(db, async (transaction) => {
+                        const ticketDoc = await transaction.get(ticketRef);
+                        const userDoc = await transaction.get(userRef);
 
-            try {
-                await runTransaction(db, async (transaction) => {
-                    const ticketDoc = await transaction.get(ticketRef);
-                    const userDoc = await transaction.get(userRef);
+                        if (!userDoc.exists()) {
+                            throw "ไม่พบข้อมูลผู้ใช้";
+                        }
+                        if (ticketDoc.exists() && ticketDoc.data().isSold) {
+                            throw "เบอร์นี้ถูกซื้อไปแล้ว";
+                        }
+                        if (userDoc.data().points < NUMBERED_LOTTERY_COST) {
+                            throw "คะแนนไม่เพียงพอ";
+                        }
 
-                    if (!userDoc.exists()) {
-                        throw "ไม่พบข้อมูลผู้ใช้";
-                    }
-                    if (ticketDoc.exists() && ticketDoc.data().isSold) {
-                        throw "เบอร์นี้ถูกซื้อไปแล้ว";
-                    }
-                    if (userDoc.data().points < NUMBERED_LOTTERY_COST) {
-                        throw "คะแนนไม่เพียงพอ";
-                    }
+                        const newPoints = userDoc.data().points - NUMBERED_LOTTERY_COST;
+                        transaction.update(userRef, { points: newPoints });
 
-                    const newPoints = userDoc.data().points - NUMBERED_LOTTERY_COST;
-                    transaction.update(userRef, { points: newPoints });
-
-                    transaction.set(ticketRef, {
-                        isSold: true,
-                        ownerId: state.userId,
-                        ownerName: state.userData.name,
-                        purchaseDate: new Date().toISOString()
+                        transaction.set(ticketRef, {
+                            isSold: true,
+                            ownerId: state.userId,
+                            ownerName: state.userData.name,
+                            purchaseDate: new Date().toISOString()
+                        });
                     });
-                });
-                showToast(`ซื้อเบอร์ ${numberStr} สำเร็จ!`);
-            } catch (e) {
-                showToast(typeof e === 'string' ? e : "เกิดข้อผิดพลาด กรุณาลองใหม่", true);
-                console.error("Buy Numbered Ticket Transaction failed: ", e);
-            }
+                    showToast(`ซื้อเบอร์ ${numberStr} สำเร็จ!`);
+                } catch (e) {
+                    showToast(typeof e === 'string' ? e : "เกิดข้อผิดพลาด กรุณาลองใหม่", true);
+                    console.error("Buy Numbered Ticket Transaction failed: ", e);
+                }
+            });
         }
 
         // --- Admin Action Handlers ---
+        async function handleApproveRequest(requestId) {
+            const requestRef = doc(db, "pendingRequests", requestId);
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const requestDoc = await transaction.get(requestRef);
+                    if (!requestDoc.exists()) throw "ไม่พบคำขอนี้แล้ว";
+
+                    const { userId, activityId } = requestDoc.data();
+                    const activity = state.activities.find(a => a.id === activityId);
+                    if (!activity) throw "ไม่พบกิจกรรมนี้";
+
+                    const userRef = doc(db, "users", userId);
+                    const userDoc = await transaction.get(userRef);
+                    if (!userDoc.exists()) throw "ไม่พบผู้ใช้";
+
+                    const newPoints = (userDoc.data().points || 0) + activity.points;
+                    const currentStatus = userDoc.data().activityStatus || {};
+                    const newStatus = { ...currentStatus, [activityId]: 'completed' };
+
+                    transaction.update(userRef, {
+                        points: newPoints,
+                        activityStatus: newStatus
+                    });
+                    transaction.delete(requestRef);
+                });
+                showToast("อนุมัติคำขอสำเร็จ!");
+            } catch (e) {
+                console.error("Approve request failed:", e);
+                showToast(typeof e === 'string' ? e : "เกิดข้อผิดพลาด", true);
+            }
+        }
+
+        async function handleRejectRequest(requestId) {
+            showConfirmModal(`คุณต้องการปฏิเสธคำขอนี้ใช่หรือไม่?`, async () => {
+                try {
+                    await deleteDoc(doc(db, "pendingRequests", requestId));
+                    showToast("ปฏิเสธคำขอเรียบร้อยแล้ว");
+                } catch (e) {
+                    console.error("Reject request failed:", e);
+                    showToast("เกิดข้อผิดพลาด", true);
+                }
+            });
+        }
+
         async function handleActivitySave(e) {
             e.preventDefault();
             const id = document.getElementById('activity-id').value.trim();
@@ -616,10 +834,10 @@
         }
 
         async function handleActivityDelete(id) {
-            if (confirm(`คุณต้องการลบกิจกรรม ID: ${id} ใช่หรือไม่?`)) {
+             showConfirmModal(`คุณต้องการลบกิจกรรม ID: ${id} ใช่หรือไม่?`, async () => {
                 await deleteDoc(doc(db, "activities", id));
                 showToast("ลบกิจกรรมสำเร็จ!");
-            }
+            });
         }
 
         async function handleRewardSave(e) {
@@ -639,10 +857,40 @@
         }
 
         async function handleRewardDelete(id) {
-            if (confirm(`คุณต้องการลบของรางวัล ID: ${id} ใช่หรือไม่?`)) {
+            showConfirmModal(`คุณต้องการลบของรางวัล ID: ${id} ใช่หรือไม่?`, async () => {
                 await deleteDoc(doc(db, "rewards", id));
                 showToast("ลบของรางวัลสำเร็จ!");
-            }
+            });
+        }
+
+        async function handleClearIndividualTicket(ticketId) {
+            showConfirmModal(`คุณต้องการล้างค่าสลากเบอร์ ${ticketId} ใช่หรือไม่?`, async () => {
+                try {
+                    await deleteDoc(doc(db, "numberedLottery", ticketId));
+                    showToast(`ล้างค่าสลากเบอร์ ${ticketId} สำเร็จ`);
+                } catch (error) {
+                    console.error("Error clearing ticket:", error);
+                    showToast("เกิดข้อผิดพลาดในการล้างค่าสลาก", true);
+                }
+            });
+        }
+
+        async function handleClearAllLotteryData() {
+            showConfirmModal('คุณแน่ใจหรือไม่ว่าต้องการล้างข้อมูลสลากทั้งหมด? การกระทำนี้ไม่สามารถย้อนกลับได้', async () => {
+                const soldTickets = Object.keys(state.numberedLotteryData);
+                if (soldTickets.length === 0) {
+                    showToast("ไม่มีข้อมูลสลากให้ลบ", true);
+                    return;
+                }
+                try {
+                    const deletePromises = soldTickets.map(ticketId => deleteDoc(doc(db, "numberedLottery", ticketId)));
+                    await Promise.all(deletePromises);
+                    showToast("ล้างข้อมูลสลากทั้งหมดสำเร็จ!");
+                } catch (error) {
+                    console.error("Error clearing all lottery data:", error);
+                    showToast("เกิดข้อผิดพลาดในการล้างข้อมูลสลาก", true);
+                }
+            });
         }
         
         // --- Event Listeners Setup ---
@@ -650,12 +898,27 @@
             state.unsubscribers.forEach(unsub => unsub());
             state.unsubscribers = [];
 
-            if (!state.isAdmin) {
+            if (state.isAdmin) {
+                const unsubPending = onSnapshot(collection(db, "pendingRequests"), (snapshot) => {
+                    state.pendingRequests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    if (state.userId) render();
+                });
+                state.unsubscribers.push(unsubPending);
+            } else {
                 const unsubUser = onSnapshot(doc(db, "users", state.userId), (doc) => {
                     state.userData = doc.data();
                     render();
+                }, (error) => {
+                    console.error("Error listening to user data:", error);
+                    showToast("ไม่สามารถโหลดข้อมูลผู้ใช้ได้", true);
                 });
-                state.unsubscribers.push(unsubUser);
+
+                const q = query(collection(db, "pendingRequests"), where("userId", "==", state.userId));
+                const unsubPending = onSnapshot(q, (snapshot) => {
+                    state.pendingRequests = snapshot.docs.map(doc => doc.data().activityId);
+                    if (state.userId) render();
+                });
+                state.unsubscribers.push(unsubUser, unsubPending);
             }
 
             const unsubActivities = onSnapshot(collection(db, "activities"), (snapshot) => {
@@ -671,7 +934,7 @@
                 snapshot.forEach(doc => {
                     state.numberedLotteryData[doc.id] = doc.data();
                 });
-                if(state.userId && state.currentPage === 'numberedLottery') render();
+                if(state.userId) render();
             });
             
             state.unsubscribers.push(unsubActivities, unsubRewards, unsubNumberedLottery);
@@ -695,7 +958,7 @@
             navs.forEach(nav => {
                 const btn = document.createElement('button');
                 btn.dataset.page = nav.page;
-                btn.className = 'nav-button py-3 px-4 font-semibold text-gray-500 whitespace-nowrap';
+                btn.className = 'nav-button py-3 px-4 font-semibold text-gray-500 whitespace-nowrap border-b-2 border-transparent';
                 btn.innerHTML = `<span class="inline-block align-middle mr-1">${nav.icon}</span> ${nav.text}`;
                 navButtonsContainer.appendChild(btn);
             });
@@ -706,20 +969,27 @@
         function updateNavStyling() {
             document.querySelectorAll('.nav-button').forEach(btn => {
                 btn.classList.remove('border-blue-600', 'text-blue-600');
-                btn.classList.add('text-gray-500');
+                btn.classList.add('text-gray-500', 'border-transparent');
             });
             const activeBtn = document.querySelector(`.nav-button[data-page="${state.currentPage}"]`);
             if (activeBtn) {
                 activeBtn.classList.add('border-blue-600', 'text-blue-600');
-                activeBtn.classList.remove('text-gray-500');
+                activeBtn.classList.remove('text-gray-500', 'border-transparent');
             }
         }
 
         // --- Initialization ---
         document.addEventListener('DOMContentLoaded', () => {
             loginButton.addEventListener('click', handleLogin);
+            loginInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') handleLogin();
+            });
             registerButton.addEventListener('click', handleRegistration);
             verifyButton.addEventListener('click', handlePhoneVerification);
+            verifyPhoneInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') handlePhoneVerification();
+            });
+
 
             const goBack = () => {
                 registrationScreen.classList.add('hidden');
@@ -734,27 +1004,38 @@
             logoutButton.addEventListener('click', handleLogout);
             
             navButtonsContainer.addEventListener('click', (e) => {
-                if (e.target.closest('.nav-button')) {
-                    state.currentPage = e.target.closest('.nav-button').dataset.page;
+                const navButton = e.target.closest('.nav-button');
+                if (navButton) {
+                    state.currentPage = navButton.dataset.page;
                     updateNavStyling();
                     render();
                 }
             });
 
             mainContent.addEventListener('click', (e) => {
+                const target = e.target;
                 // User actions
-                if (e.target.closest('.join-activity-btn')) {
-                    handleJoinActivity(e.target.closest('.join-activity-btn').dataset.activityId);
+                const joinBtn = target.closest('.join-activity-btn');
+                if (joinBtn) {
+                    handleJoinActivity(joinBtn.dataset.activityId);
                 }
-                if (e.target.closest('.redeem-reward-btn')) {
-                    handleRedeemReward(e.target.closest('.redeem-reward-btn').dataset.rewardId);
+                const redeemBtn = target.closest('.redeem-reward-btn');
+                if (redeemBtn) {
+                    handleRedeemReward(redeemBtn.dataset.rewardId);
                 }
-                if (e.target.closest('.buy-numbered-ticket-btn')) {
-                    handleBuyNumberedTicket(e.target.closest('.buy-numbered-ticket-btn').dataset.number);
+                 const buyTicketBtn = target.closest('.buy-numbered-ticket-btn');
+                if (buyTicketBtn) {
+                    handleBuyNumberedTicket(buyTicketBtn.dataset.number);
                 }
                 // Admin actions
-                if (e.target.matches('.edit-activity-btn')) {
-                    const id = e.target.dataset.id;
+                if (target.matches('.approve-request-btn')) {
+                    handleApproveRequest(target.dataset.id);
+                }
+                if (target.matches('.reject-request-btn')) {
+                    handleRejectRequest(target.dataset.id);
+                }
+                if (target.matches('.edit-activity-btn')) {
+                    const id = target.dataset.id;
                     const act = state.activities.find(a => a.id === id);
                     if (act) {
                         document.getElementById('activity-id').value = act.id;
@@ -762,16 +1043,17 @@
                         document.getElementById('activity-description').value = act.description;
                         document.getElementById('activity-points').value = act.points;
                         document.getElementById('activity-icon').value = act.stampIcon;
+                        document.getElementById('activity-id').focus();
                     }
                 }
-                if (e.target.matches('.delete-activity-btn')) {
-                    handleActivityDelete(e.target.dataset.id);
+                if (target.matches('.delete-activity-btn')) {
+                    handleActivityDelete(target.dataset.id);
                 }
-                if (e.target.matches('#clear-activity-form')) {
+                if (target.matches('#clear-activity-form')) {
                     document.getElementById('activity-form').reset();
                 }
-                if (e.target.matches('.edit-reward-btn')) {
-                    const id = e.target.dataset.id;
+                if (target.matches('.edit-reward-btn')) {
+                    const id = target.dataset.id;
                     const rew = state.rewards.find(r => r.id === id);
                     if (rew) {
                         document.getElementById('reward-id').value = rew.id;
@@ -779,13 +1061,20 @@
                         document.getElementById('reward-cost').value = rew.cost;
                         document.getElementById('reward-stock').value = rew.stock;
                         document.getElementById('reward-img').value = rew.img;
+                        document.getElementById('reward-id').focus();
                     }
                 }
-                if (e.target.matches('.delete-reward-btn')) {
-                    handleRewardDelete(e.target.dataset.id);
+                if (target.matches('.delete-reward-btn')) {
+                    handleRewardDelete(target.dataset.id);
                 }
-                if (e.target.matches('#clear-reward-form')) {
+                if (target.matches('#clear-reward-form')) {
                     document.getElementById('reward-form').reset();
+                }
+                if (target.matches('.clear-ticket-btn')) {
+                    handleClearIndividualTicket(target.dataset.id);
+                }
+                if (target.matches('#clear-all-lottery-btn')) {
+                    handleClearAllLotteryData();
                 }
             });
 
