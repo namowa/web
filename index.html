@@ -1,777 +1,389 @@
 <!DOCTYPE html>
-
 <html lang="th">
-
 <head>
-
-    <meta charset="UTF-8">
-
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>SGSMT - Job order</title>
-
-    <!-- LIFF SDK -->
-
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-
-    <!-- Tailwind CSS for styling -->
-
-    <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- Google Fonts: Sarabun & Inter -->
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-    <style>
-
-        body { font-family: 'Sarabun', 'Inter', sans-serif; }
-
-        .btn-primary { transition: background-color 0.3s ease, transform 0.2s ease; }
-
-        .btn-primary:hover { transform: translateY(-2px); }
-
-        .btn-primary:active { transform: translateY(0); }
-
-        select:disabled { background-color: #e9ecef; cursor: not-allowed; }
-
-        .file-input-label { cursor: pointer; border: 2px dashed #cbd5e1; padding: 2rem; transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out; }
-
-        .file-input-label:hover { background-color: #f8fafc; border-color: #94a3b8; }
-
-    </style>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGSMT - Job order</title>
+    <!-- LIFF SDK -->
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Sarabun & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Sarabun', 'Inter', sans-serif; }
+        .btn-primary { transition: background-color 0.3s ease, transform 0.2s ease; }
+        .btn-primary:hover { transform: translateY(-2px); }
+        .btn-primary:active { transform: translateY(0); }
+        select:disabled { background-color: #e9ecef; cursor: not-allowed; }
+        .file-input-label { cursor: pointer; border: 2px dashed #cbd5e1; padding: 2rem; transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out; }
+        .file-input-label:hover { background-color: #f8fafc; border-color: #94a3b8; }
+    </style>
 </head>
-
 <body class="bg-gray-100 flex justify-center min-h-screen p-4 md:py-8">
 
-
-
-    <div class="w-full max-w-2xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
-
-        <div class="p-8">
-
-            <!-- Header -->
-
-            <div class="text-center mb-8">
-
-                <h1 class="text-3xl font-bold text-gray-800">แบบฟอร์มแจ้งซ่อม</h1>
-
-                <p class="text-gray-500 mt-2">กรุณากรอกรายละเอียดด้านล่างให้ครบถ้วน</p>
-
-            </div>
-
-
-
-            <!-- LIFF User Profile Display -->
-
-            <div id="liffProfile" class="hidden items-center p-4 mb-6 bg-gray-50 rounded-lg">
-
-                <img id="profilePicture" src="https://placehold.co/80x80/EFEFEF/AAAAAA?text=User" alt="Profile Picture" class="w-16 h-16 rounded-full mr-4">
-
-                <div>
-
-                    <p class="font-bold text-lg text-gray-800" id="displayName">Loading...</p>
-
-                    <p class="text-sm text-gray-500" id="userId">Loading...</p>
-
-                </div>
-
-            </div>
-
-
-
-            <!-- Maintenance Request Form -->
-
-            <form id="repairForm" class="space-y-6">
-
-                 <!-- Row 1: Reporter's Name and Contact Number -->
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                    <div>
-
-                        <label for="reporterName" class="block text-sm font-medium text-gray-700 mb-1">ชื่อผู้แจ้ง</label>
-
-                        <input type="text" id="reporterName" name="reporterName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="เช่น สมชาย ใจดี">
-
-                    </div>
-
-                    <div>
-
-                        <label for="contactNumber" class="block text-sm font-medium text-gray-700 mb-1">เบอร์โทรศัพท์ติดต่อ</label>
-
-                        <input type="tel" id="contactNumber" name="contactNumber" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="เช่น 081-234-5678">
-
-                    </div>
-
-                </div>
-
-
-
-                <!-- Row 2: Repair Type and Requesting Department -->
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                    <div>
-
-                        <label for="repairType" class="block text-sm font-medium text-gray-700 mb-1">ประเภทงานซ่อม</label>
-
-                        <select id="repairType" name="repairType" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
-
-                            <option value="" disabled selected>-- เลือกประเภทงาน --</option>
-
-                            <option value="BD">BD</option>
-
-                            <option value="RP">RP</option>
-
-                            <option value="PM">PM</option>
-
-                            <option value="SF">SF</option>
-
-                        </select>
-
-                    </div>
-
-                    <div>
-
-                        <label for="department" class="block text-sm font-medium text-gray-700 mb-1">หน่วยงานที่แจ้ง</label>
-
-                        <select id="department" name="department" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
-
-                            <option value="" disabled selected>-- เลือกหน่วยงาน --</option>
-
-                            <option value="PRE">PRE</option>
-
-                            <option value="AS1">AS1</option>
-
-                            <option value="AS2">AS2</option>
-
-                            <option value="CHG1">CHG1</option>
-
-                            <option value="CHG2">CHG2</option>
-
-                        </select>
-
-                    </div>
-
-                </div>
-
-
-
-                <!-- Row 3: Production Line and Machine Name -->
-
-                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                    <div>
-
-                        <label for="productionLine" class="block text-sm font-medium text-gray-700 mb-1">ไลน์ผลิต</label>
-
-                        <select id="productionLine" name="productionLine" required disabled class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
-
-                            <option value="" disabled selected>-- กรุณาเลือกหน่วยงานก่อน --</option>
-
-                        </select>
-
-                    </div>
-
-                    <div>
-
-                        <label for="machineName" class="block text-sm font-medium text-gray-700 mb-1">เครื่องจักรที่แจ้ง</label>
-
-                        <input type="text" id="machineName" name="machineName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="ระบุชื่อหรือรหัสเครื่องจักร">
-
-                    </div>
-
-                </div>
-
-
-
-                <!-- Row 4: Problem Description -->
-
-                <div>
-
-                    <label for="problemDescription" class="block text-sm font-medium text-gray-700 mb-1">รายละเอียดปัญหา</label>
-
-                    <textarea id="problemDescription" name="problemDescription" rows="4" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="อธิบายอาการที่พบโดยละเอียด"></textarea>
-
-                </div>
-
-
-
-                <!-- Row 5: Image Upload -->
-
-                <div>
-
-                    <label class="block text-sm font-medium text-gray-700 mb-1">รูปภาพปัญหา (ถ้ามี)</label>
-
-                    <label for="imageUpload" class="file-input-label flex flex-col items-center justify-center rounded-lg text-center">
-
-                        <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-
-                        <p class="mt-2 text-sm text-gray-500">คลิกเพื่อเลือกรูปภาพ (1 รูป)</p>
-
-                    </label>
-
-                    <input type="file" id="imageUpload" name="image" accept="image/*" class="hidden">
-
-                    <div id="imagePreview" class="mt-4"></div>
-
-                </div>
-
-
-
-                <!-- Submit Button -->
-
-                <div class="text-center pt-4">
-
-                    <button type="submit" id="submitButton" class="btn-primary w-full md:w-auto bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 shadow-md">
-
-                        <span id="buttonText">ส่งข้อมูลการแจ้งซ่อม</span>
-
-                        <span id="buttonSpinner" class="hidden">
-
-                            <svg class="animate-spin h-5 w-5 text-white mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-
-                            </svg>
-
-                        </span>
-
-                    </button>
-
-                </div>
-
-            </form>
-
-        </div>
-
-    </div>
-
-
-
-    <!-- Modal for feedback -->
-
-    <div id="feedbackModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-
-        <div class="mx-auto p-5 border w-11/12 md:w-1/3 shadow-lg rounded-md bg-white">
-
-            <div class="text-center">
-
-                <div id="modalIcon" class="mx-auto flex items-center justify-center h-12 w-12 rounded-full mb-4"></div>
-
-                <h3 class="text-lg leading-6 font-medium text-gray-900" id="modalTitle"></h3>
-
-                <div class="mt-2 px-7 py-3">
-
-                    <p class="text-sm text-gray-500" id="modalMessage"></p>
-
-                </div>
-
-                <div class="items-center px-4 py-3">
-
-                    <button id="closeModalButton" class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300">ปิด</button>
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-
-    <script>
-
-    document.addEventListener('DOMContentLoaded', () => {
-
-
-
-        // --- CONFIGURATION ---
-
-        const API_ENDPOINT_URL = 'https://prod-47.southeastasia.logic.azure.com:443/workflows/231decf705094921b331e1ce09595d67/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=YEI3LbYYK8fhWbhUf5fTH8XjgTM8mt852aJJOGbulL8';
-
-        const LIFF_ID = '1654435774-z1QEKwdy';
-
-        const MAX_IMAGE_WIDTH = 800;
-
-        const MAX_IMAGE_HEIGHT = 600;
-
-
-
-        // --- STATE ---
-
-        let lineProfile = null;
-
-
-
-        // --- DATA ---
-
-        const productionLinesByDept = {
-
-            PRE: ['PF', 'GRID', 'PART', 'E1', 'E2', 'E3', 'PA1', 'PA2', 'LP1', 'LP2', 'LP3', 'LP4', 'LP5', 'LP6', 'LP7', 'LS1', 'LS2', 'อื่นๆ'],
-
-            AS1: ['COS#2', 'COS#3', 'COS#4', 'COS#10', 'อื่นๆ'],
-
-            AS2: ['COS#6', 'COS#7', 'COS#8', 'COS#9', 'อื่นๆ'],
-
-            CHG1: ['ACS', 'BCH', 'QA', 'QC', 'TEST', 'IC', 'FROM', 'อื่นๆ'],
-
-            CHG2: ['CHG2', 'อื่นๆ']
-
-        };
-
-
-
-        // --- DOM ELEMENTS ---
-
-        const elements = {
-
-            form: document.getElementById('repairForm'),
-
-            submitButton: document.getElementById('submitButton'),
-
-            buttonText: document.getElementById('buttonText'),
-
-            buttonSpinner: document.getElementById('buttonSpinner'),
-
-            departmentSelect: document.getElementById('department'),
-
-            productionLineSelect: document.getElementById('productionLine'),
-
-            imageUpload: document.getElementById('imageUpload'),
-
-            imagePreview: document.getElementById('imagePreview'),
-
-            liffProfile: {
-
-                container: document.getElementById('liffProfile'),
-
-                picture: document.getElementById('profilePicture'),
-
-                displayName: document.getElementById('displayName'),
-
-                userId: document.getElementById('userId'),
-
-            },
-
-            modal: {
-
-                container: document.getElementById('feedbackModal'),
-
-                closeButton: document.getElementById('closeModalButton'),
-
-                title: document.getElementById('modalTitle'),
-
-                message: document.getElementById('modalMessage'),
-
-                icon: document.getElementById('modalIcon'),
-
-            }
-
-        };
-
-
-
-        // --- UI FUNCTIONS ---
-
-        const ui = {
-
-            setButtonLoading(isLoading) {
-
-                elements.submitButton.disabled = isLoading;
-
-                elements.buttonText.classList.toggle('hidden', isLoading);
-
-                elements.buttonSpinner.classList.toggle('hidden', !isLoading);
-
-            },
-
-            showModal(type, title, message) {
-
-                const { container, icon, title: modalTitle, message: modalMessage } = elements.modal;
-
-                icon.innerHTML = '';
-
-                icon.className = 'mx-auto flex items-center justify-center h-12 w-12 rounded-full mb-4';
-
-                
-
-                if (type === 'success') {
-
-                    icon.classList.add('bg-green-100');
-
-                    icon.innerHTML = `<svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`;
-
-                } else {
-
-                    icon.classList.add('bg-red-100');
-
-                    icon.innerHTML = `<svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
-
-                }
-
-                modalTitle.textContent = title;
-
-                modalMessage.textContent = message;
-
-                container.classList.remove('hidden');
-
-            },
-
-            hideModal() {
-
-                elements.modal.container.classList.add('hidden');
-
-            },
-
-            updateProductionLines() {
-
-                const selectedDept = elements.departmentSelect.value;
-
-                const lines = productionLinesByDept[selectedDept] || [];
-
-                elements.productionLineSelect.innerHTML = ''; 
-
-                if (lines.length > 0) {
-
-                    elements.productionLineSelect.disabled = false;
-
-                    elements.productionLineSelect.innerHTML = '<option value="" disabled selected>-- เลือกรหัสไลน์ผลิต --</option>';
-
-                    lines.forEach(line => {
-
-                        elements.productionLineSelect.innerHTML += `<option value="${line}">${line}</option>`;
-
-                    });
-
-                } else {
-
-                    elements.productionLineSelect.disabled = true;
-
-                    elements.productionLineSelect.innerHTML = '<option value="" disabled selected>-- กรุณาเลือกหน่วยงานก่อน --</option>';
-
-                }
-
-            },
-
-            displayImagePreview(file) {
-
-                elements.imagePreview.innerHTML = '';
-
-                if (file) {
-
-                    const reader = new FileReader();
-
-                    reader.onload = (e) => {
-
-                        const img = document.createElement('img');
-
-                        img.src = e.target.result;
-
-                        img.classList.add('max-w-xs', 'mx-auto', 'rounded-lg', 'shadow-md');
-
-                        elements.imagePreview.appendChild(img);
-
-                    }
-
-                    reader.readAsDataURL(file);
-
-                }
-
-            },
-
-            resetForm() {
-
-                elements.form.reset();
-
-                elements.imagePreview.innerHTML = '';
-
-                this.updateProductionLines();
-
-            },
-
-            displayLiffProfile(profile) {
-
-                if (profile) {
-
-                    elements.liffProfile.picture.src = profile.pictureUrl;
-
-                    elements.liffProfile.displayName.textContent = profile.displayName;
-
-                    elements.liffProfile.userId.textContent = `ID: ${profile.userId}`;
-
-                    elements.liffProfile.container.classList.remove('hidden');
-
-                    elements.liffProfile.container.classList.add('flex');
-
-                }
-
-            }
-
-        };
-
-
-
-        // --- IMAGE & LIFF FUNCTIONS ---
-
-        function resizeAndEncodeImage(file, maxWidth, maxHeight) {
-
-            return new Promise((resolve, reject) => {
-
-                const reader = new FileReader();
-
-                reader.readAsDataURL(file);
-
-                reader.onload = (event) => {
-
-                    const img = new Image();
-
-                    img.src = event.target.result;
-
-                    img.onload = () => {
-
-                        let { width, height } = img;
-
-                        if (width > height) {
-
-                            if (width > maxWidth) {
-
-                                height = Math.round(height * (maxWidth / width));
-
-                                width = maxWidth;
-
-                            }
-
-                        } else {
-
-                            if (height > maxHeight) {
-
-                                width = Math.round(width * (maxHeight / height));
-
-                                height = maxHeight;
-
-                            }
-
-                        }
-
-                        const canvas = document.createElement('canvas');
-
-                        canvas.width = width;
-
-                        canvas.height = height;
-
-                        const ctx = canvas.getContext('2d');
-
-                        ctx.drawImage(img, 0, 0, width, height);
-
-                        resolve(ctx.canvas.toDataURL('image/jpeg', 0.85));
-
-                    };
-
-                    img.onerror = reject;
-
-                };
-
-                reader.onerror = reject;
-
-            });
-
-        }
-
-
-
-        async function initializeLiff() {
-
-            try {
-
-                await liff.init({ liffId: LIFF_ID });
-
-                if (liff.isLoggedIn()) {
-
-                    lineProfile = await liff.getProfile();
-
-                    ui.displayLiffProfile(lineProfile);
-
-                    console.log('LIFF Initialized. Profile:', lineProfile);
-
-                } else {
-
-                    console.log('LIFF Initialized, but user is not logged in.');
-
-                }
-
-            } catch (error) {
-
-                console.error('LIFF initialization failed:', error);
-
-                ui.showModal('error', 'เกิดข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อกับ LINE ได้');
-
-            }
-
-        }
-
-
-
-        // --- EVENT HANDLERS ---
-
-        async function handleFormSubmit(event) {
-
-            event.preventDefault();
-
-            ui.setButtonLoading(true);
-
-
-
-            const payload = {
-
-                reporterName: elements.form.reporterName.value,
-
-                contactNumber: elements.form.contactNumber.value,
-
-                repairType: elements.form.repairType.value,
-
-                department: elements.form.department.value,
-
-                productionLine: elements.form.productionLine.value,
-
-                machineName: elements.form.machineName.value,
-
-                problemDescription: elements.form.problemDescription.value,
-
-                lineUserId: lineProfile ? lineProfile.userId : null,
-
-                lineDisplayName: lineProfile ? lineProfile.displayName : null,
-
-                linePictureUrl: lineProfile ? lineProfile.pictureUrl : null,
-
-                timestamp: new Date().toISOString(),
-
-                imageJSON: null
-
-            };
-
-            
-
-            const imageFile = elements.imageUpload.files[0];
-
-            if (imageFile) {
-
-                try {
-
-                    const resizedBase64 = await resizeAndEncodeImage(imageFile, MAX_IMAGE_WIDTH, MAX_IMAGE_HEIGHT);
-
-                    payload.imageJSON = {
-
-                        imageName: imageFile.name,
-
-                        imageData: resizedBase64
-
-                    };
-
-                } catch (error) {
-
-                    console.error('Image processing error:', error);
-
-                    ui.showModal('error', 'รูปภาพมีปัญหา', 'ไม่สามารถประมวลผลรูปภาพได้');
-
-                    ui.setButtonLoading(false);
-
-                    return;
-
-                }
-
-            }
-
-
-
-            try {
-
-                const response = await fetch(API_ENDPOINT_URL, {
-
-                    method: 'POST',
-
-                    headers: { 'Content-Type': 'application/json' },
-
-                    body: JSON.stringify(payload),
-
-                });
-
-
-
-                if (response.status !== 200 && response.status !== 202) {
-
-                    throw new Error(`Server responded with status: ${response.status}`);
-
-                }
-
-                
-
-                ui.showModal('success', 'ส่งข้อมูลสำเร็จ', 'เราได้รับข้อมูลการแจ้งซ่อมของคุณแล้ว');
-
-                ui.resetForm();
-
-            } catch (error) {
-
-                console.error('Submit Error:', error);
-
-                ui.showModal('error', 'เกิดข้อผิดพลาด', 'ไม่สามารถส่งข้อมูลได้');
-
-            } finally {
-
-                ui.setButtonLoading(false);
-
-            }
-
-        }
-
-        
-
-        function handleImageUpload(event) {
-
-            const file = event.target.files[0];
-
-            ui.displayImagePreview(file);
-
-        }
-
-
-
-        // --- INITIALIZATION ---
-
-        initializeLiff();
-
-        elements.form.addEventListener('submit', handleFormSubmit);
-
-        elements.departmentSelect.addEventListener('change', ui.updateProductionLines);
-
-        elements.imageUpload.addEventListener('change', handleImageUpload);
-
-        elements.modal.closeButton.addEventListener('click', ui.hideModal);
-
-        elements.modal.container.addEventListener('click', (event) => {
-
-            if (event.target === elements.modal.container) {
-
-                ui.hideModal();
-
-            }
-
-        });
-
-
-
-    });
-
-    </script>
-
+    <div class="w-full max-w-2xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="p-8">
+            <!-- Header -->
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-800">แบบฟอร์มแจ้งซ่อม</h1>
+                <p class="text-gray-500 mt-2">กรุณากรอกรายละเอียดด้านล่างให้ครบถ้วน</p>
+            </div>
+
+            <!-- LIFF User Profile Display -->
+            <div id="liffProfile" class="hidden items-center p-4 mb-6 bg-gray-50 rounded-lg">
+                <img id="profilePicture" src="https://placehold.co/80x80/EFEFEF/AAAAAA?text=User" alt="Profile Picture" class="w-16 h-16 rounded-full mr-4">
+                <div>
+                    <p class="font-bold text-lg text-gray-800" id="displayName">Loading...</p>
+                    <p class="text-sm text-gray-500" id="userId">Loading...</p>
+                </div>
+            </div>
+
+            <!-- Maintenance Request Form -->
+            <form id="repairForm" class="space-y-6">
+                 <!-- Row 1: Reporter's Name and Contact Number -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="reporterName" class="block text-sm font-medium text-gray-700 mb-1">ชื่อผู้แจ้ง</label>
+                        <input type="text" id="reporterName" name="reporterName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="เช่น สมชาย ใจดี">
+                    </div>
+                    <div>
+                        <label for="contactNumber" class="block text-sm font-medium text-gray-700 mb-1">เบอร์โทรศัพท์ติดต่อ</label>
+                        <input type="tel" id="contactNumber" name="contactNumber" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="เช่น 081-234-5678">
+                    </div>
+                </div>
+
+                <!-- Row 2: Repair Type and Requesting Department -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="repairType" class="block text-sm font-medium text-gray-700 mb-1">ประเภทงานซ่อม</label>
+                        <select id="repairType" name="repairType" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                            <option value="" disabled selected>-- เลือกประเภทงาน --</option>
+                            <option value="BD">BD</option>
+                            <option value="RP">RP</option>
+                            <option value="PM">PM</option>
+                            <option value="SF">SF</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="department" class="block text-sm font-medium text-gray-700 mb-1">หน่วยงานที่แจ้ง</label>
+                        <select id="department" name="department" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                            <option value="" disabled selected>-- เลือกหน่วยงาน --</option>
+                            <option value="PRE">PRE</option>
+                            <option value="AS1">AS1</option>
+                            <option value="AS2">AS2</option>
+                            <option value="CHG1">CHG1</option>
+                            <option value="CHG2">CHG2</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Row 3: Production Line and Machine Name -->
+                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="productionLine" class="block text-sm font-medium text-gray-700 mb-1">ไลน์ผลิต</label>
+                        <select id="productionLine" name="productionLine" required disabled class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                            <option value="" disabled selected>-- กรุณาเลือกหน่วยงานก่อน --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="machineName" class="block text-sm font-medium text-gray-700 mb-1">เครื่องจักรที่แจ้ง</label>
+                        <input type="text" id="machineName" name="machineName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="ระบุชื่อหรือรหัสเครื่องจักร">
+                    </div>
+                </div>
+
+                <!-- Row 4: Problem Description -->
+                <div>
+                    <label for="problemDescription" class="block text-sm font-medium text-gray-700 mb-1">รายละเอียดปัญหา</label>
+                    <textarea id="problemDescription" name="problemDescription" rows="4" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="อธิบายอาการที่พบโดยละเอียด"></textarea>
+                </div>
+
+                <!-- Row 5: Image Upload -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">รูปภาพปัญหา (ถ้ามี)</label>
+                    <label for="imageUpload" class="file-input-label flex flex-col items-center justify-center rounded-lg text-center">
+                        <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        <p class="mt-2 text-sm text-gray-500">คลิกเพื่อเลือกรูปภาพ (1 รูป)</p>
+                    </label>
+                    <input type="file" id="imageUpload" name="image" accept="image/*" class="hidden">
+                    <div id="imagePreview" class="mt-4"></div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="text-center pt-4">
+                    <button type="submit" id="submitButton" class="btn-primary w-full md:w-auto bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 shadow-md">
+                        <span id="buttonText">ส่งข้อมูลการแจ้งซ่อม</span>
+                        <span id="buttonSpinner" class="hidden">
+                            <svg class="animate-spin h-5 w-5 text-white mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for feedback -->
+    <div id="feedbackModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="mx-auto p-5 border w-11/12 md:w-1/3 shadow-lg rounded-md bg-white">
+            <div class="text-center">
+                <div id="modalIcon" class="mx-auto flex items-center justify-center h-12 w-12 rounded-full mb-4"></div>
+                <h3 class="text-lg leading-6 font-medium text-gray-900" id="modalTitle"></h3>
+                <div class="mt-2 px-7 py-3">
+                    <p class="text-sm text-gray-500" id="modalMessage"></p>
+                </div>
+                <div class="items-center px-4 py-3">
+                    <button id="closeModalButton" class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300">ปิด</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+        // --- CONFIGURATION ---
+        const API_ENDPOINT_URL = 'https://prod-47.southeastasia.logic.azure.com:443/workflows/231decf705094921b331e1ce09595d67/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=YEI3LbYYK8fhWbhUf5fTH8XjgTM8mt852aJJOGbulL8';
+        const LIFF_ID = '1654435774-z1QEKwdy';
+        const MAX_IMAGE_WIDTH = 800;
+        const MAX_IMAGE_HEIGHT = 600;
+
+        // --- STATE ---
+        let lineProfile = null;
+
+        // --- DATA ---
+        const productionLinesByDept = {
+            PRE: ['PF', 'GRID', 'PART', 'E1', 'E2', 'E3', 'PA1', 'PA2', 'LP1', 'LP2', 'LP3', 'LP4', 'LP5', 'LP6', 'LP7', 'LS1', 'LS2', 'อื่นๆ'],
+            AS1: ['COS#2', 'COS#3', 'COS#4', 'COS#10', 'อื่นๆ'],
+            AS2: ['COS#6', 'COS#7', 'COS#8', 'COS#9', 'อื่นๆ'],
+            CHG1: ['ACS', 'BCH', 'QA', 'QC', 'TEST', 'IC', 'FROM', 'อื่นๆ'],
+            CHG2: ['CHG2', 'อื่นๆ']
+        };
+
+        // --- DOM ELEMENTS ---
+        const elements = {
+            form: document.getElementById('repairForm'),
+            submitButton: document.getElementById('submitButton'),
+            buttonText: document.getElementById('buttonText'),
+            buttonSpinner: document.getElementById('buttonSpinner'),
+            departmentSelect: document.getElementById('department'),
+            productionLineSelect: document.getElementById('productionLine'),
+            imageUpload: document.getElementById('imageUpload'),
+            imagePreview: document.getElementById('imagePreview'),
+            liffProfile: {
+                container: document.getElementById('liffProfile'),
+                picture: document.getElementById('profilePicture'),
+                displayName: document.getElementById('displayName'),
+                userId: document.getElementById('userId'),
+            },
+            modal: {
+                container: document.getElementById('feedbackModal'),
+                closeButton: document.getElementById('closeModalButton'),
+                title: document.getElementById('modalTitle'),
+                message: document.getElementById('modalMessage'),
+                icon: document.getElementById('modalIcon'),
+            }
+        };
+
+        // --- UI FUNCTIONS ---
+        const ui = {
+            setButtonLoading(isLoading) {
+                elements.submitButton.disabled = isLoading;
+                elements.buttonText.classList.toggle('hidden', isLoading);
+                elements.buttonSpinner.classList.toggle('hidden', !isLoading);
+            },
+            showModal(type, title, message) {
+                const { container, icon, title: modalTitle, message: modalMessage } = elements.modal;
+                icon.innerHTML = '';
+                icon.className = 'mx-auto flex items-center justify-center h-12 w-12 rounded-full mb-4';
+                
+                if (type === 'success') {
+                    icon.classList.add('bg-green-100');
+                    icon.innerHTML = `<svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`;
+                } else {
+                    icon.classList.add('bg-red-100');
+                    icon.innerHTML = `<svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+                }
+                modalTitle.textContent = title;
+                modalMessage.textContent = message;
+                container.classList.remove('hidden');
+            },
+            hideModal() {
+                elements.modal.container.classList.add('hidden');
+            },
+            updateProductionLines() {
+                const selectedDept = elements.departmentSelect.value;
+                const lines = productionLinesByDept[selectedDept] || [];
+                elements.productionLineSelect.innerHTML = ''; 
+                if (lines.length > 0) {
+                    elements.productionLineSelect.disabled = false;
+                    elements.productionLineSelect.innerHTML = '<option value="" disabled selected>-- เลือกรหัสไลน์ผลิต --</option>';
+                    lines.forEach(line => {
+                        elements.productionLineSelect.innerHTML += `<option value="${line}">${line}</option>`;
+                    });
+                } else {
+                    elements.productionLineSelect.disabled = true;
+                    elements.productionLineSelect.innerHTML = '<option value="" disabled selected>-- กรุณาเลือกหน่วยงานก่อน --</option>';
+                }
+            },
+            displayImagePreview(file) {
+                elements.imagePreview.innerHTML = '';
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.classList.add('max-w-xs', 'mx-auto', 'rounded-lg', 'shadow-md');
+                        elements.imagePreview.appendChild(img);
+                    }
+                    reader.readAsDataURL(file);
+                }
+            },
+            resetForm() {
+                elements.form.reset();
+                elements.imagePreview.innerHTML = '';
+                this.updateProductionLines();
+            },
+            displayLiffProfile(profile) {
+                if (profile) {
+                    elements.liffProfile.picture.src = profile.pictureUrl;
+                    elements.liffProfile.displayName.textContent = profile.displayName;
+                    elements.liffProfile.userId.textContent = `ID: ${profile.userId}`;
+                    elements.liffProfile.container.classList.remove('hidden');
+                    elements.liffProfile.container.classList.add('flex');
+                }
+            }
+        };
+
+        // --- IMAGE & LIFF FUNCTIONS ---
+        function resizeAndEncodeImage(file, maxWidth, maxHeight) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        let { width, height } = img;
+                        if (width > height) {
+                            if (width > maxWidth) {
+                                height = Math.round(height * (maxWidth / width));
+                                width = maxWidth;
+                            }
+                        } else {
+                            if (height > maxHeight) {
+                                width = Math.round(width * (maxHeight / height));
+                                height = maxHeight;
+                            }
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        resolve(ctx.canvas.toDataURL('image/jpeg', 0.85));
+                    };
+                    img.onerror = reject;
+                };
+                reader.onerror = reject;
+            });
+        }
+
+        async function initializeLiff() {
+            try {
+                await liff.init({ liffId: LIFF_ID });
+                if (liff.isLoggedIn()) {
+                    lineProfile = await liff.getProfile();
+                    ui.displayLiffProfile(lineProfile);
+                    console.log('LIFF Initialized. Profile:', lineProfile);
+                } else {
+                    console.log('LIFF Initialized, but user is not logged in.');
+                }
+            } catch (error) {
+                console.error('LIFF initialization failed:', error);
+                ui.showModal('error', 'เกิดข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อกับ LINE ได้');
+            }
+        }
+
+        // --- EVENT HANDLERS ---
+        async function handleFormSubmit(event) {
+            event.preventDefault();
+            ui.setButtonLoading(true);
+
+            const payload = {
+                reporterName: elements.form.reporterName.value,
+                contactNumber: elements.form.contactNumber.value,
+                repairType: elements.form.repairType.value,
+                department: elements.form.department.value,
+                productionLine: elements.form.productionLine.value,
+                machineName: elements.form.machineName.value,
+                problemDescription: elements.form.problemDescription.value,
+                lineUserId: lineProfile ? lineProfile.userId : null,
+                lineDisplayName: lineProfile ? lineProfile.displayName : null,
+                linePictureUrl: lineProfile ? lineProfile.pictureUrl : null,
+                timestamp: new Date().toISOString(),
+                imageJSON: null
+            };
+            
+            const imageFile = elements.imageUpload.files[0];
+            if (imageFile) {
+                try {
+                    const resizedBase64 = await resizeAndEncodeImage(imageFile, MAX_IMAGE_WIDTH, MAX_IMAGE_HEIGHT);
+                    payload.imageJSON = {
+                        imageName: imageFile.name,
+                        imageData: resizedBase64
+                    };
+                } catch (error) {
+                    console.error('Image processing error:', error);
+                    ui.showModal('error', 'รูปภาพมีปัญหา', 'ไม่สามารถประมวลผลรูปภาพได้');
+                    ui.setButtonLoading(false);
+                    return;
+                }
+            }
+
+            try {
+                const response = await fetch(API_ENDPOINT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+
+                if (response.status !== 200 && response.status !== 202) {
+                    throw new Error(`Server responded with status: ${response.status}`);
+                }
+                
+                ui.showModal('success', 'ส่งข้อมูลสำเร็จ', 'เราได้รับข้อมูลการแจ้งซ่อมของคุณแล้ว');
+                ui.resetForm();
+            } catch (error) {
+                console.error('Submit Error:', error);
+                ui.showModal('error', 'เกิดข้อผิดพลาด', 'ไม่สามารถส่งข้อมูลได้');
+            } finally {
+                ui.setButtonLoading(false);
+            }
+        }
+        
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            ui.displayImagePreview(file);
+        }
+
+        // --- INITIALIZATION ---
+        initializeLiff();
+        elements.form.addEventListener('submit', handleFormSubmit);
+        elements.departmentSelect.addEventListener('change', ui.updateProductionLines);
+        elements.imageUpload.addEventListener('change', handleImageUpload);
+        elements.modal.closeButton.addEventListener('click', ui.hideModal);
+        elements.modal.container.addEventListener('click', (event) => {
+            if (event.target === elements.modal.container) {
+                ui.hideModal();
+            }
+        });
+
+    });
+    </script>
 </body>
-
 </html>
