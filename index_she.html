@@ -69,7 +69,6 @@
             <input id="register-firstname-input" type="text" placeholder="ชื่อ" class="w-full px-4 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             <input id="register-lastname-input" type="text" placeholder="นามสกุล" class="w-full px-4 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             <input id="register-employee-id-input" type="text" placeholder="รหัสพนักงาน" class="w-full px-4 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input id="register-phone-input" type="tel" placeholder="เบอร์โทรศัพท์" class="w-full px-4 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             <button id="register-button" class="w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 transition-colors">
                 ยืนยันการลงทะเบียน
             </button>
@@ -88,7 +87,6 @@
                     <div id="points-display" class="bg-yellow-100 border border-yellow-300 text-yellow-800 font-bold px-3 py-2 rounded-full flex items-center mr-2 md:mr-4 text-sm md:text-base">
                         <!-- Points will be rendered here -->
                     </div>
-                    <button id="logout-button" class="text-sm text-gray-500 hover:text-red-600">ออกจากระบบ</button>
                 </div>
             </div>
             <nav class="container mx-auto px-4">
@@ -156,9 +154,6 @@
         const registerFirstnameInput = document.getElementById('register-firstname-input');
         const registerLastnameInput = document.getElementById('register-lastname-input');
         const registerEmployeeIdInput = document.getElementById('register-employee-id-input');
-        const registerPhoneInput = document.getElementById('register-phone-input');
-
-        const logoutButton = document.getElementById('logout-button');
 
         // --- UI Functions ---
         function showToast(message, isError = false) {
@@ -492,7 +487,7 @@
                             <div class="flex items-center justify-between">
                                 <div>
                                     <p class="font-semibold text-sm">${user.name} <span class="font-mono text-xs text-gray-500">(${user.employeeId || 'N/A'})</span></p>
-                                    <p class="text-xs text-gray-600">โทร: ${user.phone} | คะแนน: ${user.points}</p>
+                                    <p class="text-xs text-gray-600">คะแนน: ${user.points}</p>
                                 </div>
                                 <div class="flex-shrink-0">
                                     <button data-id="${user.id}" class="toggle-details-btn text-gray-500 hover:text-gray-700 mr-2 font-semibold text-sm">รายละเอียด</button>
@@ -514,7 +509,6 @@
                     <input type="text" id="user-id-form" placeholder="LINE User ID" class="w-full p-2 border rounded bg-gray-100" readonly>
                     <input type="text" id="user-employee-id-form" placeholder="รหัสพนักงาน" class="w-full p-2 border rounded bg-gray-100" readonly>
                     <input type="text" id="user-name-form" placeholder="ชื่อ-นามสกุล" class="w-full p-2 border rounded" required>
-                    <input type="tel" id="user-phone-form" placeholder="เบอร์โทรศัพท์" class="w-full p-2 border rounded" required>
                     <input type="number" id="user-points-form" placeholder="คะแนน" class="w-full p-2 border rounded" required>
                     <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700">บันทึกข้อมูลผู้ใช้</button>
                     <button type="button" id="clear-user-form" class="w-full bg-gray-300 text-gray-800 py-2 rounded-lg font-semibold hover:bg-gray-400 mt-2">ล้างฟอร์ม</button>
@@ -650,9 +644,8 @@
             const firstname = registerFirstnameInput.value.trim();
             const lastname = registerLastnameInput.value.trim();
             const employeeId = registerEmployeeIdInput.value.trim();
-            const phone = registerPhoneInput.value.trim();
 
-            if (!firstname || !lastname || !employeeId || !phone) {
+            if (!firstname || !lastname || !employeeId) {
                 showToast("กรุณากรอกข้อมูลให้ครบทุกช่อง", true);
                 return;
             }
@@ -662,7 +655,6 @@
                 id: state.userId,
                 employeeId: employeeId,
                 name: `${firstname} ${lastname}`,
-                phone: phone,
                 points: 0,
                 activityStatus: {},
                 redeemedRewards: []
@@ -690,7 +682,9 @@
             state.unsubscribers.forEach(unsub => unsub());
             state = { currentPage: 'dashboard', userId: null, userName: null, isAdmin: false, userData: null, activities: [], rewards: [], numberedLotteryData: {}, pendingRequests: [], allUsers: [], userSearchTerm: '', unsubscribers: [] };
             
-            liff.logout();
+            if (liff.isLoggedIn()) {
+                liff.logout();
+            }
             window.location.reload();
         }
 
@@ -827,12 +821,11 @@
             }
             const userData = {
                 name: document.getElementById('user-name-form').value.trim(),
-                phone: document.getElementById('user-phone-form').value.trim(),
                 points: Number(document.getElementById('user-points-form').value)
             };
             
-            if (!userData.name || !userData.phone) {
-                showToast("กรุณากรอกชื่อและเบอร์โทรศัพท์", true);
+            if (!userData.name) {
+                showToast("กรุณากรอกชื่อ", true);
                 return;
             }
 
@@ -1111,7 +1104,6 @@
                 } else {
                     loadingScreen.classList.add('hidden');
                     registrationScreen.classList.remove('hidden');
-                    // We don't pre-fill the name anymore, user must enter it.
                 }
             } catch (error) {
                 console.error("LIFF Initialization failed", error);
@@ -1123,7 +1115,6 @@
             main(); // Start the LIFF initialization process
             
             registerButton.addEventListener('click', handleRegistration);
-            logoutButton.addEventListener('click', handleLogout);
             
             navButtonsContainer.addEventListener('click', (e) => {
                 const navButton = e.target.closest('.nav-button');
@@ -1151,7 +1142,6 @@
                         document.getElementById('user-id-form').value = user.id;
                         document.getElementById('user-employee-id-form').value = user.employeeId || '';
                         document.getElementById('user-name-form').value = user.name;
-                        document.getElementById('user-phone-form').value = user.phone;
                         document.getElementById('user-points-form').value = user.points;
                         document.getElementById('user-name-form').focus();
                     }
