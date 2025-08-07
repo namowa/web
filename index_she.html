@@ -8,6 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- LIFF SDK -->
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         body {
             font-family: 'Kanit', sans-serif;
@@ -53,43 +55,22 @@
 </head>
 <body class="bg-gray-100">
 
-    <!-- หน้าจอ Login -->
-    <div id="login-screen" class="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-        <div class="bg-white p-8 rounded-xl shadow-lg text-center w-full max-w-sm">
-            <h1 class="text-3xl font-bold mb-2 text-gray-800">SHE&E Month</h1>
-            <p class="text-gray-500 mb-6">แอปสะสมแต้มและของรางวัล</p>
-            <input id="login-userid-input" type="text" placeholder="กรอกรหัสพนักงานของคุณ" class="w-full px-4 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <button id="login-button" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
-                ต่อไป
-            </button>
-        </div>
-    </div>
-
-    <!-- หน้าจอยืนยันเบอร์โทรศัพท์ -->
-    <div id="phone-verification-screen" class="hidden min-h-screen flex items-center justify-center bg-gray-100 p-4">
-        <div class="bg-white p-8 rounded-xl shadow-lg text-center w-full max-w-sm">
-            <h1 class="text-3xl font-bold mb-2 text-gray-800">ยืนยันตัวตน</h1>
-            <p id="verify-welcome-text" class="text-gray-500 mb-6">กรุณากรอกเบอร์โทรศัพท์เพื่อยืนยันรหัสพนักงาน:</p>
-            <input id="verify-phone-input" type="tel" placeholder="กรอกเบอร์โทรศัพท์" class="w-full px-4 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <button id="verify-button" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
-                ยืนยัน
-            </button>
-            <button id="back-to-login-from-verify-button" class="mt-4 text-sm text-gray-500 hover:text-blue-600">กลับไปหน้าเข้าสู่ระบบ</button>
-        </div>
+    <!-- หน้าจอ Loading -->
+    <div id="loading-screen" class="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
+        <div class="loader"></div>
+        <p class="text-gray-600 mt-4">กำลังโหลดข้อมูล...</p>
     </div>
 
     <!-- หน้าจอลงทะเบียน -->
     <div id="registration-screen" class="hidden min-h-screen flex items-center justify-center bg-gray-100 p-4">
         <div class="bg-white p-8 rounded-xl shadow-lg text-center w-full max-w-sm">
             <h1 class="text-3xl font-bold mb-2 text-gray-800">ลงทะเบียน</h1>
-            <p id="register-welcome-text" class="text-gray-500 mb-6">กรอกข้อมูลสำหรับรหัสพนักงาน: </p>
-            <input id="register-firstname-input" type="text" placeholder="ชื่อจริง" class="w-full px-4 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input id="register-lastname-input" type="text" placeholder="นามสกุล" class="w-full px-4 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <p id="register-welcome-text" class="text-gray-500 mb-6">กรุณากรอกเบอร์โทรศัพท์เพื่อลงทะเบียน</p>
+            <input id="register-name-input" type="text" placeholder="ชื่อ-นามสกุล" class="w-full px-4 py-2 border rounded-lg mb-4 bg-gray-100 focus:outline-none" readonly />
             <input id="register-phone-input" type="tel" placeholder="เบอร์โทรศัพท์" class="w-full px-4 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             <button id="register-button" class="w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 transition-colors">
                 ยืนยันการลงทะเบียน
             </button>
-             <button id="back-to-login-button" class="mt-4 text-sm text-gray-500 hover:text-blue-600">กลับไปหน้าเข้าสู่ระบบ</button>
         </div>
     </div>
 
@@ -127,7 +108,7 @@
     <div id="modal-container"></div>
 
     <script type="module">
-        // Import Firebase SDKs - Updated to v11.6.1 for better performance and features
+        // Import Firebase SDKs
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, runTransaction, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
@@ -149,40 +130,30 @@
         let state = {
             currentPage: 'dashboard',
             userId: null,
+            userName: null,
             isAdmin: false,
             userData: null,
             activities: [],
             rewards: [],
             numberedLotteryData: {},
             pendingRequests: [], 
-            allUsers: [], // For admin user management
-            userSearchTerm: '', // For admin user search
+            allUsers: [], 
+            userSearchTerm: '',
             unsubscribers: []
         };
 
         // --- DOM Elements ---
-        const loginScreen = document.getElementById('login-screen');
+        const loadingScreen = document.getElementById('loading-screen');
         const registrationScreen = document.getElementById('registration-screen');
-        const phoneVerificationScreen = document.getElementById('phone-verification-screen');
         const appContainer = document.getElementById('app-container');
         const mainContent = document.getElementById('main-content');
         const navButtonsContainer = document.getElementById('nav-buttons-container');
         const modalContainer = document.getElementById('modal-container');
         
-        const loginButton = document.getElementById('login-button');
-        const loginInput = document.getElementById('login-userid-input');
-        
-        const verifyButton = document.getElementById('verify-button');
-        const verifyWelcomeText = document.getElementById('verify-welcome-text');
-        const verifyPhoneInput = document.getElementById('verify-phone-input');
-        const backToLoginFromVerifyButton = document.getElementById('back-to-login-from-verify-button');
-
         const registerButton = document.getElementById('register-button');
         const registerWelcomeText = document.getElementById('register-welcome-text');
-        const registerFirstnameInput = document.getElementById('register-firstname-input');
-        const registerLastnameInput = document.getElementById('register-lastname-input');
+        const registerNameInput = document.getElementById('register-name-input');
         const registerPhoneInput = document.getElementById('register-phone-input');
-        const backToLoginButton = document.getElementById('back-to-login-button');
 
         const logoutButton = document.getElementById('logout-button');
 
@@ -669,65 +640,17 @@
 
 
         // --- Auth & Firestore Functions ---
-        async function handleLogin() {
-            const id = loginInput.value.trim();
-            if (!id) {
-                showToast("กรุณากรอกรหัสพนักงาน", true);
-                return;
-            }
-
-            const userRef = doc(db, 'users', id);
-            const userSnap = await getDoc(userRef);
-
-            state.userId = id; 
-
-            if (userSnap.exists()) {
-                const isAdmin = id.toLowerCase() === 'admin';
-                verifyWelcomeText.innerHTML = `กรุณากรอกเบอร์โทรศัพท์เพื่อยืนยันรหัส${isAdmin ? 'ผู้ดูแลระบบ' : 'พนักงาน'}: <span class="font-bold">${id}</span>`;
-                loginScreen.classList.add('hidden');
-                phoneVerificationScreen.classList.remove('hidden');
-            } else {
-                registerWelcomeText.innerHTML = `กรอกข้อมูลสำหรับรหัสพนักงาน: <span class="font-bold">${id}</span>`;
-                loginScreen.classList.add('hidden');
-                registrationScreen.classList.remove('hidden');
-            }
-        }
-
-        async function handlePhoneVerification() {
-            const phone = verifyPhoneInput.value.trim();
-            const id = state.userId;
-
+        async function handleRegistration() {
+            const phone = registerPhoneInput.value.trim();
             if (!phone) {
                 showToast("กรุณากรอกเบอร์โทรศัพท์", true);
                 return;
             }
 
-            const userRef = doc(db, 'users', id);
-            const userSnap = await getDoc(userRef);
-
-            if (userSnap.exists() && userSnap.data().phone === phone) {
-                const isAdmin = id.toLowerCase() === 'admin';
-                loginSuccess(id, isAdmin);
-            } else {
-                showToast("เบอร์โทรศัพท์ไม่ถูกต้อง", true);
-            }
-        }
-
-        async function handleRegistration() {
-            const firstname = registerFirstnameInput.value.trim();
-            const lastname = registerLastnameInput.value.trim();
-            const phone = registerPhoneInput.value.trim();
-            const id = state.userId; 
-
-            if (!firstname || !lastname || !phone) {
-                showToast("กรุณากรอกข้อมูลให้ครบทุกช่อง", true);
-                return;
-            }
-
-            const userRef = doc(db, 'users', id);
+            const userRef = doc(db, 'users', state.userId);
             const newUser = {
-                id: id,
-                name: `${firstname} ${lastname}`,
+                id: state.userId,
+                name: state.userName,
                 phone: phone,
                 points: 0,
                 activityStatus: {},
@@ -736,16 +659,15 @@
 
             await setDoc(userRef, newUser);
             showToast("ลงทะเบียนสำเร็จ!");
-            loginSuccess(id);
+            loginSuccess(state.userId, false);
         }
 
         function loginSuccess(userId, isAdmin = false) {
             state.userId = userId;
             state.isAdmin = isAdmin;
             
-            loginScreen.classList.add('hidden');
+            loadingScreen.classList.add('hidden');
             registrationScreen.classList.add('hidden');
-            phoneVerificationScreen.classList.add('hidden');
             appContainer.classList.remove('hidden');
 
             setupNav();
@@ -755,15 +677,10 @@
 
         function handleLogout() {
             state.unsubscribers.forEach(unsub => unsub());
-            state = { currentPage: 'dashboard', userId: null, isAdmin: false, userData: null, activities: [], rewards: [], numberedLotteryData: {}, pendingRequests: [], allUsers: [], userSearchTerm: '', unsubscribers: [] };
-
-            appContainer.classList.add('hidden');
-            loginScreen.classList.remove('hidden');
-            loginInput.value = '';
-            verifyPhoneInput.value = '';
-            registerFirstnameInput.value = '';
-            registerLastnameInput.value = '';
-            registerPhoneInput.value = '';
+            state = { currentPage: 'dashboard', userId: null, userName: null, isAdmin: false, userData: null, activities: [], rewards: [], numberedLotteryData: {}, pendingRequests: [], allUsers: [], userSearchTerm: '', unsubscribers: [] };
+            
+            liff.logout();
+            window.location.reload();
         }
 
         async function handleJoinActivity(activityId) {
@@ -798,7 +715,7 @@
                 }
             };
 
-            if (activity.type === 'online' && activity.message && activity.link) {
+            if (activity.type === 'online' && activity.message) {
                 showActivityInfoModal(activity, createPendingRequest);
             } else {
                 createPendingRequest();
@@ -1151,29 +1068,50 @@
             }
         }
 
-        // --- Initialization ---
+        // --- Main App Initialization ---
+        async function main() {
+            try {
+                await liff.init({ liffId: "1654435774-E1myB7b4" }); 
+                
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
+
+                const profile = await liff.getProfile();
+                state.userId = profile.userId;
+                state.userName = profile.displayName;
+
+                // --- Hardcoded Admin Check ---
+                // !!! IMPORTANT: Replace with the actual LINE User ID of the admin !!!
+                const ADMIN_USER_ID = "YOUR_ADMIN_LINE_USER_ID";
+                const isAdmin = state.userId === ADMIN_USER_ID;
+
+                if (isAdmin) {
+                    loginSuccess(state.userId, true);
+                    return;
+                }
+
+                const userRef = doc(db, "users", state.userId);
+                const userSnap = await getDoc(userRef);
+
+                if (userSnap.exists()) {
+                    loginSuccess(state.userId, false);
+                } else {
+                    loadingScreen.classList.add('hidden');
+                    registrationScreen.classList.remove('hidden');
+                    registerNameInput.value = state.userName;
+                }
+            } catch (error) {
+                console.error("LIFF Initialization failed", error);
+                loadingScreen.innerHTML = `<p class="text-red-500">เกิดข้อผิดพลาดในการเชื่อมต่อกับ LINE</p>`;
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
-            loginButton.addEventListener('click', handleLogin);
-            loginInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') handleLogin();
-            });
-            registerButton.addEventListener('click', handleRegistration);
-            verifyButton.addEventListener('click', handlePhoneVerification);
-            verifyPhoneInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') handlePhoneVerification();
-            });
-
-
-            const goBack = () => {
-                registrationScreen.classList.add('hidden');
-                phoneVerificationScreen.classList.add('hidden');
-                loginScreen.classList.remove('hidden');
-                loginInput.value = '';
-                state.userId = null;
-            };
-            backToLoginButton.addEventListener('click', goBack);
-            backToLoginFromVerifyButton.addEventListener('click', goBack);
+            main(); // Start the LIFF initialization process
             
+            registerButton.addEventListener('click', handleRegistration);
             logoutButton.addEventListener('click', handleLogout);
             
             navButtonsContainer.addEventListener('click', (e) => {
