@@ -129,7 +129,7 @@
     <script type="module">
         // Import Firebase SDKs - Updated to v11.6.1 for better performance and features
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, runTransaction, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, runTransaction, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- Configuration ---
         const firebaseConfig = {
@@ -154,7 +154,9 @@
             activities: [],
             rewards: [],
             numberedLotteryData: {},
-            pendingRequests: [], // For user: array of pending activity IDs. For admin: array of request objects.
+            pendingRequests: [], 
+            allUsers: [], // For admin user management
+            userSearchTerm: '', // For admin user search
             unsubscribers: []
         };
 
@@ -191,7 +193,6 @@
             toast.className = `text-white py-2 px-4 rounded-lg shadow-lg mb-2 transform transition-all duration-300 ease-out ${isError ? 'bg-red-500' : 'bg-green-500'}`;
             toast.textContent = message;
             
-            // Animate in
             requestAnimationFrame(() => {
                 toast.style.transform = 'translateY(20px)';
                 toast.style.opacity = '0';
@@ -203,7 +204,6 @@
 
             toastContainer.appendChild(toast);
             setTimeout(() => {
-                // Animate out
                 toast.style.transform = 'translateY(20px)';
                 toast.style.opacity = '0';
                 toast.addEventListener('transitionend', () => toast.remove());
@@ -256,9 +256,9 @@
         }
         
         function render() {
-            mainContent.innerHTML = `<div class="loader"></div>`; // Show loader initially
+            mainContent.innerHTML = `<div class="loader"></div>`;
             if (!state.isAdmin && !state.userData) {
-                return; // Wait for data
+                return;
             }
             renderHeader();
             switch (state.currentPage) {
@@ -273,7 +273,6 @@
         function renderDashboard() {
             const userActivityStatus = state.userData.activityStatus || {};
             const userPendingRequests = state.pendingRequests || [];
-
             const completedCount = Object.values(userActivityStatus).filter(s => s === 'completed').length;
 
             const stampCardHTML = `
@@ -427,16 +426,77 @@
         function renderAdminPanel() {
             mainContent.innerHTML = `
                 <div class="space-y-8">
+                    <div id="admin-users-section" class="bg-white p-6 rounded-xl shadow-md"></div>
                     <div id="admin-pending-section" class="bg-white p-6 rounded-xl shadow-md"></div>
                     <div id="admin-activities-section" class="bg-white p-6 rounded-xl shadow-md"></div>
                     <div id="admin-rewards-section" class="bg-white p-6 rounded-xl shadow-md"></div>
                     <div id="admin-lottery-section" class="bg-white p-6 rounded-xl shadow-md"></div>
                 </div>
             `;
+            renderAdminUsers();
             renderAdminPendingRequests();
             renderAdminActivities();
             renderAdminRewards();
             renderAdminNumberedLottery();
+        }
+
+        function renderAdminUsers() {
+            const section = document.getElementById('admin-users-section');
+            if (!section) return;
+
+            const searchTerm = state.userSearchTerm.toLowerCase();
+            const filteredUsers = state.allUsers.filter(user => {
+                return user.id.toLowerCase().includes(searchTerm) || user.name.toLowerCase().includes(searchTerm);
+            });
+
+            section.innerHTML = `
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">จัดการผู้ใช้งาน (${filteredUsers.length})</h2>
+                <input type="text" id="user-search-input" placeholder="ค้นหาด้วยรหัส หรือ ชื่อ..." value="${state.userSearchTerm}" class="w-full p-2 border rounded mb-4">
+                <div class="space-y-2 mb-6 max-h-72 overflow-y-auto border p-2 rounded-lg">
+                    ${filteredUsers.length > 0 ? filteredUsers.map(user => {
+                        const redeemedRewardsHTML = (user.redeemedRewards && user.redeemedRewards.length > 0)
+                            ? user.redeemedRewards.map(r => `<li class="text-xs text-gray-600">${r.name} (-${r.cost} pts)</li>`).join('')
+                            : '<li class="text-xs text-gray-500">ไม่มี</li>';
+
+                        const purchasedTickets = Object.keys(state.numberedLotteryData).filter(
+                            key => state.numberedLotteryData[key].ownerId === user.id
+                        );
+                        const purchasedTicketsHTML = purchasedTickets.length > 0
+                            ? `<li class="text-xs text-gray-600 font-mono">${purchasedTickets.join(', ')}</li>`
+                            : '<li class="text-xs text-gray-500">ไม่มี</li>';
+
+                        return `
+                        <div class="p-2 border rounded-lg bg-gray-50">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="font-semibold text-sm">${user.name} <span class="font-mono text-xs text-gray-500">(${user.id})</span></p>
+                                    <p class="text-xs text-gray-600">โทร: ${user.phone} | คะแนน: ${user.points}</p>
+                                </div>
+                                <div class="flex-shrink-0">
+                                    <button data-id="${user.id}" class="toggle-details-btn text-gray-500 hover:text-gray-700 mr-2 font-semibold text-sm">รายละเอียด</button>
+                                    <button data-id="${user.id}" class="edit-user-btn text-blue-500 hover:text-blue-700 mr-2 font-semibold">แก้ไข</button>
+                                    <button data-id="${user.id}" class="delete-user-btn text-red-500 hover:text-red-700 font-semibold">ลบ</button>
+                                </div>
+                            </div>
+                            <div class="user-details hidden mt-2 pt-2 border-t border-gray-200">
+                                <h4 class="font-semibold text-xs mb-1">ของรางวัลที่แลก:</h4>
+                                <ul class="list-disc list-inside pl-4">${redeemedRewardsHTML}</ul>
+                                <h4 class="font-semibold text-xs mt-2 mb-1">สลากที่ซื้อ:</h4>
+                                <ul class="list-disc list-inside pl-4">${purchasedTicketsHTML}</ul>
+                            </div>
+                        </div>
+                        `}).join('') : '<p class="text-gray-500 text-center p-4">ไม่พบผู้ใช้งาน</p>'}
+                </div>
+                <form id="user-form" class="space-y-3 border-t pt-4">
+                    <h3 class="font-semibold text-lg">แก้ไขข้อมูลผู้ใช้</h3>
+                    <input type="text" id="user-id-form" placeholder="รหัสพนักงาน" class="w-full p-2 border rounded bg-gray-100" readonly>
+                    <input type="text" id="user-name-form" placeholder="ชื่อ-นามสกุล" class="w-full p-2 border rounded" required>
+                    <input type="tel" id="user-phone-form" placeholder="เบอร์โทรศัพท์" class="w-full p-2 border rounded" required>
+                    <input type="number" id="user-points-form" placeholder="คะแนน" class="w-full p-2 border rounded" required>
+                    <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700">บันทึกข้อมูลผู้ใช้</button>
+                    <button type="button" id="clear-user-form" class="w-full bg-gray-300 text-gray-800 py-2 rounded-lg font-semibold hover:bg-gray-400 mt-2">ล้างฟอร์ม</button>
+                </form>
+            `;
         }
 
         function renderAdminPendingRequests() {
@@ -633,12 +693,12 @@
 
             setupNav();
             attachListeners();
-            render(); // Initial render
+            render(); 
         }
 
         function handleLogout() {
             state.unsubscribers.forEach(unsub => unsub());
-            state = { currentPage: 'dashboard', userId: null, isAdmin: false, userData: null, activities: [], rewards: [], numberedLotteryData: {}, pendingRequests: [], unsubscribers: [] };
+            state = { currentPage: 'dashboard', userId: null, isAdmin: false, userData: null, activities: [], rewards: [], numberedLotteryData: {}, pendingRequests: [], allUsers: [], userSearchTerm: '', unsubscribers: [] };
 
             appContainer.classList.add('hidden');
             loginScreen.classList.remove('hidden');
@@ -744,15 +804,9 @@
                         const ticketDoc = await transaction.get(ticketRef);
                         const userDoc = await transaction.get(userRef);
 
-                        if (!userDoc.exists()) {
-                            throw "ไม่พบข้อมูลผู้ใช้";
-                        }
-                        if (ticketDoc.exists() && ticketDoc.data().isSold) {
-                            throw "เบอร์นี้ถูกซื้อไปแล้ว";
-                        }
-                        if (userDoc.data().points < NUMBERED_LOTTERY_COST) {
-                            throw "คะแนนไม่เพียงพอ";
-                        }
+                        if (!userDoc.exists()) throw "ไม่พบข้อมูลผู้ใช้";
+                        if (ticketDoc.exists() && ticketDoc.data().isSold) throw "เบอร์นี้ถูกซื้อไปแล้ว";
+                        if (userDoc.data().points < NUMBERED_LOTTERY_COST) throw "คะแนนไม่เพียงพอ";
 
                         const newPoints = userDoc.data().points - NUMBERED_LOTTERY_COST;
                         transaction.update(userRef, { points: newPoints });
@@ -773,6 +827,46 @@
         }
 
         // --- Admin Action Handlers ---
+        async function handleUserSave(e) {
+            e.preventDefault();
+            const userId = document.getElementById('user-id-form').value.trim();
+            if (!userId) {
+                showToast("ไม่พบรหัสพนักงานในฟอร์ม", true);
+                return;
+            }
+            const userData = {
+                name: document.getElementById('user-name-form').value.trim(),
+                phone: document.getElementById('user-phone-form').value.trim(),
+                points: Number(document.getElementById('user-points-form').value)
+            };
+            
+            if (!userData.name || !userData.phone) {
+                showToast("กรุณากรอกชื่อและเบอร์โทรศัพท์", true);
+                return;
+            }
+
+            try {
+                await updateDoc(doc(db, "users", userId), userData);
+                showToast(`อัปเดตข้อมูล ${userId} สำเร็จ!`);
+                document.getElementById('user-form').reset();
+            } catch (error) {
+                console.error("Error updating user:", error);
+                showToast("เกิดข้อผิดพลาดในการอัปเดตข้อมูล", true);
+            }
+        }
+
+        async function handleUserDelete(userId) {
+            showConfirmModal(`คุณต้องการลบผู้ใช้ ${userId} ออกจากระบบใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้`, async () => {
+                try {
+                    await deleteDoc(doc(db, "users", userId));
+                    showToast(`ลบผู้ใช้ ${userId} สำเร็จ!`);
+                } catch (error) {
+                    console.error("Error deleting user:", error);
+                    showToast("เกิดข้อผิดพลาดในการลบผู้ใช้", true);
+                }
+            });
+        }
+
         async function handleApproveRequest(requestId) {
             const requestRef = doc(db, "pendingRequests", requestId);
             try {
@@ -903,7 +997,11 @@
                     state.pendingRequests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     if (state.userId) render();
                 });
-                state.unsubscribers.push(unsubPending);
+                const unsubUsers = onSnapshot(collection(db, "users"), (snapshot) => {
+                    state.allUsers = snapshot.docs.map(doc => doc.data()).filter(user => user.id !== 'admin');
+                    if (state.userId) render();
+                });
+                state.unsubscribers.push(unsubPending, unsubUsers);
             } else {
                 const unsubUser = onSnapshot(doc(db, "users", state.userId), (doc) => {
                     state.userData = doc.data();
@@ -1015,28 +1113,31 @@
             mainContent.addEventListener('click', (e) => {
                 const target = e.target;
                 // User actions
-                const joinBtn = target.closest('.join-activity-btn');
-                if (joinBtn) {
-                    handleJoinActivity(joinBtn.dataset.activityId);
-                }
-                const redeemBtn = target.closest('.redeem-reward-btn');
-                if (redeemBtn) {
-                    handleRedeemReward(redeemBtn.dataset.rewardId);
-                }
-                 const buyTicketBtn = target.closest('.buy-numbered-ticket-btn');
-                if (buyTicketBtn) {
-                    handleBuyNumberedTicket(buyTicketBtn.dataset.number);
-                }
+                if (target.closest('.join-activity-btn')) handleJoinActivity(target.closest('.join-activity-btn').dataset.activityId);
+                if (target.closest('.redeem-reward-btn')) handleRedeemReward(target.closest('.redeem-reward-btn').dataset.rewardId);
+                if (target.closest('.buy-numbered-ticket-btn')) handleBuyNumberedTicket(target.closest('.buy-numbered-ticket-btn').dataset.number);
+                
                 // Admin actions
-                if (target.matches('.approve-request-btn')) {
-                    handleApproveRequest(target.dataset.id);
+                if (target.matches('.approve-request-btn')) handleApproveRequest(target.dataset.id);
+                if (target.matches('.reject-request-btn')) handleRejectRequest(target.dataset.id);
+                if (target.matches('.delete-user-btn')) handleUserDelete(target.dataset.id);
+                if (target.matches('.edit-user-btn')) {
+                    const user = state.allUsers.find(u => u.id === target.dataset.id);
+                    if (user) {
+                        document.getElementById('user-id-form').value = user.id;
+                        document.getElementById('user-name-form').value = user.name;
+                        document.getElementById('user-phone-form').value = user.phone;
+                        document.getElementById('user-points-form').value = user.points;
+                        document.getElementById('user-name-form').focus();
+                    }
                 }
-                if (target.matches('.reject-request-btn')) {
-                    handleRejectRequest(target.dataset.id);
+                if (target.matches('.toggle-details-btn')) {
+                    const detailsDiv = target.closest('.p-2').querySelector('.user-details');
+                    detailsDiv.classList.toggle('hidden');
                 }
+                if (target.matches('#clear-user-form')) document.getElementById('user-form').reset();
                 if (target.matches('.edit-activity-btn')) {
-                    const id = target.dataset.id;
-                    const act = state.activities.find(a => a.id === id);
+                    const act = state.activities.find(a => a.id === target.dataset.id);
                     if (act) {
                         document.getElementById('activity-id').value = act.id;
                         document.getElementById('activity-name').value = act.name;
@@ -1046,15 +1147,10 @@
                         document.getElementById('activity-id').focus();
                     }
                 }
-                if (target.matches('.delete-activity-btn')) {
-                    handleActivityDelete(target.dataset.id);
-                }
-                if (target.matches('#clear-activity-form')) {
-                    document.getElementById('activity-form').reset();
-                }
+                if (target.matches('.delete-activity-btn')) handleActivityDelete(target.dataset.id);
+                if (target.matches('#clear-activity-form')) document.getElementById('activity-form').reset();
                 if (target.matches('.edit-reward-btn')) {
-                    const id = target.dataset.id;
-                    const rew = state.rewards.find(r => r.id === id);
+                    const rew = state.rewards.find(r => r.id === target.dataset.id);
                     if (rew) {
                         document.getElementById('reward-id').value = rew.id;
                         document.getElementById('reward-name').value = rew.name;
@@ -1064,17 +1160,16 @@
                         document.getElementById('reward-id').focus();
                     }
                 }
-                if (target.matches('.delete-reward-btn')) {
-                    handleRewardDelete(target.dataset.id);
-                }
-                if (target.matches('#clear-reward-form')) {
-                    document.getElementById('reward-form').reset();
-                }
-                if (target.matches('.clear-ticket-btn')) {
-                    handleClearIndividualTicket(target.dataset.id);
-                }
-                if (target.matches('#clear-all-lottery-btn')) {
-                    handleClearAllLotteryData();
+                if (target.matches('.delete-reward-btn')) handleRewardDelete(target.dataset.id);
+                if (target.matches('#clear-reward-form')) document.getElementById('reward-form').reset();
+                if (target.matches('.clear-ticket-btn')) handleClearIndividualTicket(target.dataset.id);
+                if (target.matches('#clear-all-lottery-btn')) handleClearAllLotteryData();
+            });
+
+            mainContent.addEventListener('input', (e) => {
+                if (e.target.id === 'user-search-input') {
+                    state.userSearchTerm = e.target.value;
+                    renderAdminUsers();
                 }
             });
 
@@ -1082,6 +1177,7 @@
                 e.preventDefault();
                 if (e.target.id === 'activity-form') handleActivitySave(e);
                 if (e.target.id === 'reward-form') handleRewardSave(e);
+                if (e.target.id === 'user-form') handleUserSave(e);
             });
         });
     </script>
