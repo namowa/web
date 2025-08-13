@@ -36,8 +36,8 @@
                         <label for="liffId" class="block text-sm font-bold text-slate-700 mb-2">
                             LIFF ID <span class="text-red-500">*</span>
                         </label>
-                        <input type="text" id="liffId" name="liffId" placeholder="วาง LIFF ID ของคุณที่นี่"
-                               class="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500" required>
+                        <input type="text" id="liffId" name="liffId" placeholder="วาง LIFF ID ของคุณที่นี่" value="1654435774-DazrMVl1"
+                               class="w-full p-3 bg-slate-200 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500" required readonly>
                     </div>
                     <div>
                         <label for="scriptUrl" class="block text-sm font-bold text-slate-700 mb-2">
@@ -167,9 +167,9 @@
                 
                 if (!liff.isLoggedIn()) {
                     liffGreeting.textContent = 'กรุณา Login ผ่าน LINE เพื่อใช้งาน';
-                    // In a real scenario, you might want to call liff.login() here
-                    // but for simplicity, we'll just show a message.
-                    // The app should be opened from within LINE to be automatically logged in.
+                    // To auto-login, this app should be opened from within the LINE app.
+                    // You can also uncomment the next line to force login for testing in a browser.
+                    // liff.login(); 
                 } else {
                     const profile = await liff.getProfile();
                     userProfile.userId = profile.userId;
@@ -186,11 +186,10 @@
             }
         }
         
-        // Add event listener to initialize LIFF when the ID is entered
-        liffIdInput.addEventListener('change', initializeLiff);
-
         document.addEventListener('DOMContentLoaded', () => {
              document.getElementById('exerciseDate').valueAsDate = new Date();
+             // Automatically initialize LIFF on page load since the ID is pre-filled
+             initializeLiff();
         });
 
         // Handle form submission
@@ -220,7 +219,7 @@
                 statusMessage.innerHTML = `<span class="text-green-600">บันทึกข้อมูลสำเร็จแล้ว! 🎉</span>`;
                 form.reset();
                 document.getElementById('scriptUrl').value = scriptUrl;
-                document.getElementById('liffId').value = liffIdInput.value;
+                document.getElementById('liffId').value = liffIdInput.value; // Keep the liff id
                 document.getElementById('exerciseDate').valueAsDate = new Date();
             } catch (error) {
                 statusMessage.innerHTML = `<span class="text-red-500">เกิดข้อผิดพลาด: ${error.message}.</span>`;
