@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Workout Logger - บันทึกและดูข้อมูลย้อนหลัง (LIFF)</title>
+    <title>Health Tracker</title>
     <!-- LIFF SDK -->
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <!-- Tailwind CSS -->
@@ -11,265 +11,294 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Sarabun', 'Inter', sans-serif; }
-        h1, h2, h3, button, label { font-family: 'Sarabun', 'Inter', sans-serif; }
+        body { font-family: 'Sarabun', sans-serif; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-        .fade-in-row { animation: fadeIn 0.5s ease-out forwards; }
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
     </style>
 </head>
-<body class="bg-slate-100 flex items-center justify-center min-h-screen p-4">
+<body class="bg-slate-100">
 
-    <div class="w-full max-w-4xl mx-auto">
-        <!-- Main Application Card -->
-        <div class="bg-white rounded-2xl shadow-xl p-6 md:p-10 mb-8">
-            <div class="text-center mb-8">
-                <h1 class="text-3xl md:text-4xl font-bold text-slate-800">บันทึกการออกกำลังกาย 🏋️‍♀️</h1>
-                <p id="liff-greeting" class="text-slate-500 mt-2">กำลังเชื่อมต่อกับ LINE...</p>
-            </div>
-
-            <!-- Form -->
-            <form id="workoutForm" class="space-y-6">
-                <div class="grid md:grid-cols-2 gap-6">
-                     <div>
-                        <label for="liffId" class="block text-sm font-bold text-slate-700 mb-2">
-                            LIFF ID <span class="text-red-500">*</span>
-                        </label>
-                        <input type="text" id="liffId" name="liffId" placeholder="วาง LIFF ID ของคุณที่นี่" value="1654435774-DazrMVl1"
-                               class="w-full p-3 bg-slate-200 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500" required readonly>
-                    </div>
-                    <div>
-                        <label for="scriptUrl" class="block text-sm font-bold text-slate-700 mb-2">
-                            Google Apps Script URL <span class="text-red-500">*</span>
-                        </label>
-                        <input type="url" id="scriptUrl" name="scriptUrl" placeholder="วาง Web App URL ของคุณที่นี่"
-                               class="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500" required>
-                    </div>
-                </div>
-
-                <div class="grid md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="exerciseType" class="block text-sm font-bold text-slate-700 mb-2">ประเภทการออกกำลังกาย <span class="text-red-500">*</span></label>
-                        <input type="text" id="exerciseType" name="exerciseType" placeholder="เช่น วิ่ง, เวทเทรนนิ่ง" class="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg" required>
-                    </div>
-                    <div>
-                        <label for="duration" class="block text-sm font-bold text-slate-700 mb-2">ระยะเวลา (นาที) <span class="text-red-500">*</span></label>
-                        <input type="number" id="duration" name="duration" placeholder="เช่น 30" class="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg" required>
-                    </div>
-                </div>
-
-                <div>
-                    <label for="exerciseDate" class="block text-sm font-bold text-slate-700 mb-2">วันที่ออกกำลังกาย</label>
-                    <input type="date" id="exerciseDate" name="exerciseDate" class="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg">
-                </div>
-
-                <div>
-                    <label for="notes" class="block text-sm font-bold text-slate-700 mb-2">หมายเหตุ (ถ้ามี)</label>
-                    <textarea id="notes" name="notes" rows="4" placeholder="รายละเอียดเพิ่มเติม" class="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg"></textarea>
-                </div>
-
-                <div class="flex flex-col sm:flex-row gap-4">
-                    <button type="submit" id="submitButton" class="w-full sm:w-1/2 bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition-transform transform hover:scale-105" disabled>บันทึกข้อมูล</button>
-                    <button type="button" id="loadHistoryButton" class="w-full sm:w-1/2 bg-slate-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-slate-700 transition-transform transform hover:scale-105" disabled>โหลดข้อมูลย้อนหลัง</button>
-                </div>
-            </form>
-            
-            <div id="statusMessage" class="mt-6 text-center text-sm font-medium"></div>
+    <div class="w-full max-w-2xl mx-auto p-4">
+        <!-- Loading / Splash Screen -->
+        <div id="loadingSection" class="text-center py-20">
+            <h1 class="text-3xl font-bold text-slate-800">Health Tracker</h1>
+            <p id="loadingStatus" class="text-slate-500 mt-2">กำลังเชื่อมต่อกับ LINE...</p>
         </div>
 
-        <!-- History Data Section -->
-        <div id="historySection" class="bg-white rounded-2xl shadow-xl p-6 md:p-10 mb-8 hidden">
-            <h2 class="text-2xl font-bold text-slate-800 mb-4">ข้อมูลย้อนหลัง</h2>
-            <div id="historyLoader" class="text-center p-4 hidden">กำลังโหลดข้อมูล...</div>
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200">
-                    <thead class="bg-slate-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">วันที่</th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">ชื่อผู้ใช้</th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">ประเภท</th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">ระยะเวลา (นาที)</th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">หมายเหตุ</th>
-                        </tr>
-                    </thead>
-                    <tbody id="historyTableBody" class="bg-white divide-y divide-slate-200"></tbody>
-                </table>
-                 <p id="noHistoryMessage" class="text-center text-slate-500 p-6 hidden">ยังไม่มีข้อมูล</p>
+        <!-- Registration Section (Hidden by default) -->
+        <div id="registrationSection" class="hidden fade-in">
+            <div class="bg-white rounded-2xl shadow-xl p-6 md:p-10">
+                <h2 class="text-2xl font-bold text-slate-800 text-center mb-6">ลงทะเบียนครั้งแรก</h2>
+                <form id="registrationForm" class="space-y-4">
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-bold">ชื่อจริง</label><input type="text" id="regFirstName" class="w-full p-3 mt-1 bg-slate-50 border rounded-lg" required></div>
+                        <div><label class="block text-sm font-bold">นามสกุล</label><input type="text" id="regLastName" class="w-full p-3 mt-1 bg-slate-50 border rounded-lg" required></div>
+                    </div>
+                    <div><label class="block text-sm font-bold">รหัสพนักงาน</label><input type="text" id="regEmployeeId" class="w-full p-3 mt-1 bg-slate-50 border rounded-lg" required></div>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-bold">ส่วนสูง (ซม.)</label><input type="number" id="regHeight" class="w-full p-3 mt-1 bg-slate-50 border rounded-lg" required></div>
+                        <div><label class="block text-sm font-bold">น้ำหนัก (กก.)</label><input type="number" id="regWeight" class="w-full p-3 mt-1 bg-slate-50 border rounded-lg" required></div>
+                    </div>
+                    <button type="submit" id="registerButton" class="w-full bg-blue-600 text-white font-bold py-3 mt-4 rounded-lg hover:bg-blue-700">ลงทะเบียน</button>
+                </form>
             </div>
         </div>
 
-        <!-- Instructions Card -->
-        <div class="bg-white rounded-2xl shadow-xl p-6 md:p-10">
-            <h2 class="text-2xl font-bold text-slate-800 mb-4">ขั้นตอนการตั้งค่า (สำคัญมาก)</h2>
-            <div class="space-y-6 text-slate-600">
-                <div>
-                    <h3 class="font-bold text-lg mb-2">ส่วนที่ 1: ตั้งค่า LIFF ใน LINE Developers</h3>
-                    <ol class="list-decimal list-inside space-y-2">
-                        <li>ไปที่ <a href="https://developers.line.biz/" target="_blank" class="text-blue-600 hover:underline">LINE Developers Console</a> และ Login.</li>
-                        <li>สร้าง Provider (หากยังไม่มี) เช่น ชื่อบริษัทหรือชื่อโปรเจกต์ของคุณ.</li>
-                        <li>ใน Provider, สร้าง Channel ใหม่ เลือกประเภทเป็น **"LINE Login"**.</li>
-                        <li>ไปที่แท็บ **"LIFF"** แล้วคลิก **"Add"**.</li>
-                        <li>ตั้งค่า LIFF App:
-                            <ul class="list-disc list-inside ml-4 mt-2">
-                                <li>**LIFF app name:** ตั้งชื่อแอปของคุณ (เช่น Workout Logger).</li>
-                                <li>**Size:** เลือกเป็น Full, Tall, หรือ Compact. (แนะนำ Full).</li>
-                                <li>**Endpoint URL:** ใส่ URL ที่คุณจะใช้โฮสต์ไฟล์ HTML นี้ (สำคัญมาก).</li>
-                                <li>**Scopes:** **เปิดใช้งาน `profile` และ `openid` (สำคัญมาก)**.</li>
-                                <li>**Scan QR:** เปิดไว้ก็ได้ (Optional).</li>
-                            </ul>
-                        </li>
-                        <li>กด **"Add"** แล้วระบบจะสร้าง LIFF App ให้คุณ. **คัดลอก "LIFF ID"** มาใส่ในช่องด้านบน.</li>
-                    </ol>
+        <!-- Main App Section (Hidden by default) -->
+        <div id="mainAppSection" class="hidden fade-in">
+            <div class="bg-white rounded-2xl shadow-xl p-6 md:p-10 mb-8">
+                <div class="text-center mb-8">
+                    <h1 class="text-3xl font-bold text-slate-800">Health Tracker</h1>
+                    <p id="liff-greeting" class="text-slate-500 mt-2"></p>
                 </div>
-                <div>
-                    <h3 class="font-bold text-lg mb-2">ส่วนที่ 2: ตั้งค่า Google Sheet และ Apps Script</h3>
-                     <p class="text-sm bg-yellow-100 text-yellow-800 p-3 rounded-lg mb-4"><b>สำคัญ:</b> กรุณาอัปเดตคอลัมน์ใน Sheet และใช้สคริปต์เวอร์ชันล่าสุด</p>
-                    <ol class="list-decimal list-inside space-y-2">
-                        <li><b>อัปเดต Google Sheet:</b> ตั้งชื่อคอลัมน์ในแถวแรกดังนี้ (เพิ่ม 2 คอลัมน์ใหม่): <br>
-                            <code class="bg-slate-200 p-1 rounded">Timestamp</code>, <code class="bg-slate-200 p-1 rounded">Date</code>, <code class="bg-slate-200 p-1 rounded">ExerciseType</code>, <code class="bg-slate-200 p-1 rounded">Duration</code>, <code class="bg-slate-200 p-1 rounded">Notes</code>, <code class="bg-slate-200 p-1 rounded text-blue-700 font-bold">UserID</code>, <code class="bg-slate-200 p-1 rounded text-blue-700 font-bold">DisplayName</code>
-                        </li>
-                        <li><b>เปิด Apps Script:</b> ไปที่ <code class="bg-slate-200 p-1 rounded">Extensions</code> &rarr; <code class="bg-slate-200 p-1 rounded">Apps Script</code>.</li>
-                        <li><b>ใส่โค้ด:</b> ลบโค้ดเก่าทั้งหมด แล้วคัดลอกโค้ดเวอร์ชันล่าสุดสำหรับ LIFF ไปวางแทนที่ แล้วกดบันทึก.</li>
-                        <li><b>Deploy เวอร์ชันใหม่:</b> ทำตามขั้นตอน Deploy ที่เคยทำ (Deploy &rarr; Manage deployments &rarr; Edit &rarr; New version &rarr; Deploy). **URL จะยังเป็นอันเดิม**.</li>
-                        <li><b>ใช้งาน:</b> กลับมาที่หน้านี้ กรอก LIFF ID และ Script URL ให้ครบถ้วน แล้วเริ่มใช้งานได้เลย.</li>
-                    </ol>
+
+                <!-- Log Type Selector -->
+                <div class="mb-6">
+                    <label class="block text-sm font-bold text-slate-700 mb-2">ต้องการบันทึกอะไร?</label>
+                    <div class="flex gap-4">
+                        <label class="flex-1"><input type="radio" name="logType" value="exercise" class="peer hidden" checked><div class="p-3 text-center border rounded-lg cursor-pointer peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600">🏃‍♂️ ออกกำลังกาย</div></label>
+                        <label class="flex-1"><input type="radio" name="logType" value="food" class="peer hidden"><div class="p-3 text-center border rounded-lg cursor-pointer peer-checked:bg-green-600 peer-checked:text-white peer-checked:border-green-600">🥗 อาหาร</div></label>
+                    </div>
                 </div>
+
+                <!-- Main Form -->
+                <form id="logForm" class="space-y-6">
+                    <!-- Exercise Section -->
+                    <div id="exerciseSection">
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="exerciseType" class="block text-sm font-bold">ประเภท</label>
+                                <select id="exerciseType" class="w-full p-3 mt-1 bg-slate-50 border rounded-lg">
+                                    <option value="running">วิ่ง</option>
+                                    <option value="walking">เดิน</option>
+                                    <option value="cycling">ปั่นจักรยาน</option>
+                                    <option value="other">กีฬาอื่นๆ</option>
+                                </select>
+                            </div>
+                            <!-- Dynamic field for distance/duration -->
+                            <div id="distanceField">
+                                <label for="distance" class="block text-sm font-bold">ระยะทาง (กม.)</label>
+                                <input type="number" step="0.1" id="distance" class="w-full p-3 mt-1 bg-slate-50 border rounded-lg">
+                            </div>
+                            <div id="durationField" class="hidden">
+                                <label for="duration" class="block text-sm font-bold">ระยะเวลา (นาที)</label>
+                                <input type="number" id="duration" class="w-full p-3 mt-1 bg-slate-50 border rounded-lg">
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Food Section -->
+                    <div id="foodSection" class="hidden">
+                        <label for="foodNotes" class="block text-sm font-bold">รายการอาหารที่ทาน</label>
+                        <textarea id="foodNotes" rows="4" placeholder="เช่น ข้าวกะเพราไก่ไข่ดาว, สลัดผัก" class="w-full p-3 mt-1 bg-slate-50 border rounded-lg"></textarea>
+                    </div>
+                    
+                    <div><label class="block text-sm font-bold">วันที่</label><input type="date" id="logDate" class="w-full p-3 mt-1 bg-slate-50 border rounded-lg"></div>
+                    <div><label class="block text-sm font-bold">หมายเหตุเพิ่มเติม</label><textarea id="notes" rows="3" class="w-full p-3 mt-1 bg-slate-50 border rounded-lg"></textarea></div>
+
+                    <div class="flex flex-col sm:flex-row gap-4 pt-2">
+                        <button type="submit" id="submitButton" class="w-full sm:w-1/2 bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700">บันทึกข้อมูล</button>
+                        <button type="button" id="loadHistoryButton" class="w-full sm:w-1/2 bg-slate-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-slate-700">โหลดข้อมูลย้อนหลัง</button>
+                    </div>
+                </form>
+                <div id="statusMessage" class="mt-6 text-center text-sm font-medium"></div>
+            </div>
+
+            <!-- History Data Section -->
+            <div id="historySection" class="bg-white rounded-2xl shadow-xl p-6 md:p-10 hidden">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">ข้อมูลย้อนหลังของคุณ</h2>
+                <div id="historyLoader" class="text-center p-4 hidden">กำลังโหลด...</div>
+                <div class="overflow-x-auto"><table class="min-w-full"><thead class="bg-slate-50"><tr><th class="p-3 text-left text-xs font-bold uppercase">วันที่</th><th class="p-3 text-left text-xs font-bold uppercase">รายการ</th><th class="p-3 text-left text-xs font-bold uppercase">รายละเอียด</th></tr></thead><tbody id="historyTableBody"></tbody></table></div>
+                <p id="noHistoryMessage" class="text-center text-slate-500 p-6 hidden">ยังไม่มีข้อมูล</p>
             </div>
         </div>
     </div>
 
     <script>
-        // Global variables to store user profile
+        const LIFF_ID = '1654435774-DazrMVl1';
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzSTaIAff1irYc9fqjvuuVVjTrThhTgnPQeO3Dl40PLwZTcbYXi9u4YxIO8DrcDhw2AQ/exec';
+        
         let userProfile = { userId: null, displayName: null };
 
-        // DOM Elements
-        const form = document.getElementById('workoutForm');
+        const loadingSection = document.getElementById('loadingSection');
+        const loadingStatus = document.getElementById('loadingStatus');
+        const registrationSection = document.getElementById('registrationSection');
+        const mainAppSection = document.getElementById('mainAppSection');
+        const greeting = document.getElementById('liff-greeting');
         const statusMessage = document.getElementById('statusMessage');
-        const submitButton = document.getElementById('submitButton');
-        const loadHistoryButton = document.getElementById('loadHistoryButton');
         const historySection = document.getElementById('historySection');
         const historyTableBody = document.getElementById('historyTableBody');
         const historyLoader = document.getElementById('historyLoader');
         const noHistoryMessage = document.getElementById('noHistoryMessage');
-        const liffGreeting = document.getElementById('liff-greeting');
-        const liffIdInput = document.getElementById('liffId');
+
+        document.addEventListener('DOMContentLoaded', initializeLiff);
 
         async function initializeLiff() {
-            const liffId = liffIdInput.value;
-            if (!liffId) {
-                liffGreeting.textContent = 'กรุณากรอก LIFF ID เพื่อเริ่มใช้งาน';
-                return;
-            }
-            
             try {
-                await liff.init({ liffId: liffId });
-                
+                await liff.init({ liffId: LIFF_ID });
                 if (!liff.isLoggedIn()) {
-                    liffGreeting.textContent = 'กรุณา Login ผ่าน LINE เพื่อใช้งาน';
-                    // To auto-login, this app should be opened from within the LINE app.
-                    // You can also uncomment the next line to force login for testing in a browser.
-                    // liff.login(); 
-                } else {
-                    const profile = await liff.getProfile();
-                    userProfile.userId = profile.userId;
-                    userProfile.displayName = profile.displayName;
-                    
-                    liffGreeting.innerHTML = `สวัสดี, <span class="font-bold text-blue-600">${userProfile.displayName}</span>! พร้อมออกกำลังกายรึยัง?`;
-                    submitButton.disabled = false;
-                    loadHistoryButton.disabled = false;
+                    loadingStatus.textContent = 'กรุณาเปิดผ่านแอป LINE เพื่อ Login';
+                    return;
                 }
+                const profile = await liff.getProfile();
+                userProfile = { userId: profile.userId, displayName: profile.displayName };
+                greeting.innerHTML = `สวัสดี, <span class="font-bold text-blue-600">${userProfile.displayName}</span>!`;
+                
+                await checkUserRegistration();
             } catch (error) {
-                console.error('LIFF Initialization failed', error);
-                liffGreeting.textContent = 'ไม่สามารถเชื่อมต่อกับ LINE ได้';
-                statusMessage.innerHTML = `<span class="text-red-500">LIFF Init Error: ${error.message}</span>`;
+                loadingStatus.textContent = 'ไม่สามารถเชื่อมต่อกับ LINE ได้';
+                console.error('LIFF Error:', error);
             }
         }
-        
-        document.addEventListener('DOMContentLoaded', () => {
-             document.getElementById('exerciseDate').valueAsDate = new Date();
-             // Automatically initialize LIFF on page load since the ID is pre-filled
-             initializeLiff();
-        });
 
-        // Handle form submission
-        form.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            const scriptUrl = document.getElementById('scriptUrl').value;
-            if (!scriptUrl || !userProfile.userId) {
-                statusMessage.innerHTML = `<span class="text-red-500">กรุณาเชื่อมต่อ LIFF และกรอก Script URL ให้ครบถ้วน</span>`;
-                return;
+        async function checkUserRegistration() {
+            loadingStatus.textContent = 'กำลังตรวจสอบข้อมูลการลงทะเบียน...';
+            const url = `${SCRIPT_URL}?action=checkUser&userId=${userProfile.userId}`;
+            try {
+                const response = await fetch(url);
+                const result = await response.json();
+                loadingSection.classList.add('hidden');
+                if (result.isRegistered) {
+                    mainAppSection.classList.remove('hidden');
+                } else {
+                    registrationSection.classList.remove('hidden');
+                }
+            } catch (error) {
+                loadingStatus.textContent = 'ไม่สามารถตรวจสอบข้อมูลได้';
+                console.error('Check Registration Error:', error);
             }
-            
-            submitButton.disabled = true;
-            submitButton.innerHTML = `กำลังบันทึก...`;
-            statusMessage.textContent = '';
-            
-            const formData = { 
-                date: document.getElementById('exerciseDate').value, 
-                exerciseType: document.getElementById('exerciseType').value, 
-                duration: document.getElementById('duration').value, 
-                notes: document.getElementById('notes').value,
+        }
+
+        // Registration Form Logic
+        document.getElementById('registrationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const button = document.getElementById('registerButton');
+            button.disabled = true;
+            button.textContent = 'กำลังบันทึก...';
+
+            const payload = {
+                type: 'register',
                 userId: userProfile.userId,
-                displayName: userProfile.displayName
+                displayName: userProfile.displayName,
+                firstName: document.getElementById('regFirstName').value,
+                lastName: document.getElementById('regLastName').value,
+                employeeId: document.getElementById('regEmployeeId').value,
+                height: document.getElementById('regHeight').value,
+                weight: document.getElementById('regWeight').value,
             };
 
             try {
-                await fetch(scriptUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(formData) });
-                statusMessage.innerHTML = `<span class="text-green-600">บันทึกข้อมูลสำเร็จแล้ว! 🎉</span>`;
-                form.reset();
-                document.getElementById('scriptUrl').value = scriptUrl;
-                document.getElementById('liffId').value = liffIdInput.value; // Keep the liff id
-                document.getElementById('exerciseDate').valueAsDate = new Date();
+                await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+                registrationSection.classList.add('hidden');
+                mainAppSection.classList.remove('hidden');
             } catch (error) {
-                statusMessage.innerHTML = `<span class="text-red-500">เกิดข้อผิดพลาด: ${error.message}.</span>`;
+                alert('เกิดข้อผิดพลาดในการลงทะเบียน');
+                console.error('Registration Submit Error:', error);
             } finally {
-                submitButton.disabled = false;
-                submitButton.textContent = 'บันทึกข้อมูล';
+                button.disabled = false;
+                button.textContent = 'ลงทะเบียน';
             }
         });
 
-        // Handle loading history
-        loadHistoryButton.addEventListener('click', async () => {
-            const scriptUrl = document.getElementById('scriptUrl').value;
-            if (!scriptUrl) {
-                statusMessage.innerHTML = `<span class="text-red-500">กรุณาใส่ Web App URL ก่อนโหลดข้อมูล</span>`;
-                return;
+        // Main Log Form Logic
+        document.querySelectorAll('input[name="logType"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                const isExercise = e.target.value === 'exercise';
+                document.getElementById('exerciseSection').classList.toggle('hidden', !isExercise);
+                document.getElementById('foodSection').classList.toggle('hidden', isExercise);
+            });
+        });
+
+        document.getElementById('exerciseType').addEventListener('change', (e) => {
+            const type = e.target.value;
+            const isDistanceSport = ['running', 'walking', 'cycling'].includes(type);
+            document.getElementById('distanceField').classList.toggle('hidden', !isDistanceSport);
+            document.getElementById('durationField').classList.toggle('hidden', isDistanceSport);
+        });
+
+        document.getElementById('logForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const button = document.getElementById('submitButton');
+            button.disabled = true;
+            button.textContent = 'กำลังบันทึก...';
+            statusMessage.textContent = '';
+
+            const logType = document.querySelector('input[name="logType"]:checked').value;
+            const payload = {
+                type: 'log',
+                userId: userProfile.userId,
+                displayName: userProfile.displayName,
+                date: document.getElementById('logDate').value,
+                logType: logType,
+                notes: document.getElementById('notes').value,
+            };
+
+            if (logType === 'exercise') {
+                const exerciseType = document.getElementById('exerciseType').value;
+                payload.exerciseType = exerciseType;
+                if (['running', 'walking', 'cycling'].includes(exerciseType)) {
+                    payload.distance = document.getElementById('distance').value;
+                    payload.duration = '';
+                } else {
+                    payload.distance = '';
+                    payload.duration = document.getElementById('duration').value;
+                }
+            } else { // food
+                payload.notes = document.getElementById('foodNotes').value;
             }
+
+            try {
+                await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+                statusMessage.innerHTML = `<span class="text-green-600">บันทึกข้อมูลสำเร็จ!</span>`;
+                e.target.reset();
+            } catch (error) {
+                statusMessage.innerHTML = `<span class="text-red-500">เกิดข้อผิดพลาด</span>`;
+                console.error('Log Submit Error:', error);
+            } finally {
+                button.disabled = false;
+                button.textContent = 'บันทึกข้อมูล';
+                document.getElementById('logDate').valueAsDate = new Date();
+            }
+        });
+        
+        document.getElementById('loadHistoryButton').addEventListener('click', async () => {
             historySection.classList.remove('hidden');
             historyLoader.classList.remove('hidden');
-            historyTableBody.innerHTML = '';
             noHistoryMessage.classList.add('hidden');
-            
-            try {
-                const response = await fetch(scriptUrl);
-                const data = await response.json();
-                historyLoader.classList.add('hidden');
+            historyTableBody.innerHTML = '';
 
+            const url = `${SCRIPT_URL}?action=getHistory&userId=${userProfile.userId}`;
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
                 if (data.length === 0) {
                     noHistoryMessage.classList.remove('hidden');
                 } else {
-                    data.forEach((row, index) => {
-                        const tr = document.createElement('tr');
-                        tr.className = 'fade-in-row';
-                        tr.style.animationDelay = `${index * 50}ms`;
-                        const formattedDate = row.date ? new Date(row.date).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
-                        
-                        tr.innerHTML = `
-                            <td class="px-6 py-4 text-sm text-slate-800">${formattedDate}</td>
-                            <td class="px-6 py-4 text-sm font-medium text-slate-900">${row.displayName}</td>
-                            <td class="px-6 py-4 text-sm text-slate-800">${row.exerciseType}</td>
-                            <td class="px-6 py-4 text-sm text-slate-800">${row.duration}</td>
-                            <td class="px-6 py-4 text-sm text-slate-500">${row.notes}</td>
-                        `;
-                        historyTableBody.appendChild(tr);
+                    data.forEach(row => {
+                        let detail = '';
+                        if (row.logType === 'exercise') {
+                            detail = `${row.exerciseType}: ${row.distance ? row.distance + ' กม.' : ''}${row.duration ? row.duration + ' นาที' : ''}`;
+                        } else {
+                            detail = row.notes;
+                        }
+                        const formattedDate = new Date(row.date).toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' });
+                        historyTableBody.innerHTML += `<tr class="border-b">
+                            <td class="p-3 text-sm">${formattedDate}</td>
+                            <td class="p-3 text-sm font-medium">${row.logType === 'exercise' ? '🏃‍♂️ ออกกำลังกาย' : '🥗 อาหาร'}</td>
+                            <td class="p-3 text-sm text-slate-600">${detail}</td>
+                        </tr>`;
                     });
                 }
             } catch (error) {
+                console.error('History Load Error:', error);
+            } finally {
                 historyLoader.classList.add('hidden');
-                statusMessage.innerHTML = `<span class="text-red-500">ไม่สามารถโหลดข้อมูลได้: ${error.message}.</span>`;
             }
         });
+
+        // Set default date
+        document.getElementById('logDate').valueAsDate = new Date();
     </script>
 </body>
 </html>
