@@ -280,7 +280,7 @@
                 <div class="bg-white p-6 rounded-xl shadow-md">
                     <h2 class="text-2xl font-bold mb-4 text-gray-800">บัตรสะสมแสตมป์</h2>
                     <div class="grid grid-cols-4 sm:grid-cols-8 gap-4">
-                        ${visibleActivities.map(act => {
+                        ${state.activities.map(act => {
                             const completed = userActivityStatus[act.id] === 'completed';
                             return `
                                 <div class="flex flex-col items-center text-center">
@@ -294,7 +294,7 @@
                                 </div>`;
                         }).join('')}
                     </div>
-                    ${completedCount === visibleActivities.length && visibleActivities.length > 0 ? `<div class="mt-4 text-center p-3 bg-yellow-100 border-l-4 border-yellow-400 text-yellow-700 rounded-r-lg"><p class="font-bold">ยินดีด้วย! คุณสะสมแสตมป์ครบทุกดวงแล้ว!</p></div>` : ''}
+                    ${completedCount === state.activities.length && state.activities.length > 0 ? `<div class="mt-4 text-center p-3 bg-yellow-100 border-l-4 border-yellow-400 text-yellow-700 rounded-r-lg"><p class="font-bold">ยินดีด้วย! คุณสะสมแสตมป์ครบทุกดวงแล้ว!</p></div>` : ''}
                 </div>`;
 
             const activityListHTML = `
