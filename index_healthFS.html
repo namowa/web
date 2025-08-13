@@ -790,26 +790,26 @@
         };
         const main = async () => {
             try {
-                // These should be provided by the environment
-                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-                const customToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-                if (!firebaseConfig) {
-                    throw new Error("Firebase config is not available.");
-                }
+                // Firebase configuration provided by the user
+                const firebaseConfig = {
+                    apiKey: "AIzaSyDATchWwmazw3wPnuNk4i-d79rnyBpSDM0",
+                    authDomain: "line-liff-a543c.firebaseapp.com",
+                    projectId: "line-liff-a543c",
+                    storageBucket: "line-liff-a543c.appspot.com",
+                    messagingSenderId: "617440448369",
+                    appId: "1:617440448369:web:523f9ce4861c6b656c30d0"
+                };
+                
+                // Use a default app ID since __app_id is not available in this context
+                const appId = 'health-tracker-app'; 
 
                 // 1. Initialize Firebase
                 state.firebase.app = initializeApp(firebaseConfig);
                 state.firebase.auth = getAuth(state.firebase.app);
                 state.firebase.db = getFirestore(state.firebase.app);
 
-                // 2. Authenticate with Firebase
-                if (customToken) {
-                    await signInWithCustomToken(state.firebase.auth, customToken);
-                } else {
-                    await signInAnonymously(state.firebase.auth);
-                }
+                // 2. Authenticate with Firebase (using anonymous sign-in for standalone use)
+                await signInAnonymously(state.firebase.auth);
                 
                 // 3. Initialize LIFF
                 await liff.init({ liffId: CONFIG.LIFF_ID });
