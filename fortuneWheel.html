@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>กงล้อสุ่มรางวัล (พร้อมระบบจัดการ)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Kanit', sans-serif;
+        }
+        .wheel-container::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-top: 30px solid #eab308; /* yellow-500 */
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 flex flex-col items-center min-h-screen p-4">
+
+    <div class="w-full max-w-6xl mx-auto">
+        <h1 class="text-4xl font-bold text-center mb-8 text-indigo-600 dark:text-indigo-400">กงล้อเสี่ยงโชค</h1>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Wheel and Spin Button -->
+            <div class="lg:col-span-2 flex flex-col items-center justify-center bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg">
+                <div class="wheel-container relative mb-6">
+                    <canvas id="wheelCanvas" width="400" height="400"></canvas>
+                </div>
+                <button id="spinButton" class="w-full max-w-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-8 rounded-full text-2xl shadow-lg transition-transform transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:scale-100">
+                    หมุน!
+                </button>
+            </div>
+
+            <!-- Prize List & Management -->
+            <div class="space-y-8">
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg">
+                    <h2 class="text-2xl font-bold mb-4 border-b-2 border-gray-200 dark:border-gray-700 pb-2">รายการของรางวัล</h2>
+                    <div id="prizeList" class="space-y-3 max-h-96 overflow-y-auto pr-2">
+                        <!-- Prize items will be injected here -->
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg">
+                    <h2 id="formTitle" class="text-2xl font-bold mb-4">เพิ่มของรางวัล</h2>
+                    <form id="prizeForm" class="space-y-4">
+                        <input type="hidden" id="prizeIndexInput">
+                        <div>
+                            <label for="prizeNameInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300">ชื่อของรางวัล</label>
+                            <input type="text" id="prizeNameInput" required class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2">
+                        </div>
+                        <div>
+                            <label for="prizeStockInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300">จำนวน (ใส่ 999 สำหรับไม่จำกัด)</label>
+                            <input type="number" id="prizeStockInput" min="0" value="1" required class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2">
+                        </div>
+                        <div>
+                            <label for="prizeColorInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300">สี</label>
+                            <input type="color" id="prizeColorInput" value="#ef4444" class="mt-1 block w-full h-10 rounded-md border-gray-300 dark:border-gray-600 shadow-sm cursor-pointer">
+                        </div>
+                        <div class="flex gap-4 pt-2">
+                            <button type="submit" id="formSubmitButton" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">เพิ่มรางวัล</button>
+                            <button type="button" id="formCancelButton" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition-colors hidden">ยกเลิก</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Result Modal -->
+    <div id="resultModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 m-4 max-w-sm w-full text-center transform transition-all scale-95 opacity-0" id="modalContent">
+            <h3 class="text-2xl font-bold mb-4" id="modalTitle">ยินดีด้วย!</h3>
+            <p class="text-lg mb-6">คุณได้รับ: <span id="prizeResult" class="font-bold text-2xl text-indigo-500"></span></p>
+            <div class="flex justify-center gap-4">
+                <button id="confirmButton" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-lg">ยืนยัน</button>
+                <button id="cancelButton" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-lg">ยกเลิก</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Element selections
+            const canvas = document.getElementById('wheelCanvas');
+            const ctx = canvas.getContext('2d');
+            const spinButton = document.getElementById('spinButton');
+            const prizeListContainer = document.getElementById('prizeList');
+            const resultModal = document.getElementById('resultModal');
+            const modalContent = document.getElementById('modalContent');
+            const prizeResultSpan = document.getElementById('prizeResult');
+            const confirmButton = document.getElementById('confirmButton');
+            const cancelButton = document.getElementById('cancelButton');
+            const modalTitle = document.getElementById('modalTitle');
+            const prizeForm = document.getElementById('prizeForm');
+            const formTitle = document.getElementById('formTitle');
+            const prizeIndexInput = document.getElementById('prizeIndexInput');
+            const prizeNameInput = document.getElementById('prizeNameInput');
+            const prizeStockInput = document.getElementById('prizeStockInput');
+            const prizeColorInput = document.getElementById('prizeColorInput');
+            const formSubmitButton = document.getElementById('formSubmitButton');
+            const formCancelButton = document.getElementById('formCancelButton');
+
+            // --- State ---
+            let prizes = [
+                { name: 'iPhone 15', color: '#ef4444', stock: 2 },
+                { name: 'ทองคำ 1 บาท', color: '#f59e0b', stock: 1 },
+                { name: 'ตั๋วเครื่องบิน', color: '#84cc16', stock: 5 },
+                { name: 'ไม่ได้รางวัล', color: '#64748b', stock: Infinity },
+                { name: 'Power Bank', color: '#8b5cf6', stock: 10 },
+            ];
+            let startAngle = 0;
+            let spinAngleStart = 0;
+            let spinTime = 0;
+            let spinTimeTotal = 0;
+            let isSpinning = false;
+            let currentWinner = null;
+            let editingIndex = null;
+
+            // --- Core Functions ---
+
+            function drawSegment(key, totalPrizes) {
+                const arc = Math.PI * 2 / totalPrizes;
+                const angle = startAngle + key * arc;
+                const prize = prizes[key];
+                ctx.fillStyle = prize.color;
+
+                ctx.beginPath();
+                ctx.arc(200, 200, 200, angle, angle + arc, false);
+                ctx.arc(200, 200, 0, angle + arc, angle, true);
+                ctx.stroke();
+                ctx.fill();
+
+                ctx.save();
+                ctx.fillStyle = "white";
+                ctx.translate(200 + Math.cos(angle + arc / 2) * 150, 200 + Math.sin(angle + arc / 2) * 150);
+                ctx.rotate(angle + arc / 2 + Math.PI / 2);
+                const text = prize.name;
+                ctx.font = 'bold 16px Kanit';
+                ctx.fillText(text, -ctx.measureText(text).width / 2, 0);
+                ctx.restore();
+            }
+
+            function drawWheel() {
+                if (prizes.length === 0) {
+                    ctx.clearRect(0, 0, 400, 400);
+                    ctx.fillStyle = '#ccc';
+                    ctx.beginPath();
+                    ctx.arc(200, 200, 200, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = 'black';
+                    ctx.font = 'bold 20px Kanit';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('กรุณาเพิ่มของรางวัล', 200, 200);
+                    spinButton.disabled = true;
+                    return;
+                }
+                spinButton.disabled = isSpinning;
+                ctx.clearRect(0, 0, 400, 400);
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                prizes.forEach((_, i) => drawSegment(i, prizes.length));
+            }
+
+            function renderPrizeList() {
+                prizeListContainer.innerHTML = '';
+                if (prizes.length === 0) {
+                    prizeListContainer.innerHTML = '<p class="text-gray-500 text-center">ยังไม่มีของรางวัล</p>';
+                }
+                prizes.forEach((prize, index) => {
+                    const isInfinite = prize.stock === Infinity || prize.stock >= 999;
+                    const stockText = isInfinite ? 'ไม่จำกัด' : (prize.stock > 0 ? `เหลือ ${prize.stock} ชิ้น` : 'หมดแล้ว');
+                    const stockColor = isInfinite ? 'text-blue-500' : (prize.stock > 0 ? 'text-green-500' : 'text-red-500');
+                    const isOutOfStock = prize.stock === 0;
+
+                    const prizeElement = document.createElement('div');
+                    prizeElement.className = `flex justify-between items-center p-3 rounded-lg ${isOutOfStock ? 'bg-gray-200 dark:bg-gray-700 opacity-60' : 'bg-gray-100 dark:bg-gray-700'}`;
+                    prizeElement.innerHTML = `
+                        <div class="flex items-center overflow-hidden mr-2">
+                            <span class="w-4 h-4 rounded-full mr-3 flex-shrink-0" style="background-color: ${prize.color};"></span>
+                            <span class="font-medium truncate ${isOutOfStock ? 'line-through' : ''}" title="${prize.name}">${prize.name}</span>
+                        </div>
+                        <div class="flex items-center flex-shrink-0">
+                            <span class="text-sm font-semibold mr-3 ${stockColor}">${stockText}</span>
+                            <button data-index="${index}" class="edit-btn text-blue-500 hover:text-blue-700 mr-2">แก้ไข</button>
+                            <button data-index="${index}" class="delete-btn text-red-500 hover:text-red-700">ลบ</button>
+                        </div>
+                    `;
+                    prizeListContainer.appendChild(prizeElement);
+                });
+
+                // Add event listeners after rendering
+                document.querySelectorAll('.edit-btn').forEach(btn => btn.addEventListener('click', handleEdit));
+                document.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', handleDelete));
+            }
+            
+            function redrawAll() {
+                drawWheel();
+                renderPrizeList();
+            }
+
+            // --- Prize Management ---
+
+            function handleFormSubmit(e) {
+                e.preventDefault();
+                const name = prizeNameInput.value.trim();
+                const stock = parseInt(prizeStockInput.value, 10);
+                const color = prizeColorInput.value;
+
+                if (!name || isNaN(stock)) {
+                    alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+                    return;
+                }
+
+                const newPrize = { name, stock: stock >= 999 ? Infinity : stock, color };
+
+                if (editingIndex !== null) {
+                    // Update existing prize
+                    prizes[editingIndex] = newPrize;
+                } else {
+                    // Add new prize
+                    prizes.push(newPrize);
+                }
+                
+                resetForm();
+                redrawAll();
+            }
+
+            function handleEdit(e) {
+                const index = parseInt(e.target.dataset.index, 10);
+                const prize = prizes[index];
+                
+                editingIndex = index;
+                prizeIndexInput.value = index;
+                prizeNameInput.value = prize.name;
+                prizeStockInput.value = prize.stock === Infinity ? 999 : prize.stock;
+                prizeColorInput.value = prize.color;
+
+                formTitle.textContent = 'แก้ไขของรางวัล';
+                formSubmitButton.textContent = 'อัปเดตรางวัล';
+                formSubmitButton.classList.replace('bg-blue-600', 'bg-green-600');
+                formSubmitButton.classList.replace('hover:bg-blue-700', 'hover:bg-green-700');
+                formCancelButton.classList.remove('hidden');
+                prizeNameInput.focus();
+            }
+
+            function handleDelete(e) {
+                const index = parseInt(e.target.dataset.index, 10);
+                if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบ "${prizes[index].name}"?`)) {
+                    prizes.splice(index, 1);
+                    if (editingIndex === index) {
+                        resetForm();
+                    } else if (editingIndex > index) {
+                        editingIndex--; // Adjust editing index if an item before it was deleted
+                    }
+                    redrawAll();
+                }
+            }
+            
+            function resetForm() {
+                prizeForm.reset();
+                editingIndex = null;
+                prizeIndexInput.value = '';
+                formTitle.textContent = 'เพิ่มของรางวัล';
+                formSubmitButton.textContent = 'เพิ่มรางวัล';
+                formSubmitButton.classList.replace('bg-green-600', 'bg-blue-600');
+                formSubmitButton.classList.replace('hover:bg-green-700', 'hover:bg-blue-700');
+                formCancelButton.classList.add('hidden');
+            }
+
+            // --- Spin Logic ---
+
+            function spin() {
+                const availablePrizes = prizes.filter(p => p.stock > 0);
+                if (availablePrizes.length === 0 && prizes.length > 0) {
+                    alert("ของรางวัลหมดแล้ว!");
+                    return;
+                }
+                if (prizes.length === 0) {
+                    alert("กรุณาเพิ่มของรางวัลก่อนหมุน");
+                    return;
+                }
+
+                isSpinning = true;
+                spinButton.disabled = true;
+                spinAngleStart = Math.random() * 10 + 10;
+                spinTime = 0;
+                spinTimeTotal = Math.random() * 3000 + 4000;
+                rotateWheel();
+            }
+
+            function rotateWheel() {
+                spinTime += 30;
+                if (spinTime >= spinTimeTotal) {
+                    stopRotateWheel();
+                    return;
+                }
+                const spinAngle = spinAngleStart - easeOut(spinTime, 0, spinAngleStart, spinTimeTotal);
+                startAngle += (spinAngle * Math.PI / 180);
+                drawWheel();
+                requestAnimationFrame(rotateWheel);
+            }
+
+            function stopRotateWheel() {
+                isSpinning = false;
+                spinButton.disabled = false;
+                
+                const arc = Math.PI * 2 / prizes.length;
+                const degrees = startAngle * 180 / Math.PI + 90;
+                const arcd = arc * 180 / Math.PI;
+                const index = Math.floor((360 - degrees % 360) / arcd);
+                currentWinner = prizes[index];
+
+                showModal();
+            }
+            
+            function easeOut(t, b, c, d) {
+                const ts = (t /= d) * t;
+                const tc = ts * t;
+                return b + c * (tc + -3 * ts + 3 * t);
+            }
+
+            // --- Modal Logic ---
+
+            function showModal() {
+                if (!currentWinner) return;
+                prizeResultSpan.textContent = currentWinner.name;
+                
+                if (currentWinner.stock === 0) {
+                    modalTitle.textContent = "เสียใจด้วย!";
+                    prizeResultSpan.textContent = `${currentWinner.name} (ของหมดแล้ว)`;
+                    confirmButton.style.display = 'none';
+                    cancelButton.textContent = 'ปิด';
+                } else if (currentWinner.stock === Infinity) {
+                    modalTitle.textContent = "ยินดีด้วย!"; // Changed for "unlimited" prizes
+                    confirmButton.style.display = 'none'; // No need to confirm if stock is infinite
+                    cancelButton.textContent = 'ปิด';
+                } else {
+                    modalTitle.textContent = "ยินดีด้วย!";
+                    confirmButton.style.display = 'inline-block';
+                    cancelButton.textContent = 'ยกเลิก';
+                }
+
+                resultModal.classList.remove('hidden');
+                setTimeout(() => modalContent.classList.remove('scale-95', 'opacity-0'), 10);
+            }
+
+            function hideModal() {
+                modalContent.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => resultModal.classList.add('hidden'), 200);
+            }
+
+            // --- Event Listeners ---
+            spinButton.addEventListener('click', spin);
+            prizeForm.addEventListener('submit', handleFormSubmit);
+            formCancelButton.addEventListener('click', resetForm);
+
+            confirmButton.addEventListener('click', () => {
+                if (currentWinner && currentWinner.stock > 0 && currentWinner.stock !== Infinity) {
+                    currentWinner.stock--;
+                    renderPrizeList();
+                }
+                hideModal();
+                currentWinner = null;
+            });
+
+            cancelButton.addEventListener('click', () => {
+                hideModal();
+                currentWinner = null;
+            });
+
+            // --- Initial Load ---
+            redrawAll();
+        });
+    </script>
+
+</body>
+</html>
