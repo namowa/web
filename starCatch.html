@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>สุ่มรางวัลสอยดาว (พร้อมระบบจัดการ)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Kanit', sans-serif;
+            background-color: #0c1445;
+            color: #f0f0f0;
+            overflow-x: hidden;
+        }
+        .star-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            padding: 2rem;
+            background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+            border-radius: 1rem;
+            min-height: 300px;
+        }
+        .star {
+            font-size: 2.5rem;
+            cursor: pointer;
+            transition: transform 0.2s ease-in-out, text-shadow 0.2s ease-in-out;
+            animation: twinkle 5s infinite ease-in-out;
+        }
+        .star:hover {
+            transform: scale(1.3);
+            text-shadow: 0 0 15px #fff, 0 0 25px #fff200;
+        }
+        .star.selected {
+            transform: scale(1.5);
+            text-shadow: 0 0 20px #ffc400, 0 0 35px #ff8c00;
+            animation: none;
+        }
+        .out-of-stock {
+            text-decoration: line-through;
+            color: #9ca3af;
+        }
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.7; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+        .modal {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+        }
+        .modal.hidden {
+            opacity: 0;
+            transform: scale(0.9);
+            pointer-events: none;
+        }
+        #admin-panel {
+             transition: max-height 0.5s ease-in-out, opacity 0.5s ease-in-out;
+             max-height: 0;
+             opacity: 0;
+             overflow: hidden;
+        }
+        #admin-panel.open {
+            max-height: 1000px; /* Adjust as needed */
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-yellow-300">กิจกรรมสอยดาว ลุ้นรางวัล</h1>
+            <p class="text-lg text-gray-300 mt-2">คลิกที่ดาวเพื่อสุ่มรับของรางวัล!</p>
+        </header>
+
+        <!-- Star Container -->
+        <div id="star-container" class="star-container shadow-2xl mb-8"></div>
+
+        <!-- Result Modal -->
+        <div id="result-container" class="modal hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
+            <div class="bg-white text-gray-800 rounded-2xl shadow-xl p-8 max-w-sm w-full text-center transform">
+                <h2 class="text-2xl font-bold mb-2 text-indigo-600">ยินดีด้วย! คุณได้รับ:</h2>
+                <p id="prize-name" class="text-xl font-semibold my-6 h-16 flex items-center justify-center"></p>
+                <div class="flex justify-center gap-4">
+                    <button id="confirm-button" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105">ยืนยันรับรางวัล</button>
+                    <button id="cancel-button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105">สละสิทธิ์</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prize List -->
+        <div class="bg-gray-800 bg-opacity-50 p-6 rounded-2xl mb-8">
+            <h2 class="text-2xl font-semibold mb-4 text-yellow-200 border-b-2 border-yellow-400 pb-2">รายการของรางวัลทั้งหมด</h2>
+            <ul id="prize-list" class="space-y-2 text-lg"></ul>
+        </div>
+        
+        <!-- Admin Toggle Button -->
+        <div class="text-center mb-4">
+            <button id="toggle-admin-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">
+                ⚙️ จัดการของรางวัล
+            </button>
+        </div>
+
+        <!-- Admin Panel -->
+        <div id="admin-panel" class="bg-gray-900 p-6 rounded-2xl mb-8">
+            <h2 class="text-2xl font-semibold mb-4 text-blue-300 border-b-2 border-blue-400 pb-2">แก้ไขรายการของรางวัล</h2>
+            <div id="edit-prizes-list" class="space-y-3 mb-6">
+                <!-- Editable prize list will be generated here -->
+            </div>
+            <h3 class="text-xl font-semibold mb-2 text-blue-300">เพิ่มรางวัลใหม่</h3>
+            <form id="add-prize-form" class="flex flex-col sm:flex-row gap-3">
+                <input type="text" id="new-prize-name" placeholder="ชื่อของรางวัล" class="flex-grow bg-gray-700 text-white p-2 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                <input type="number" id="new-prize-stock" placeholder="จำนวน" min="1" class="w-full sm:w-28 bg-gray-700 text-white p-2 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">เพิ่มรางวัล</button>
+            </form>
+            <div class="mt-6 text-center">
+                 <button id="save-changes-button" class="bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-3 px-8 rounded-lg text-lg">
+                    บันทึกและเริ่มเกมใหม่
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DEFAULT DATA ---
+            const defaultPrizes = [
+                { id: 1, name: 'สร้อยคอทองคำ 1 สลึง', stock: 2 },
+                { id: 2, name: 'พัดลมตั้งโต๊ะ Hatari', stock: 5 },
+                { id: 3, name: 'หม้อหุงข้าวไฟฟ้า', stock: 3 },
+                { id: 4, name: 'บัตรกำนัล Big C 500 บาท', stock: 10 },
+                { id: 5, name: 'รางวัลปลอบใจ - ร่ม', stock: 30 }
+            ];
+
+            // --- STATE VARIABLES ---
+            let prizes = [];
+            let prizePool = [];
+            let drawnPrize = null;
+            let clickedStarElement = null;
+
+            // --- DOM ELEMENTS ---
+            const starContainer = document.getElementById('star-container');
+            const resultContainer = document.getElementById('result-container');
+            const prizeNameEl = document.getElementById('prize-name');
+            const confirmButton = document.getElementById('confirm-button');
+            const cancelButton = document.getElementById('cancel-button');
+            const prizeListEl = document.getElementById('prize-list');
+            const adminPanel = document.getElementById('admin-panel');
+            const toggleAdminButton = document.getElementById('toggle-admin-button');
+            const editPrizesList = document.getElementById('edit-prizes-list');
+            const addPrizeForm = document.getElementById('add-prize-form');
+            const newPrizeNameInput = document.getElementById('new-prize-name');
+            const newPrizeStockInput = document.getElementById('new-prize-stock');
+            const saveChangesButton = document.getElementById('save-changes-button');
+
+            // --- DATA PERSISTENCE FUNCTIONS ---
+            function savePrizesToStorage() {
+                localStorage.setItem('luckyStarPrizes', JSON.stringify(prizes));
+            }
+
+            function loadPrizesFromStorage() {
+                const storedPrizes = localStorage.getItem('luckyStarPrizes');
+                prizes = storedPrizes ? JSON.parse(storedPrizes) : [...defaultPrizes.map(p => ({...p}))]; // Deep copy
+            }
+
+            // --- GAME LOGIC FUNCTIONS ---
+            function buildPrizePool() {
+                prizePool = [];
+                prizes.forEach(prize => {
+                    for (let i = 0; i < prize.stock; i++) {
+                        prizePool.push(prize.name);
+                    }
+                });
+            }
+
+            function renderStars() {
+                starContainer.innerHTML = '';
+                if (prizePool.length === 0) {
+                    starContainer.innerHTML = '<p class="text-2xl text-yellow-400">ของรางวัลหมดแล้ว!</p>';
+                    return;
+                }
+                prizePool.forEach(() => {
+                    const star = document.createElement('div');
+                    star.classList.add('star');
+                    star.textContent = '⭐';
+                    star.addEventListener('click', handleStarClick);
+                    starContainer.appendChild(star);
+                });
+            }
+
+            function renderPrizeList() {
+                prizeListEl.innerHTML = '';
+                prizes.forEach(prize => {
+                    const li = document.createElement('li');
+                    li.className = 'flex justify-between items-center p-2 rounded-md';
+                    li.innerHTML = `
+                        <span>${prize.name}</span>
+                        <span class="font-semibold bg-yellow-400 text-gray-900 px-3 py-1 rounded-full text-base">เหลือ ${prize.stock} ชิ้น</span>
+                    `;
+                    if (prize.stock === 0) {
+                        li.classList.add('out-of-stock');
+                    }
+                    prizeListEl.appendChild(li);
+                });
+            }
+
+            function handleStarClick(event) {
+                if (drawnPrize || prizePool.length === 0) return;
+                clickedStarElement = event.target;
+                clickedStarElement.classList.add('selected');
+                const randomIndex = Math.floor(Math.random() * prizePool.length);
+                drawnPrize = prizePool[randomIndex];
+                prizeNameEl.textContent = drawnPrize;
+                resultContainer.classList.remove('hidden');
+            }
+
+            function handleConfirm() {
+                if (!drawnPrize) return;
+                const prizeToUpdate = prizes.find(p => p.name === drawnPrize);
+                if (prizeToUpdate && prizeToUpdate.stock > 0) {
+                    prizeToUpdate.stock--;
+                    savePrizesToStorage(); // Save updated stock
+                    initializeAppGame();
+                    resetDrawState();
+                }
+            }
+            
+            function handleCancel() {
+                resetDrawState();
+            }
+
+            function resetDrawState() {
+                if (clickedStarElement) {
+                    clickedStarElement.classList.remove('selected');
+                }
+                drawnPrize = null;
+                clickedStarElement = null;
+                resultContainer.classList.add('hidden');
+            }
+
+            // --- ADMIN PANEL FUNCTIONS ---
+            function renderAdminPanel() {
+                editPrizesList.innerHTML = '';
+                prizes.forEach((prize, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'flex flex-col sm:flex-row items-center gap-3 bg-gray-800 p-3 rounded-lg';
+                    div.innerHTML = `
+                        <input type="text" value="${prize.name}" data-index="${index}" class="prize-name-input flex-grow w-full bg-gray-700 text-white p-2 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <input type="number" value="${prize.stock}" data-index="${index}" min="0" class="prize-stock-input w-full sm:w-28 bg-gray-700 text-white p-2 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button data-index="${index}" class="delete-prize-button w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">ลบ</button>
+                    `;
+                    editPrizesList.appendChild(div);
+                });
+
+                // Add event listeners for the new elements
+                document.querySelectorAll('.prize-name-input').forEach(input => {
+                    input.addEventListener('change', (e) => {
+                        prizes[e.target.dataset.index].name = e.target.value;
+                    });
+                });
+                document.querySelectorAll('.prize-stock-input').forEach(input => {
+                    input.addEventListener('change', (e) => {
+                        prizes[e.target.dataset.index].stock = parseInt(e.target.value, 10) || 0;
+                    });
+                });
+                document.querySelectorAll('.delete-prize-button').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        prizes.splice(e.target.dataset.index, 1);
+                        renderAdminPanel(); // Re-render to reflect deletion
+                    });
+                });
+            }
+
+            function handleAddPrize(e) {
+                e.preventDefault();
+                const name = newPrizeNameInput.value.trim();
+                const stock = parseInt(newPrizeStockInput.value, 10);
+                if (name && stock > 0) {
+                    const newId = prizes.length > 0 ? Math.max(...prizes.map(p => p.id)) + 1 : 1;
+                    prizes.push({ id: newId, name, stock });
+                    renderAdminPanel();
+                    addPrizeForm.reset();
+                }
+            }
+
+            // --- INITIALIZATION ---
+            function initializeAppGame() {
+                buildPrizePool();
+                renderStars();
+                renderPrizeList();
+            }
+
+            function initializeFullApp() {
+                loadPrizesFromStorage();
+                initializeAppGame();
+
+                // Setup event listeners
+                confirmButton.addEventListener('click', handleConfirm);
+                cancelButton.addEventListener('click', handleCancel);
+                
+                toggleAdminButton.addEventListener('click', () => {
+                    adminPanel.classList.toggle('open');
+                    if (adminPanel.classList.contains('open')) {
+                        renderAdminPanel();
+                    }
+                });
+
+                addPrizeForm.addEventListener('submit', handleAddPrize);
+
+                saveChangesButton.addEventListener('click', () => {
+                    savePrizesToStorage();
+                    adminPanel.classList.remove('open');
+                    initializeAppGame();
+                    alert('บันทึกข้อมูลเรียบร้อยแล้ว! เริ่มเกมใหม่ด้วยของรางวัลที่อัปเดต');
+                });
+            }
+
+            initializeFullApp();
+        });
+    </script>
+</body>
+</html>
