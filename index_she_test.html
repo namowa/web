@@ -412,7 +412,7 @@
                             ${redeemedHistory.map(item => {
                                 let statusHTML = '';
                                 if (item.status === 'received') {
-                                    statusHTML = `<span class="font-bold text-green-600">รับแล้ว</span>`;
+                                    statusHTML = `<button class="bg-gray-400 text-white px-3 py-1 rounded-lg text-sm font-semibold cursor-not-allowed" disabled>รับแล้ว</button>`;
                                 } else {
                                     statusHTML = `<button data-redeem-id="${item.redeemId}" class="receive-reward-btn bg-blue-600 text-white px-3 py-1 rounded-lg text-sm font-semibold hover:bg-blue-700">รับของรางวัล</button>`;
                                 }
