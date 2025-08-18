@@ -45,6 +45,32 @@
         .color-legend { display: flex; align-items: center; margin-bottom: 0.25rem; }
         .color-box { width: 20px; height: 20px; margin-right: 8px; border: 1px solid #ccc; border-radius: 4px; }
         
+        .db-tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #1f2937; /* bg-gray-800 */
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            margin-bottom: 5px;
+            opacity: 0.9;
+            pointer-events: none;
+        }
+        .db-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #1f2937 transparent transparent transparent;
+        }
+
         /* Modal Styles */
         .modal-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -94,8 +120,12 @@
                             <p class="text-xs mt-1">มอนิเตอร์</p>
                         </div>
                          <div class="text-center p-2">
-                            <div class="draggable-icon inline-block p-2 bg-slate-200 rounded-full" draggable="true" data-type="listener">🧑</div>
+                            <div class="draggable-icon inline-block p-2 bg-slate-200 rounded-full" draggable="true" data-type="listener">🎧</div>
                             <p class="text-xs mt-1">ผู้ฟัง</p>
+                        </div>
+                        <div class="text-center p-2">
+                            <div class="draggable-icon inline-block p-2 bg-slate-200 rounded-full" draggable="true" data-type="wall" style="color: #a16207;">█</div>
+                            <p class="text-xs mt-1">กำแพง</p>
                         </div>
                     </div>
                 </div>
@@ -151,6 +181,12 @@
                     <input type="number" id="edit-speaker-sensitivity" min="70" max="120" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                 </div>
             </div>
+             <div id="wall-edit-fields">
+                <div class="mb-4">
+                    <label for="edit-wall-attenuation" class="block font-semibold mb-2">การลดทอนเสียง (dB):</label>
+                    <input type="number" id="edit-wall-attenuation" min="0" max="100" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
             <div class="flex justify-between items-center mt-6">
                 <button id="delete-button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">ลบ</button>
                 <div id="edit-actions" class="flex gap-2">
@@ -166,6 +202,7 @@
             let GRID_COLS = 32;
             let GRID_ROWS = 18;
             const CELL_REPRESENTS_METERS = 1;
+            const DEFAULT_WALL_ATTENUATION_DB = 25;
 
             const gridContainer = document.getElementById('grid-container');
             const wattsInput = document.getElementById('speaker-watts');
@@ -180,6 +217,7 @@
             const editModal = document.getElementById('edit-modal');
             const modalTitle = document.getElementById('modal-title');
             const speakerEditFields = document.getElementById('speaker-edit-fields');
+            const wallEditFields = document.getElementById('wall-edit-fields');
             const editActions = document.getElementById('edit-actions');
             const closeModalButton = document.getElementById('close-modal-button');
             const cancelEditButton = document.getElementById('cancel-edit-button');
@@ -187,9 +225,11 @@
             const deleteButton = document.getElementById('delete-button');
             const editWattsInput = document.getElementById('edit-speaker-watts');
             const editSensitivityInput = document.getElementById('edit-speaker-sensitivity');
+            const editWallAttenuationInput = document.getElementById('edit-wall-attenuation');
 
             let speakers = []; 
             let listeners = [];
+            let walls = [];
             let gridCells = [];
             let draggedData = { type: null, id: null };
             let editingElement = { type: null, id: null };
@@ -214,7 +254,7 @@
                 { db: 100, color: '#ff8c00', label: '100-105 dB' }, { db: 95, color: '#ffd700', label: '95-100 dB' },
                 { db: 90, color: '#adff2f', label: '90-95 dB' }, { db: 85, color: '#00ff00', label: '85-90 dB (ดัง)' },
                 { db: 80, color: '#48d1cc', label: '80-85 dB' }, { db: 75, color: '#00ced1', label: '75-80 dB' },
-                { db: 70, color: '#1e90ff', label: '< 75 dB (เบา)' },
+                { db: 70, color: '#ffffff', label: '< 75 dB (เบา)' },
             ];
             const BASE_COLOR = '#ffffff';
 
@@ -242,6 +282,7 @@
             function createLegend() {
                 legendContainer.innerHTML = '';
                 DB_LEVELS.forEach(level => {
+                    if (level.color === '#ffffff') return; // Don't show white in legend
                     const item = document.createElement('div');
                     item.classList.add('color-legend');
                     item.innerHTML = `<div class="color-box" style="background-color: ${level.color};"></div><span>${level.label}</span>`;
@@ -256,19 +297,21 @@
                 const x = parseInt(cell.dataset.x);
                 const y = parseInt(cell.dataset.y);
 
-                if (draggedData.id) { // Moving an existing element
-                    const collection = draggedData.type === 'listener' ? listeners : speakers;
+                if (draggedData.id) {
+                    let collection;
+                    if (draggedData.type === 'listener') collection = listeners;
+                    else if (draggedData.type === 'wall') collection = walls;
+                    else collection = speakers;
+                    
                     const elementToMove = collection.find(s => s.id === draggedData.id);
                     if (elementToMove) {
                         elementToMove.x = x;
                         elementToMove.y = y;
                     }
-                } else if (draggedData.type) { // Adding a new element
-                    if (draggedData.type === 'listener') {
-                        addListener(x, y);
-                    } else {
-                        addSpeaker(x, y, parseInt(wattsInput.value), parseInt(sensitivityInput.value), draggedData.type);
-                    }
+                } else if (draggedData.type) {
+                    if (draggedData.type === 'listener') addListener(x, y);
+                    else if (draggedData.type === 'wall') addWall(x, y);
+                    else addSpeaker(x, y, parseInt(wattsInput.value), parseInt(sensitivityInput.value), draggedData.type);
                 }
                 
                 draggedData = { type: null, id: null };
@@ -283,10 +326,28 @@
                 listeners.push({ id: Date.now(), x, y, type: 'listener' });
             }
 
+            function addWall(x, y) {
+                if (!walls.some(w => w.x === x && w.y === y)) {
+                    walls.push({ id: Date.now(), x, y, type: 'wall', attenuation: DEFAULT_WALL_ATTENUATION_DB });
+                }
+            }
+
             function drawElements() {
                 document.querySelectorAll('.placed-element').forEach(el => el.remove());
                 
-                // Draw speakers
+                walls.forEach(wall => {
+                    if (wall.y < GRID_ROWS && wall.x < GRID_COLS) {
+                        const cell = gridCells[wall.y][wall.x];
+                        const el = document.createElement('div');
+                        el.classList.add('placed-element');
+                        el.setAttribute('draggable', 'true');
+                        el.dataset.id = wall.id;
+                        el.dataset.type = wall.type;
+                        el.innerHTML = `<span class="draggable-icon" style="color: #a16207;">█</span>`;
+                        cell.appendChild(el);
+                    }
+                });
+
                 speakers.forEach(speaker => {
                     if (speaker.y < GRID_ROWS && speaker.x < GRID_COLS) {
                         const cell = gridCells[speaker.y][speaker.x];
@@ -312,7 +373,6 @@
                     }
                 });
 
-                // Draw listeners
                 listeners.forEach(listener => {
                     if (listener.y < GRID_ROWS && listener.x < GRID_COLS) {
                         const cell = gridCells[listener.y][listener.x];
@@ -323,29 +383,52 @@
                         el.dataset.type = listener.type;
 
                         const dbAtPos = calculateDbAtPoint(listener.x, listener.y);
-                        let mood = '😴'; // Sleepy
-                        if (dbAtPos > 95) mood = '😡'; // Angry
-                        else if (dbAtPos >= 75) mood = '😊'; // Happy
+                        let mood = '😴';
+                        if (dbAtPos > 95) mood = '😡';
+                        else if (dbAtPos >= 75) mood = '😊';
 
-                        el.innerHTML = `<span class="draggable-icon">${mood}</span>`;
+                        const iconEl = document.createElement('span');
+                        iconEl.classList.add('draggable-icon');
+                        iconEl.textContent = mood;
+                        
+                        const tooltip = document.createElement('div');
+                        tooltip.classList.add('db-tooltip');
+                        tooltip.textContent = `${dbAtPos.toFixed(1)} dB`;
+
+                        el.appendChild(iconEl);
+                        el.appendChild(tooltip);
                         cell.appendChild(el);
                     }
                 });
             }
             
-            function getDirectionalAttenuation(speaker, cellX, cellY) {
-                const dirVec = DIRECTION_VECTORS[speaker.direction];
-                if (!dirVec) return 0;
+            function getWallAttenuationOnPath(x0, y0, x1, y1) {
+                let attenuation = 0;
+                let dx = Math.abs(x1 - x0);
+                let dy = Math.abs(y1 - y0);
+                let sx = (x0 < x1) ? 1 : -1;
+                let sy = (y0 < y1) ? 1 : -1;
+                let err = dx - dy;
+                
+                let currentX = x0;
+                let currentY = y0;
 
-                const cellVec = { x: cellX - speaker.x, y: cellY - speaker.y };
-                const dist = Math.sqrt(cellVec.x**2 + cellVec.y**2);
-                if (dist === 0) return 0;
+                while (true) {
+                    if ( (currentX !== x0 || currentY !== y0) && (currentX !== x1 || currentY !== y1) ) {
+                        const wall = walls.find(w => w.x === currentX && w.y === currentY);
+                        if (wall) {
+                            attenuation += wall.attenuation;
+                        }
+                    }
 
-                const normCellVec = { x: cellVec.x / dist, y: cellVec.y / dist };
-                const cosTheta = dirVec.x * normCellVec.x + dirVec.y * normCellVec.y;
-                const factor = (1 + cosTheta) / 2;
-                if (factor <= 0.01) return -20;
-                return 10 * Math.log10(factor);
+                    if (currentX === x1 && currentY === y1) break;
+
+                    let e2 = 2 * err;
+                    if (e2 > -dy) { err -= dy; currentX += sx; }
+                    if (e2 < dx) { err += dx; currentY += sy; }
+                }
+
+                return attenuation;
             }
 
             function calculateDbAtPoint(x, y) {
@@ -362,17 +445,31 @@
                     if (speaker.type !== 'omni') {
                         splAtCell += getDirectionalAttenuation(speaker, x, y);
                     }
+
+                    splAtCell -= getWallAttenuationOnPath(speaker.x, speaker.y, x, y);
+
                     if (splAtCell > 0) totalIntensity += 10**(splAtCell / 10);
                 });
-                return 10 * Math.log10(totalIntensity);
+                const db = 10 * Math.log10(totalIntensity);
+                return isFinite(db) ? db : 0;
+            }
+
+            function getDirectionalAttenuation(speaker, cellX, cellY) {
+                const dirVec = DIRECTION_VECTORS[speaker.direction];
+                if (!dirVec) return 0;
+
+                const cellVec = { x: cellX - speaker.x, y: cellY - speaker.y };
+                const dist = Math.sqrt(cellVec.x**2 + cellVec.y**2);
+                if (dist === 0) return 0;
+
+                const normCellVec = { x: cellVec.x / dist, y: cellVec.y / dist };
+                const cosTheta = dirVec.x * normCellVec.x + dirVec.y * normCellVec.y;
+                const factor = (1 + cosTheta) / 2;
+                if (factor <= 0.01) return -20;
+                return 10 * Math.log10(factor);
             }
 
             function calculateAndDrawDbMap() {
-                if (speakers.length === 0) {
-                    gridCells.flat().forEach(cell => cell.style.backgroundColor = BASE_COLOR);
-                    return;
-                }
-                
                 gridCells.flat().forEach(cell => {
                     const j = parseInt(cell.dataset.x);
                     const i = parseInt(cell.dataset.y);
@@ -395,6 +492,7 @@
             function clearAll() {
                 speakers = [];
                 listeners = [];
+                walls = [];
                 fullRedraw();
             }
 
@@ -408,7 +506,7 @@
                 if (clickTimer === null) {
                     clickTimer = setTimeout(() => {
                         clickTimer = null;
-                        if (type !== 'listener' && type !== 'omni') {
+                        if (type !== 'listener' && type !== 'omni' && type !== 'wall') {
                             const speaker = speakers.find(s => s.id === id);
                             if (speaker) {
                                 const directions = ['right', 'down-right', 'down', 'down-left', 'left', 'up-left', 'up', 'up-right'];
@@ -425,13 +523,25 @@
                     if (type === 'listener') {
                         modalTitle.textContent = 'ลบผู้ฟัง';
                         speakerEditFields.style.display = 'none';
+                        wallEditFields.style.display = 'none';
                         editActions.style.display = 'none';
                         deleteButton.textContent = 'ยืนยันการลบ';
+                    } else if (type === 'wall') {
+                        const wall = walls.find(w => w.id === id);
+                        if(wall) {
+                            modalTitle.textContent = 'แก้ไขคุณสมบัติกำแพง';
+                            speakerEditFields.style.display = 'none';
+                            wallEditFields.style.display = 'block';
+                            editActions.style.display = 'flex';
+                            deleteButton.textContent = 'ลบกำแพงนี้';
+                            editWallAttenuationInput.value = wall.attenuation;
+                        }
                     } else {
                         const speaker = speakers.find(s => s.id === id);
                         if (speaker) {
                             modalTitle.textContent = 'แก้ไขคุณสมบัติลำโพง';
                             speakerEditFields.style.display = 'block';
+                            wallEditFields.style.display = 'none';
                             editActions.style.display = 'flex';
                             deleteButton.textContent = 'ลบลำโพงนี้';
                             editWattsInput.value = speaker.watts;
@@ -462,24 +572,30 @@
                 editingElement = { type: null, id: null };
             }
 
-            function saveSpeakerEdits() {
-                if (editingElement.type === 'listener' || editingElement.id === null) return;
-                const speaker = speakers.find(s => s.id === editingElement.id);
-                if (speaker) {
-                    speaker.watts = parseInt(editWattsInput.value);
-                    speaker.sensitivity = parseInt(editSensitivityInput.value);
-                    fullRedraw();
+            function saveEdits() {
+                if (editingElement.id === null) return;
+
+                if (editingElement.type === 'wall') {
+                    const wall = walls.find(w => w.id === editingElement.id);
+                    if (wall) {
+                        wall.attenuation = parseInt(editWallAttenuationInput.value);
+                    }
+                } else if (editingElement.type !== 'listener') {
+                    const speaker = speakers.find(s => s.id === editingElement.id);
+                    if (speaker) {
+                        speaker.watts = parseInt(editWattsInput.value);
+                        speaker.sensitivity = parseInt(editSensitivityInput.value);
+                    }
                 }
+                fullRedraw();
                 hideModal();
             }
             
             function deleteCurrentElement() {
                 if (editingElement.id === null) return;
-                if (editingElement.type === 'listener') {
-                    listeners = listeners.filter(l => l.id !== editingElement.id);
-                } else {
-                    speakers = speakers.filter(s => s.id !== editingElement.id);
-                }
+                if (editingElement.type === 'listener') listeners = listeners.filter(l => l.id !== editingElement.id);
+                else if (editingElement.type === 'wall') walls = walls.filter(w => w.id !== editingElement.id);
+                else speakers = speakers.filter(s => s.id !== editingElement.id);
                 hideModal();
                 fullRedraw();
             }
@@ -514,7 +630,7 @@
             
             closeModalButton.addEventListener('click', hideModal);
             cancelEditButton.addEventListener('click', hideModal);
-            saveEditButton.addEventListener('click', saveSpeakerEdits);
+            saveEditButton.addEventListener('click', saveEdits);
             deleteButton.addEventListener('click', deleteCurrentElement);
             editModal.addEventListener('click', (e) => {
                 if (e.target === editModal) hideModal();
@@ -523,6 +639,7 @@
             // --- INITIALIZATION ---
             createGrid();
             createLegend();
+            fullRedraw();
         });
     </script>
 </body>
