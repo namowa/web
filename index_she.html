@@ -208,6 +208,40 @@
                 }
             };
         }
+        
+        function showAdminCodeModal(onConfirm) {
+            const modalBackdrop = document.createElement('div');
+            modalBackdrop.className = 'modal-backdrop';
+            
+            modalBackdrop.innerHTML = `
+                <div class="modal-content">
+                    <p class="mb-2 font-semibold text-gray-700">สำหรับเจ้าหน้าที่เท่านั้น</p>
+                    <p class="mb-4 text-sm text-gray-500">กรุณากรอกรหัส 4 หลักเพื่อยืนยันการรับของ</p>
+                    <input id="admin-code-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" class="w-full text-center text-2xl tracking-[.5em] p-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <div class="flex justify-center gap-4">
+                        <button id="modal-confirm-code-btn" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700">ยืนยัน</button>
+                        <button id="modal-cancel-btn" class="bg-gray-300 text-gray-800 px-6 py-2 rounded-lg font-semibold hover:bg-gray-400">ยกเลิก</button>
+                    </div>
+                </div>
+            `;
+            
+            modalContainer.appendChild(modalBackdrop);
+            const input = document.getElementById('admin-code-input');
+            input.focus();
+            
+            document.getElementById('modal-confirm-code-btn').onclick = () => {
+                onConfirm(input.value);
+                modalBackdrop.remove();
+            };
+            document.getElementById('modal-cancel-btn').onclick = () => {
+                modalBackdrop.remove();
+            };
+             modalBackdrop.onclick = (e) => {
+                if (e.target === modalBackdrop) {
+                    modalBackdrop.remove();
+                }
+            };
+        }
 
         function showActivityInfoModal(activity, onConfirm) {
             const modalBackdrop = document.createElement('div');
@@ -375,15 +409,26 @@
                     <h3 class="text-xl font-bold mb-4 text-gray-700 border-t pt-6">ประวัติการแลกรางวัล</h3>
                     ${redeemedHistory.length > 0 ? `
                         <div class="space-y-3 bg-white p-4 rounded-xl shadow-md">
-                            ${redeemedHistory.map(item => `
+                            ${redeemedHistory.map(item => {
+                                let statusHTML = '';
+                                if (item.status === 'received') {
+                                    statusHTML = `<button class="bg-gray-400 text-white px-3 py-1 rounded-lg text-sm font-semibold cursor-not-allowed" disabled>รับแล้ว</button>`;
+                                } else {
+                                    statusHTML = `<button data-redeem-id="${item.redeemId}" class="receive-reward-btn bg-blue-600 text-white px-3 py-1 rounded-lg text-sm font-semibold hover:bg-blue-700">รับของรางวัล</button>`;
+                                }
+
+                                return `
                                 <div class="flex justify-between items-center border-b pb-2 last:border-b-0">
                                     <div>
                                         <p class="font-semibold text-gray-800">${item.name}</p>
                                         <p class="text-sm text-gray-500">วันที่: ${new Date(item.date).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} น.</p>
                                     </div>
-                                    <span class="font-bold text-yellow-600">-${item.cost} คะแนน</span>
+                                    <div class="text-right">
+                                        <span class="font-bold text-yellow-600 block mb-1">-${item.cost} คะแนน</span>
+                                        ${statusHTML}
+                                    </div>
                                 </div>
-                            `).join('')}
+                            `}).join('')}
                         </div>
                     ` : `
                         <p class="text-gray-500 text-center mt-4 bg-white p-4 rounded-xl shadow-md">ยังไม่มีประวัติการแลกรางวัล</p>
@@ -745,9 +790,11 @@
                         const newRedeemedList = [
                             ...(userDoc.data().redeemedRewards || []),
                             {
+                                redeemId: `${Date.now()}_${rewardId}`,
                                 name: reward.name,
                                 cost: reward.cost,
-                                date: new Date().toISOString()
+                                date: new Date().toISOString(),
+                                status: 'redeemed'
                             }
                         ];
 
@@ -761,6 +808,35 @@
                 } catch (e) {
                     showToast(typeof e === 'string' ? e : "เกิดข้อผิดพลาดในการแลก", true);
                     console.error("Redeem Reward Transaction failed: ", e);
+                }
+            });
+        }
+        
+        async function handleReceiveReward(redeemId) {
+            showAdminCodeModal(async (code) => {
+                const today = new Date();
+                const day = String(today.getDate()).padStart(2, '0');
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const correctCode = `${day}${month}`;
+
+                if (code === correctCode) {
+                    try {
+                        const userRef = doc(db, "users", state.userId);
+                        const userDoc = await getDoc(userRef);
+                        if (userDoc.exists()) {
+                            const redeemedRewards = userDoc.data().redeemedRewards || [];
+                            const updatedRewards = redeemedRewards.map(r => 
+                                r.redeemId === redeemId ? { ...r, status: 'received' } : r
+                            );
+                            await updateDoc(userRef, { redeemedRewards: updatedRewards });
+                            showToast("ยืนยันการรับของรางวัลสำเร็จ!");
+                        }
+                    } catch (error) {
+                        console.error("Error updating reward status:", error);
+                        showToast("เกิดข้อผิดพลาด", true);
+                    }
+                } else {
+                    showToast("รหัสไม่ถูกต้อง", true);
                 }
             });
         }
@@ -1103,7 +1179,7 @@
 
                 // --- Hardcoded Admin Check ---
                 // !!! IMPORTANT: Replace with the actual LINE User ID of the admin !!!
-                const ADMIN_USER_ID = "U722ca367a6a72d0b0a9b4c26fa2c7c5c";
+                const ADMIN_USER_ID = "YOUR_ADMIN_LINE_USER_ID";
                 const isAdmin = state.userId === ADMIN_USER_ID;
 
                 if (isAdmin) {
@@ -1145,6 +1221,7 @@
                 // User actions
                 if (target.closest('.join-activity-btn')) handleJoinActivity(target.closest('.join-activity-btn').dataset.activityId);
                 if (target.closest('.redeem-reward-btn')) handleRedeemReward(target.closest('.redeem-reward-btn').dataset.rewardId);
+                if (target.closest('.receive-reward-btn')) handleReceiveReward(target.closest('.receive-reward-btn').dataset.redeemId);
                 if (target.closest('.buy-numbered-ticket-btn')) handleBuyNumberedTicket(target.closest('.buy-numbered-ticket-btn').dataset.number);
                 
                 // Admin actions
