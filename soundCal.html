@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เครื่องมือออกแบบการวางตำแหน่งลำโพง</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Sarabun', sans-serif;
+            touch-action: none;
+        }
+        .grid-cell {
+            border: 1px solid #e2e8f0;
+            position: relative;
+            transition: background-color 0.3s ease;
+        }
+        .draggable-icon {
+            font-size: 1.5rem;
+            cursor: grab;
+            user-select: none;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .speaker-icon {
+            transition: transform 0.2s ease-in-out;
+        }
+        .draggable-icon:active { cursor: grabbing; }
+        .placed-element {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+        }
+        .placed-element:active { cursor: grabbing; }
+        .dragging { opacity: 0.5; }
+        .color-legend { display: flex; align-items: center; margin-bottom: 0.25rem; }
+        .color-box { width: 20px; height: 20px; margin-right: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000; opacity: 0; visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal-overlay.visible { opacity: 1; visibility: visible; }
+        .modal-content {
+            background-color: white; padding: 2rem; border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 90%; max-width: 400px;
+            transform: scale(0.95); transition: transform 0.3s ease;
+        }
+        .modal-overlay.visible .modal-content { transform: scale(1); }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800">
+
+    <div class="container mx-auto p-4 md:p-6 lg:p-8">
+        <header class="text-center mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">เครื่องมือออกแบบการวางตำแหน่งลำโพง</h1>
+            <p class="text-slate-600 mt-2">ดับเบิลคลิกเพื่อแก้ไข, คลิกเพื่อหมุน, หรือลากเพื่อย้ายตำแหน่ง</p>
+        </header>
+
+        <div class="flex flex-col lg:flex-row gap-6">
+            <!-- Control Panel -->
+            <aside class="lg:w-1/4 bg-white p-6 rounded-2xl shadow-lg">
+                <h2 class="text-xl font-bold mb-4 border-b pb-2">แผงควบคุม</h2>
+                <div class="mb-6">
+                    <p class="font-semibold mb-3 text-center">ลากองค์ประกอบใหม่</p>
+                    <div class="flex justify-around items-center flex-wrap">
+                        <div class="text-center p-2">
+                            <div class="draggable-icon inline-block p-2 bg-slate-200 rounded-full" draggable="true" data-type="omni">🔊</div>
+                            <p class="text-xs mt-1">รอบทิศทาง</p>
+                        </div>
+                        <div class="text-center p-2">
+                            <div class="draggable-icon inline-block p-2 bg-slate-200 rounded-full" draggable="true" data-type="directional">🔈</div>
+                            <p class="text-xs mt-1">ลำโพงตู้</p>
+                        </div>
+                        <div class="text-center p-2">
+                            <div class="draggable-icon inline-block p-2 bg-slate-200 rounded-full" draggable="true" data-type="amp">🎸</div>
+                            <p class="text-xs mt-1">ตู้แอมป์</p>
+                        </div>
+                        <div class="text-center p-2">
+                            <div class="draggable-icon inline-block p-2 bg-slate-200 rounded-full" draggable="true" data-type="monitor">🖥️</div>
+                            <p class="text-xs mt-1">มอนิเตอร์</p>
+                        </div>
+                         <div class="text-center p-2">
+                            <div class="draggable-icon inline-block p-2 bg-slate-200 rounded-full" draggable="true" data-type="listener">🧑</div>
+                            <p class="text-xs mt-1">ผู้ฟัง</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label for="speaker-watts" class="block font-semibold mb-2">กำลังขับ (วัตต์):</label>
+                    <input type="number" id="speaker-watts" value="100" min="1" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="mb-6">
+                    <label for="speaker-sensitivity" class="block font-semibold mb-2">ความไว (dB @ 1W/1m):</label>
+                    <input type="number" id="speaker-sensitivity" value="95" min="70" max="120" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+                <button id="clear-button" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">ล้างทั้งหมด</button>
+                <div class="mb-4 border-t pt-4 mt-4">
+                    <h3 class="text-lg font-semibold mb-2">ขนาดพื้นที่ (เมตร)</h3>
+                    <div class="flex gap-2">
+                        <div>
+                            <label for="grid-width" class="block text-sm font-medium text-slate-600">กว้าง</label>
+                            <input type="number" id="grid-width" value="32" min="10" max="100" class="w-full p-2 border border-slate-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label for="grid-height" class="block text-sm font-medium text-slate-600">สูง</label>
+                            <input type="number" id="grid-height" value="18" min="10" max="100" class="w-full p-2 border border-slate-300 rounded-lg">
+                        </div>
+                    </div>
+                    <button id="update-grid-button" class="w-full mt-2 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors" title="การปรับขนาดจะล้างลำโพงทั้งหมด">ปรับขนาด (ล้างทั้งหมด)</button>
+                </div>
+                <div class="mt-8 border-t pt-4">
+                    <h3 class="text-lg font-bold mb-3">คำอธิบายสี (dB SPL)</h3>
+                    <div id="legend-container"></div>
+                </div>
+            </aside>
+            <!-- Grid Area -->
+            <main class="lg:w-3/4">
+                <div id="grid-container" class="grid bg-white rounded-2xl shadow-lg overflow-hidden select-none"></div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="modal-title" class="text-2xl font-bold">แก้ไข</h2>
+                <button id="close-modal-button" class="text-2xl text-slate-500 hover:text-slate-800">&times;</button>
+            </div>
+            <div id="speaker-edit-fields">
+                <div class="mb-4">
+                    <label for="edit-speaker-watts" class="block font-semibold mb-2">กำลังขับ (วัตต์):</label>
+                    <input type="number" id="edit-speaker-watts" min="1" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="mb-6">
+                    <label for="edit-speaker-sensitivity" class="block font-semibold mb-2">ความไว (dB @ 1W/1m):</label>
+                    <input type="number" id="edit-speaker-sensitivity" min="70" max="120" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+            <div class="flex justify-between items-center mt-6">
+                <button id="delete-button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">ลบ</button>
+                <div id="edit-actions" class="flex gap-2">
+                    <button id="cancel-edit-button" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-4 rounded-lg transition-colors">ยกเลิก</button>
+                    <button id="save-edit-button" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">บันทึก</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            let GRID_COLS = 32;
+            let GRID_ROWS = 18;
+            const CELL_REPRESENTS_METERS = 1;
+
+            const gridContainer = document.getElementById('grid-container');
+            const wattsInput = document.getElementById('speaker-watts');
+            const sensitivityInput = document.getElementById('speaker-sensitivity');
+            const clearButton = document.getElementById('clear-button');
+            const legendContainer = document.getElementById('legend-container');
+            const gridWidthInput = document.getElementById('grid-width');
+            const gridHeightInput = document.getElementById('grid-height');
+            const updateGridButton = document.getElementById('update-grid-button');
+            const draggableElements = document.querySelectorAll('.draggable-icon');
+            
+            const editModal = document.getElementById('edit-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const speakerEditFields = document.getElementById('speaker-edit-fields');
+            const editActions = document.getElementById('edit-actions');
+            const closeModalButton = document.getElementById('close-modal-button');
+            const cancelEditButton = document.getElementById('cancel-edit-button');
+            const saveEditButton = document.getElementById('save-edit-button');
+            const deleteButton = document.getElementById('delete-button');
+            const editWattsInput = document.getElementById('edit-speaker-watts');
+            const editSensitivityInput = document.getElementById('edit-speaker-sensitivity');
+
+            let speakers = []; 
+            let listeners = [];
+            let gridCells = [];
+            let draggedData = { type: null, id: null };
+            let editingElement = { type: null, id: null };
+            let clickTimer = null;
+            
+            const INV_SQRT_2 = 1 / Math.sqrt(2);
+
+            const DIRECTION_VECTORS = {
+                'right': { x: 1, y: 0 }, 'down-right': { x: INV_SQRT_2, y: INV_SQRT_2 },
+                'down': { x: 0, y: 1 }, 'down-left': { x: -INV_SQRT_2, y: INV_SQRT_2 },
+                'left': { x: -1, y: 0 }, 'up-left': { x: -INV_SQRT_2, y: -INV_SQRT_2 },
+                'up': { x: 0, y: -1 }, 'up-right': { x: INV_SQRT_2, y: -INV_SQRT_2 },
+            };
+            
+            const DIRECTION_ROTATIONS = {
+                'right': 0, 'down-right': 45, 'down': 90, 'down-left': 135,
+                'left': 180, 'up-left': 225, 'up': 270, 'up-right': 315
+            };
+
+            const DB_LEVELS = [
+                { db: 110, color: '#ff0000', label: '> 110 dB (ดังมาก)' }, { db: 105, color: '#ff4500', label: '105-110 dB' },
+                { db: 100, color: '#ff8c00', label: '100-105 dB' }, { db: 95, color: '#ffd700', label: '95-100 dB' },
+                { db: 90, color: '#adff2f', label: '90-95 dB' }, { db: 85, color: '#00ff00', label: '85-90 dB (ดัง)' },
+                { db: 80, color: '#48d1cc', label: '80-85 dB' }, { db: 75, color: '#00ced1', label: '75-80 dB' },
+                { db: 70, color: '#1e90ff', label: '< 75 dB (เบา)' },
+            ];
+            const BASE_COLOR = '#ffffff';
+
+            function createGrid() {
+                gridContainer.innerHTML = '';
+                gridCells = [];
+                gridContainer.style.gridTemplateColumns = `repeat(${GRID_COLS}, 1fr)`;
+                gridContainer.style.gridTemplateRows = `repeat(${GRID_ROWS}, 1fr)`;
+                gridContainer.style.aspectRatio = `${GRID_COLS} / ${GRID_ROWS}`;
+
+                for (let i = 0; i < GRID_ROWS; i++) {
+                    const row = [];
+                    for (let j = 0; j < GRID_COLS; j++) {
+                        const cell = document.createElement('div');
+                        cell.classList.add('grid-cell');
+                        cell.dataset.x = j;
+                        cell.dataset.y = i;
+                        gridContainer.appendChild(cell);
+                        row.push(cell);
+                    }
+                    gridCells.push(row);
+                }
+            }
+            
+            function createLegend() {
+                legendContainer.innerHTML = '';
+                DB_LEVELS.forEach(level => {
+                    const item = document.createElement('div');
+                    item.classList.add('color-legend');
+                    item.innerHTML = `<div class="color-box" style="background-color: ${level.color};"></div><span>${level.label}</span>`;
+                    legendContainer.appendChild(item);
+                });
+            }
+
+            function handleDrop(e) {
+                e.preventDefault();
+                const cell = e.target.closest('.grid-cell');
+                if (!cell) return;
+                const x = parseInt(cell.dataset.x);
+                const y = parseInt(cell.dataset.y);
+
+                if (draggedData.id) { // Moving an existing element
+                    const collection = draggedData.type === 'listener' ? listeners : speakers;
+                    const elementToMove = collection.find(s => s.id === draggedData.id);
+                    if (elementToMove) {
+                        elementToMove.x = x;
+                        elementToMove.y = y;
+                    }
+                } else if (draggedData.type) { // Adding a new element
+                    if (draggedData.type === 'listener') {
+                        addListener(x, y);
+                    } else {
+                        addSpeaker(x, y, parseInt(wattsInput.value), parseInt(sensitivityInput.value), draggedData.type);
+                    }
+                }
+                
+                draggedData = { type: null, id: null };
+                fullRedraw();
+            }
+
+            function addSpeaker(x, y, watts, sensitivity, type) {
+                speakers.push({ id: Date.now(), x, y, watts, sensitivity, type, direction: 'right' });
+            }
+            
+            function addListener(x, y) {
+                listeners.push({ id: Date.now(), x, y, type: 'listener' });
+            }
+
+            function drawElements() {
+                document.querySelectorAll('.placed-element').forEach(el => el.remove());
+                
+                // Draw speakers
+                speakers.forEach(speaker => {
+                    if (speaker.y < GRID_ROWS && speaker.x < GRID_COLS) {
+                        const cell = gridCells[speaker.y][speaker.x];
+                        const el = document.createElement('div');
+                        el.classList.add('placed-element');
+                        el.setAttribute('draggable', 'true');
+                        el.dataset.id = speaker.id;
+                        el.dataset.type = speaker.type;
+                        
+                        const iconEl = document.createElement('span');
+                        iconEl.classList.add('draggable-icon', 'speaker-icon');
+                        
+                        const icons = { omni: '🔊', directional: '🔈', amp: '🎸', monitor: '🖥️' };
+                        iconEl.textContent = icons[speaker.type] || '🔈';
+
+                        if (speaker.type !== 'omni') {
+                            const rotation = DIRECTION_ROTATIONS[speaker.direction] || 0;
+                            iconEl.style.transform = `rotate(${rotation}deg)`;
+                        }
+                        
+                        el.appendChild(iconEl);
+                        cell.appendChild(el);
+                    }
+                });
+
+                // Draw listeners
+                listeners.forEach(listener => {
+                    if (listener.y < GRID_ROWS && listener.x < GRID_COLS) {
+                        const cell = gridCells[listener.y][listener.x];
+                        const el = document.createElement('div');
+                        el.classList.add('placed-element');
+                        el.setAttribute('draggable', 'true');
+                        el.dataset.id = listener.id;
+                        el.dataset.type = listener.type;
+
+                        const dbAtPos = calculateDbAtPoint(listener.x, listener.y);
+                        let mood = '😴'; // Sleepy
+                        if (dbAtPos > 95) mood = '😡'; // Angry
+                        else if (dbAtPos >= 75) mood = '😊'; // Happy
+
+                        el.innerHTML = `<span class="draggable-icon">${mood}</span>`;
+                        cell.appendChild(el);
+                    }
+                });
+            }
+            
+            function getDirectionalAttenuation(speaker, cellX, cellY) {
+                const dirVec = DIRECTION_VECTORS[speaker.direction];
+                if (!dirVec) return 0;
+
+                const cellVec = { x: cellX - speaker.x, y: cellY - speaker.y };
+                const dist = Math.sqrt(cellVec.x**2 + cellVec.y**2);
+                if (dist === 0) return 0;
+
+                const normCellVec = { x: cellVec.x / dist, y: cellVec.y / dist };
+                const cosTheta = dirVec.x * normCellVec.x + dirVec.y * normCellVec.y;
+                const factor = (1 + cosTheta) / 2;
+                if (factor <= 0.01) return -20;
+                return 10 * Math.log10(factor);
+            }
+
+            function calculateDbAtPoint(x, y) {
+                let totalIntensity = 0;
+                speakers.forEach(speaker => {
+                    const dx = (x - speaker.x) * CELL_REPRESENTS_METERS;
+                    const dy = (y - speaker.y) * CELL_REPRESENTS_METERS;
+                    let distance = Math.sqrt(dx**2 + dy**2);
+                    if (distance === 0) distance = 0.5;
+
+                    const splAt1m = speaker.sensitivity + 10 * Math.log10(speaker.watts);
+                    let splAtCell = splAt1m - 20 * Math.log10(distance);
+
+                    if (speaker.type !== 'omni') {
+                        splAtCell += getDirectionalAttenuation(speaker, x, y);
+                    }
+                    if (splAtCell > 0) totalIntensity += 10**(splAtCell / 10);
+                });
+                return 10 * Math.log10(totalIntensity);
+            }
+
+            function calculateAndDrawDbMap() {
+                if (speakers.length === 0) {
+                    gridCells.flat().forEach(cell => cell.style.backgroundColor = BASE_COLOR);
+                    return;
+                }
+                
+                gridCells.flat().forEach(cell => {
+                    const j = parseInt(cell.dataset.x);
+                    const i = parseInt(cell.dataset.y);
+                    const finalDb = calculateDbAtPoint(j, i);
+                    cell.style.backgroundColor = getColorForDb(finalDb);
+                });
+            }
+
+            function fullRedraw() {
+                calculateAndDrawDbMap();
+                drawElements();
+            }
+
+            function getColorForDb(db) {
+                if (isNaN(db) || db < 0) return BASE_COLOR;
+                for (const level of DB_LEVELS) if (db >= level.db) return level.color;
+                return DB_LEVELS[DB_LEVELS.length - 1].color;
+            }
+
+            function clearAll() {
+                speakers = [];
+                listeners = [];
+                fullRedraw();
+            }
+
+            function handleGridClick(e) {
+                const el = e.target.closest('.placed-element');
+                if (!el) return;
+                
+                const id = parseInt(el.dataset.id);
+                const type = el.dataset.type;
+
+                if (clickTimer === null) {
+                    clickTimer = setTimeout(() => {
+                        clickTimer = null;
+                        if (type !== 'listener' && type !== 'omni') {
+                            const speaker = speakers.find(s => s.id === id);
+                            if (speaker) {
+                                const directions = ['right', 'down-right', 'down', 'down-left', 'left', 'up-left', 'up', 'up-right'];
+                                const currentIndex = directions.indexOf(speaker.direction);
+                                speaker.direction = directions[(currentIndex + 1) % directions.length];
+                                fullRedraw();
+                            }
+                        }
+                    }, 250);
+                } else {
+                    clearTimeout(clickTimer);
+                    clickTimer = null;
+                    editingElement = { type, id };
+                    if (type === 'listener') {
+                        modalTitle.textContent = 'ลบผู้ฟัง';
+                        speakerEditFields.style.display = 'none';
+                        editActions.style.display = 'none';
+                        deleteButton.textContent = 'ยืนยันการลบ';
+                    } else {
+                        const speaker = speakers.find(s => s.id === id);
+                        if (speaker) {
+                            modalTitle.textContent = 'แก้ไขคุณสมบัติลำโพง';
+                            speakerEditFields.style.display = 'block';
+                            editActions.style.display = 'flex';
+                            deleteButton.textContent = 'ลบลำโพงนี้';
+                            editWattsInput.value = speaker.watts;
+                            editSensitivityInput.value = speaker.sensitivity;
+                        }
+                    }
+                    editModal.classList.add('visible');
+                }
+            }
+            
+            function handleUpdateGrid() {
+                const newCols = parseInt(gridWidthInput.value);
+                const newRows = parseInt(gridHeightInput.value);
+                if (isNaN(newCols) || isNaN(newRows) || newCols < 10 || newRows < 10 || newCols > 100 || newRows > 100) {
+                    alert("กรุณาใส่ขนาดระหว่าง 10 และ 100 เมตร");
+                    gridWidthInput.value = GRID_COLS;
+                    gridHeightInput.value = GRID_ROWS;
+                    return;
+                }
+                GRID_COLS = newCols;
+                GRID_ROWS = newRows;
+                createGrid();
+                clearAll();
+            }
+
+            function hideModal() {
+                editModal.classList.remove('visible');
+                editingElement = { type: null, id: null };
+            }
+
+            function saveSpeakerEdits() {
+                if (editingElement.type === 'listener' || editingElement.id === null) return;
+                const speaker = speakers.find(s => s.id === editingElement.id);
+                if (speaker) {
+                    speaker.watts = parseInt(editWattsInput.value);
+                    speaker.sensitivity = parseInt(editSensitivityInput.value);
+                    fullRedraw();
+                }
+                hideModal();
+            }
+            
+            function deleteCurrentElement() {
+                if (editingElement.id === null) return;
+                if (editingElement.type === 'listener') {
+                    listeners = listeners.filter(l => l.id !== editingElement.id);
+                } else {
+                    speakers = speakers.filter(s => s.id !== editingElement.id);
+                }
+                hideModal();
+                fullRedraw();
+            }
+
+            // --- EVENT LISTENERS ---
+            draggableElements.forEach(el => {
+                el.addEventListener('dragstart', (e) => {
+                    draggedData = { type: e.currentTarget.dataset.type, id: null };
+                    e.currentTarget.classList.add('dragging');
+                });
+                el.addEventListener('dragend', (e) => e.currentTarget.classList.remove('dragging'));
+            });
+
+            gridContainer.addEventListener('dragstart', (e) => {
+                const el = e.target.closest('.placed-element');
+                if (el) {
+                    draggedData = { type: el.dataset.type, id: parseInt(el.dataset.id) };
+                    setTimeout(() => el.style.opacity = '0.5', 0);
+                }
+            });
+            gridContainer.addEventListener('dragend', (e) => {
+                const el = e.target.closest('.placed-element');
+                if (el) el.style.opacity = '1';
+            });
+
+            gridContainer.addEventListener('dragover', (e) => e.preventDefault());
+            gridContainer.addEventListener('drop', handleDrop);
+            gridContainer.addEventListener('click', handleGridClick);
+            
+            clearButton.addEventListener('click', clearAll);
+            updateGridButton.addEventListener('click', handleUpdateGrid);
+            
+            closeModalButton.addEventListener('click', hideModal);
+            cancelEditButton.addEventListener('click', hideModal);
+            saveEditButton.addEventListener('click', saveSpeakerEdits);
+            deleteButton.addEventListener('click', deleteCurrentElement);
+            editModal.addEventListener('click', (e) => {
+                if (e.target === editModal) hideModal();
+            });
+
+            // --- INITIALIZATION ---
+            createGrid();
+            createLegend();
+        });
+    </script>
+</body>
+</html>
