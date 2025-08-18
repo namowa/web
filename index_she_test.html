@@ -383,21 +383,30 @@
                 <div>
                     <h2 class="text-2xl font-bold mb-4 text-gray-800">ร้านค้าแลกรางวัล</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        ${state.rewards.map(reward => `
+                        ${state.rewards.map(reward => {
+                            const redeemedCount = state.userData.redeemedRewards?.filter(r => r.rewardId === reward.id).length || 0;
+                            const isLimitReached = reward.limit > 0 && redeemedCount >= reward.limit;
+                            const isDisabled = state.userData.points < reward.cost || reward.stock <= 0 || isLimitReached;
+                            
+                            let buttonHTML = `<button data-reward-id="${reward.id}" class="redeem-reward-btn bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors" ${isDisabled ? 'disabled' : ''}>แลกรางวัล</button>`;
+                            if (isLimitReached) {
+                                buttonHTML = `<button class="bg-gray-400 text-white px-4 py-2 rounded-lg font-semibold cursor-not-allowed" disabled>แลกครบแล้ว</button>`;
+                            }
+
+                            return `
                             <div class="bg-white rounded-xl shadow-md overflow-hidden flex flex-col">
                                 <img src="${reward.img}" alt="${reward.name}" class="w-full h-40 object-cover" onerror="this.onerror=null;this.src='https://placehold.co/400x250/e2e8f0/64748b?text=Image';">
                                 <div class="p-4 flex flex-col flex-grow">
                                     <h3 class="text-lg font-semibold text-gray-800">${reward.name}</h3>
                                     <p class="text-sm text-gray-500 mb-2">คงเหลือ: ${reward.stock} ชิ้น</p>
+                                    ${reward.limit > 0 ? `<p class="text-sm text-blue-600 mb-2">จำกัด ${reward.limit} ชิ้น/คน (แลกแล้ว ${redeemedCount})</p>` : ''}
                                     <div class="flex-grow"></div>
                                     <div class="flex items-center justify-between mt-4">
                                         <span class="text-xl font-bold text-yellow-500">${reward.cost} คะแนน</span>
-                                        <button data-reward-id="${reward.id}" class="redeem-reward-btn bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors" ${state.userData.points < reward.cost || reward.stock <= 0 ? 'disabled' : ''}>
-                                            แลกรางวัล
-                                        </button>
+                                        ${buttonHTML}
                                     </div>
                                 </div>
-                            </div>`).join('')}
+                            </div>`}).join('')}
                     </div>
                 </div>`;
 
@@ -656,6 +665,7 @@
                     <input type="text" id="reward-name" placeholder="ชื่อของรางวัล" class="w-full p-2 border rounded" required>
                     <input type="number" id="reward-cost" placeholder="คะแนนที่ใช้แลก" class="w-full p-2 border rounded" required>
                     <input type="number" id="reward-stock" placeholder="จำนวนคงเหลือ" class="w-full p-2 border rounded" required>
+                    <input type="number" id="reward-limit" placeholder="จำกัดการแลกต่อคน (0 = ไม่จำกัด)" class="w-full p-2 border rounded">
                     <input type="text" id="reward-img" placeholder="URL รูปภาพ" class="w-full p-2 border rounded" required>
                     <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700">บันทึกของรางวัล</button>
                     <button type="button" id="clear-reward-form" class="w-full bg-gray-300 text-gray-800 py-2 rounded-lg font-semibold hover:bg-gray-400 mt-2">ล้างฟอร์ม</button>
@@ -784,13 +794,19 @@
                         const rewardDoc = await transaction.get(rewardRef);
                         if (!userDoc.exists() || !rewardDoc.exists()) throw "Document does not exist!";
                         
+                        const redeemedRewards = userDoc.data().redeemedRewards || [];
+                        const redeemedCount = redeemedRewards.filter(r => r.rewardId === rewardId).length;
+                        const rewardLimit = reward.limit || 0;
+
+                        if (rewardLimit > 0 && redeemedCount >= rewardLimit) throw "คุณแลกของรางวัลนี้ครบจำนวนแล้ว";
                         if (userDoc.data().points < reward.cost) throw "คะแนนไม่เพียงพอ";
                         if (rewardDoc.data().stock <= 0) throw "ของรางวัลหมดแล้ว";
                         
                         const newRedeemedList = [
-                            ...(userDoc.data().redeemedRewards || []),
+                            ...redeemedRewards,
                             {
                                 redeemId: `${Date.now()}_${rewardId}`,
+                                rewardId: rewardId,
                                 name: reward.name,
                                 cost: reward.cost,
                                 date: new Date().toISOString(),
@@ -1030,6 +1046,7 @@
                 name: document.getElementById('reward-name').value.trim(),
                 cost: Number(document.getElementById('reward-cost').value),
                 stock: Number(document.getElementById('reward-stock').value),
+                limit: Number(document.getElementById('reward-limit').value) || 0,
                 img: document.getElementById('reward-img').value.trim()
             };
             await setDoc(doc(db, "rewards", id), rewardData);
@@ -1276,6 +1293,7 @@
                         document.getElementById('reward-name').value = rew.name;
                         document.getElementById('reward-cost').value = rew.cost;
                         document.getElementById('reward-stock').value = rew.stock;
+                        document.getElementById('reward-limit').value = rew.limit || 0;
                         document.getElementById('reward-img').value = rew.img;
                         document.getElementById('reward-id').focus();
                     }
