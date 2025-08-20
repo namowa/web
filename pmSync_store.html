@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intelligent Spare Parts Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Sarabun', 'Inter', sans-serif;
+        }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800">คลังอะไหล่อัจฉริยะ</h1>
+                <p class="text-gray-500">จัดการสต็อกและพยากรณ์ความต้องการด้วย AI</p>
+            </div>
+            <button class="mt-4 md:mt-0 bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                <i data-lucide="plus" class="h-4 w-4"></i>
+                เพิ่มอะไหล่ใหม่
+            </button>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6 fade-in">
+            <div class="bg-white p-5 rounded-lg shadow">
+                <h2 class="text-gray-500 text-sm font-medium">มูลค่าสต็อกรวม</h2>
+                <p id="total-value" class="text-3xl font-bold text-blue-600"></p>
+            </div>
+            <div class="bg-white p-5 rounded-lg shadow">
+                <h2 class="text-gray-500 text-sm font-medium">จำนวนรายการอะไหล่</h2>
+                <p id="total-items" class="text-3xl font-bold text-gray-700"></p>
+            </div>
+            <div class="bg-white p-5 rounded-lg shadow">
+                <h2 class="text-gray-500 text-sm font-medium">รายการที่ต้องสั่งซื้อ</h2>
+                <p id="reorder-items" class="text-3xl font-bold text-yellow-600"></p>
+            </div>
+            <div class="bg-white p-5 rounded-lg shadow">
+                <h2 class="text-gray-500 text-sm font-medium">ของหมดสต็อก</h2>
+                <p id="out-of-stock-items" class="text-3xl font-bold text-red-600"></p>
+            </div>
+        </div>
+
+        <!-- Parts Table -->
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="p-4">
+                <input id="search-input" type="text" placeholder="ค้นหาอะไหล่ (เช่น Bearing, Filter)..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left text-gray-500">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3">ชื่ออะไหล่</th>
+                            <th scope="col" class="px-6 py-3">สต็อก (On Hand / Max)</th>
+                            <th scope="col" class="px-6 py-3">สถานะ</th>
+                            <th scope="col" class="px-6 py-3">AI Suggestion</th>
+                            <th scope="col" class="px-6 py-3">การกระทำ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="parts-table-body">
+                        <!-- Table rows will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mock Data
+        const spareParts = [
+            { id: 'SP-001', name: 'Bearing #6204', onHand: 5, minLevel: 5, maxLevel: 20, price: 350, aiForecast: 'มีความต้องการสูงใน 7 วันข้างหน้า (จาก PdM)' },
+            { id: 'SP-002', name: 'Air Filter AF-25', onHand: 12, minLevel: 10, maxLevel: 30, price: 800, aiForecast: 'มีความต้องการ 5 ชิ้นในเดือนหน้า (จาก PM)' },
+            { id: 'SP-003', name: 'Lubricant G-5', onHand: 2, minLevel: 5, maxLevel: 10, price: 1200, aiForecast: 'แนะนำให้สั่งซื้อด่วน' },
+            { id: 'SP-004', name: 'Conveyor Belt 5m', onHand: 0, minLevel: 1, maxLevel: 3, price: 15000, aiForecast: 'ของหมดสต็อก!' },
+            { id: 'SP-005', name: 'Hydraulic Seal Kit', onHand: 15, minLevel: 5, maxLevel: 20, price: 2500, aiForecast: 'สต็อกเพียงพอ' },
+            { id: 'SP-006', name: 'Motor Carbon Brush', onHand: 30, minLevel: 20, maxLevel: 50, price: 150, aiForecast: 'สต็อกเพียงพอ' },
+        ];
+
+        const searchInput = document.getElementById('search-input');
+        const partsTableBody = document.getElementById('parts-table-body');
+
+        function getStatus(part) {
+            if (part.onHand === 0) return { text: 'ของหมด', color: 'red' };
+            if (part.onHand <= part.minLevel) return { text: 'ต้องสั่งซื้อ', color: 'yellow' };
+            return { text: 'มีของ', color: 'green' };
+        }
+
+        function renderSummary() {
+            const totalValue = spareParts.reduce((sum, part) => sum + (part.onHand * part.price), 0);
+            const reorderItems = spareParts.filter(p => p.onHand > 0 && p.onHand <= p.minLevel).length;
+            const outOfStockItems = spareParts.filter(p => p.onHand === 0).length;
+
+            document.getElementById('total-value').textContent = `฿${totalValue.toLocaleString()}`;
+            document.getElementById('total-items').textContent = spareParts.length;
+            document.getElementById('reorder-items').textContent = reorderItems;
+            document.getElementById('out-of-stock-items').textContent = outOfStockItems;
+        }
+
+        function renderTable(filter = '') {
+            partsTableBody.innerHTML = '';
+            const filteredParts = spareParts.filter(part => 
+                part.name.toLowerCase().includes(filter.toLowerCase()) || 
+                part.id.toLowerCase().includes(filter.toLowerCase())
+            );
+
+            filteredParts.forEach(part => {
+                const status = getStatus(part);
+                const stockPercentage = (part.onHand / part.maxLevel) * 100;
+                
+                let aiSuggestionHtml = '';
+                if (status.color === 'yellow' || status.color === 'red') {
+                    aiSuggestionHtml = `<div class="flex items-center text-yellow-600">
+                        <i data-lucide="brain-circuit" class="h-4 w-4 mr-2 flex-shrink-0"></i>
+                        <span class="text-xs font-semibold">${part.aiForecast}</span>
+                    </div>`;
+                } else if (part.aiForecast.includes('PM') || part.aiForecast.includes('PdM')) {
+                     aiSuggestionHtml = `<div class="flex items-center text-blue-600">
+                        <i data-lucide="brain-circuit" class="h-4 w-4 mr-2 flex-shrink-0"></i>
+                        <span class="text-xs font-semibold">${part.aiForecast}</span>
+                    </div>`;
+                } else {
+                     aiSuggestionHtml = `<span class="text-xs text-gray-500">${part.aiForecast}</span>`;
+                }
+
+                const row = document.createElement('tr');
+                row.className = 'bg-white border-b';
+                row.innerHTML = `
+                    <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
+                        ${part.name}
+                        <p class="text-xs text-gray-400">${part.id}</p>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex items-center">
+                            <span class="font-semibold w-16">${part.onHand} / ${part.maxLevel}</span>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5 ml-2">
+                                <div class="bg-${status.color}-500 h-2.5 rounded-full" style="width: ${stockPercentage}%"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-1 font-semibold text-xs rounded-full bg-${status.color}-100 text-${status.color}-800">${status.text}</span>
+                    </td>
+                    <td class="px-6 py-4">
+                        ${aiSuggestionHtml}
+                    </td>
+                    <td class="px-6 py-4">
+                        <button class="font-medium text-blue-600 hover:underline">ขอใบสั่งซื้อ</button>
+                    </td>
+                `;
+                partsTableBody.appendChild(row);
+            });
+            lucide.createIcons();
+        }
+
+        searchInput.addEventListener('keyup', (e) => {
+            renderTable(e.target.value);
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderSummary();
+            renderTable();
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>
