@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Sarabun', 'Inter', sans-serif;
+        }
+        .work-order-card {
+            cursor: grab;
+        }
+        .work-order-card:active {
+            cursor: grabbing;
+        }
+        .dragging {
+            opacity: 0.5;
+            transform: scale(1.05);
+        }
+        .drop-target.drag-over {
+            background-color: #eef2ff; /* bg-indigo-100 */
+            outline: 2px dashed #6366f1; /* outline-indigo-500 */
+        }
+        .task-dot {
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .task-dot:hover {
+            transform: scale(1.2);
+        }
+        .popup-enter { animation: popupEnter 0.3s ease-out; }
+        @keyframes popupEnter {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 md:p-6 h-screen flex flex-col">
+
+    <!-- Header -->
+    <div class="flex-shrink-0 flex flex-col md:flex-row items-center justify-between mb-4">
+        <div class="flex items-center space-x-2">
+            <i data-lucide="calendar-check" class="h-8 w-8 text-blue-600"></i>
+            <h1 class="text-3xl font-bold text-gray-800">Master Planner</h1>
+        </div>
+        <div class="flex items-center space-x-4 mt-4 md:mt-0">
+            <button onclick="changeMonth(-1)" class="p-2 rounded-md hover:bg-gray-200"><i data-lucide="chevron-left" class="h-5 w-5"></i></button>
+            <h2 id="current-month-year" class="text-xl font-semibold text-gray-700 w-48 text-center"></h2>
+            <button onclick="changeMonth(1)" class="p-2 rounded-md hover:bg-gray-200"><i data-lucide="chevron-right" class="h-5 w-5"></i></button>
+        </div>
+    </div>
+
+    <!-- Main Planner Layout -->
+    <div class="flex-grow flex flex-col lg:flex-row gap-6 overflow-hidden">
+        <!-- Unassigned Work Orders -->
+        <div class="lg:w-1/4 flex-shrink-0 flex flex-col bg-white rounded-lg shadow-lg">
+            <h2 class="text-lg font-bold text-gray-800 p-4 border-b">คลังใบงาน</h2>
+            <div id="unassigned-list" class="p-4 space-y-3 overflow-y-auto">
+                <!-- Unassigned work orders injected here -->
+            </div>
+        </div>
+
+        <!-- Monthly Timeline -->
+        <div class="flex-grow bg-white rounded-lg shadow-lg overflow-auto">
+            <div id="timeline-view" class="relative">
+                 <!-- Timeline content injected here -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Details Modal -->
+    <div id="details-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden" onclick="closeDetailsPopup()">
+        <div id="modal-content" class="bg-white rounded-lg shadow-xl w-full max-w-md m-4 popup-enter" onclick="event.stopPropagation()">
+            <!-- Modal content will be injected here -->
+        </div>
+    </div>
+
+    <script>
+        // Mock Data
+        const technicians = Array.from({ length: 10 }, (_, i) => ({ id: `tech-${i + 1}`, name: `ช่างคนที่ ${i + 1}` }));
+        
+        let workOrders = [
+            { id: 'wo-1', machineName: 'Main Coolant Pump', task: 'PdM: ตรวจสอบ Bearing', type: 'PdM', assignedTo: 'tech-1', date: new Date('2025-08-20') },
+            { id: 'wo-2', machineName: 'CNC Machine #5', task: 'PM: ตรวจสอบระบบหล่อลื่น', type: 'PM', assignedTo: 'tech-2', date: new Date('2025-08-20') },
+            { id: 'wo-3', machineName: 'Air Compressor 7', task: 'PM: เปลี่ยนไส้กรองอากาศ', type: 'PM', assignedTo: null, date: null },
+            { id: 'wo-4', machineName: 'Welding Robot Arm 4', task: 'PdM: ตรวจสอบมอเตอร์แกน Z', type: 'PdM', assignedTo: null, date: null },
+            { id: 'wo-5', machineName: 'Conveyor Belt #2', task: 'ซ่อมสายพานเสียงดัง', type: 'Corrective', assignedTo: null, date: null },
+            { id: 'wo-6', machineName: 'HVAC Unit 2', task: 'Overhaul ประจำปี', type: 'PM', assignedTo: 'tech-1', date: new Date('2025-08-25') },
+            ...Array.from({ length: 14 }, (_, i) => {
+                const types = ['PM', 'PdM', 'Corrective'];
+                const tasks = ['ตรวจสอบ', 'ซ่อมบำรุง', 'เปลี่ยนอะไหล่', 'ทำความสะอาด'];
+                const machines = ['Pump', 'Motor', 'Fan', 'Compressor'];
+                const type = types[i % 3];
+                return {
+                    id: `wo-${i + 7}`,
+                    machineName: `${machines[i % 4]} #${i+1}`,
+                    task: `${type}: ${tasks[i % 4]}`,
+                    type: type,
+                    assignedTo: null,
+                    date: null
+                }
+            })
+        ];
+        
+        let currentDate = new Date('2025-08-20');
+
+        function getTypeStyles(type) {
+            switch (type) {
+                case 'PdM': return { bg: 'bg-purple-500', text: 'text-purple-800', border: 'border-purple-500', cardBg: 'bg-purple-50' };
+                case 'PM': return { bg: 'bg-blue-500', text: 'text-blue-800', border: 'border-blue-500', cardBg: 'bg-blue-50' };
+                default: return { bg: 'bg-yellow-500', text: 'text-yellow-800', border: 'border-yellow-500', cardBg: 'bg-yellow-50' };
+            }
+        }
+
+        function renderPlanner() {
+            document.getElementById('current-month-year').textContent = currentDate.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+            renderUnassignedList();
+            renderTimeline();
+            addDragAndDropListeners();
+        }
+
+        function renderUnassignedList() {
+            const unassignedListEl = document.getElementById('unassigned-list');
+            unassignedListEl.innerHTML = '';
+            workOrders.filter(wo => !wo.assignedTo).forEach(wo => {
+                const styles = getTypeStyles(wo.type);
+                const card = document.createElement('div');
+                card.id = wo.id;
+                card.className = `work-order-card p-3 rounded-md shadow-sm border-l-4 ${styles.border} ${styles.cardBg}`;
+                card.draggable = true;
+                card.innerHTML = `
+                    <span class="text-xs font-bold ${styles.text}">${wo.type}</span>
+                    <p class="font-semibold text-sm text-gray-800">${wo.task}</p>
+                    <p class="text-xs text-gray-600">${wo.machineName}</p>
+                `;
+                unassignedListEl.appendChild(card);
+            });
+        }
+
+        function renderTimeline() {
+            const timelineView = document.getElementById('timeline-view');
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            let headerHtml = '<div class="sticky left-0 bg-white z-20"></div>';
+            for (let day = 1; day <= daysInMonth; day++) {
+                headerHtml += `<div class="text-center py-2 border-r border-l border-gray-200">${day}</div>`;
+            }
+
+            let bodyHtml = '';
+            technicians.forEach(tech => {
+                bodyHtml += `<div class="sticky left-0 bg-white z-10 font-semibold text-sm p-2 border-b border-r border-gray-200 h-16 flex items-center">${tech.name}</div>`;
+                for (let day = 1; day <= daysInMonth; day++) {
+                    bodyHtml += `<div class="drop-target h-16 border-b border-r border-gray-200 p-1 flex items-center flex-wrap gap-1" data-tech-id="${tech.id}" data-day="${day}"></div>`;
+                }
+            });
+
+            timelineView.innerHTML = `
+                <div class="grid" style="grid-template-columns: 150px repeat(${daysInMonth}, minmax(60px, 1fr));">
+                    <!-- Header -->
+                    <div class="sticky top-0 z-30 bg-gray-100 font-semibold text-sm text-gray-600 border-b border-gray-300 flex items-center justify-center">ช่างเทคนิค</div>
+                    ${headerHtml.substring(headerHtml.indexOf('</div>') + 6)}
+                    
+                    <!-- Body -->
+                    ${bodyHtml}
+                </div>
+            `;
+            
+            workOrders.filter(wo => wo.assignedTo && wo.date && wo.date.getMonth() === month).forEach(wo => {
+                const targetCell = document.querySelector(`.drop-target[data-tech-id="${wo.assignedTo}"][data-day="${wo.date.getDate()}"]`);
+                if (targetCell) {
+                    const styles = getTypeStyles(wo.type);
+                    const taskDot = document.createElement('div');
+                    taskDot.id = `dot-${wo.id}`;
+                    taskDot.className = `task-dot h-4 w-4 rounded-full ${styles.bg}`;
+                    taskDot.title = `${wo.task} (${wo.machineName})`;
+                    taskDot.onclick = () => showDetailsPopup(wo.id);
+                    targetCell.appendChild(taskDot);
+                }
+            });
+        }
+
+        function addDragAndDropListeners() {
+            const cards = document.querySelectorAll('.work-order-card');
+            const dropTargets = document.querySelectorAll('.drop-target');
+
+            cards.forEach(card => {
+                card.addEventListener('dragstart', e => {
+                    card.classList.add('dragging');
+                    e.dataTransfer.setData('text/plain', card.id);
+                });
+                card.addEventListener('dragend', () => card.classList.remove('dragging'));
+            });
+
+            dropTargets.forEach(target => {
+                target.addEventListener('dragover', e => { e.preventDefault(); target.classList.add('drag-over'); });
+                target.addEventListener('dragleave', () => target.classList.remove('drag-over'));
+                target.addEventListener('drop', e => {
+                    e.preventDefault();
+                    target.classList.remove('drag-over');
+                    const id = e.dataTransfer.getData('text');
+                    const wo = workOrders.find(w => w.id === id);
+                    if (wo) {
+                        wo.assignedTo = target.dataset.techId;
+                        wo.date = new Date(currentDate.getFullYear(), currentDate.getMonth(), target.dataset.day);
+                        renderPlanner();
+                    }
+                });
+            });
+        }
+        
+        function showDetailsPopup(workOrderId) {
+            const wo = workOrders.find(w => w.id === workOrderId);
+            if (!wo) return;
+
+            const modal = document.getElementById('details-modal');
+            const modalContent = document.getElementById('modal-content');
+            const styles = getTypeStyles(wo.type);
+            const tech = technicians.find(t => t.id === wo.assignedTo);
+
+            modalContent.innerHTML = `
+                <div class="p-5 border-t-4 ${styles.border} rounded-t-lg">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="text-xs font-bold px-2 py-1 rounded-full ${styles.cardBg} ${styles.text}">${wo.type}</span>
+                            <h3 class="text-lg font-bold text-gray-800 mt-2">${wo.task}</h3>
+                            <p class="text-sm text-gray-500">${wo.machineName}</p>
+                        </div>
+                        <button onclick="closeDetailsPopup()" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="h-5 w-5"></i></button>
+                    </div>
+                    <div class="mt-4 border-t pt-4 text-sm">
+                        <p><span class="font-semibold text-gray-600">มอบหมายให้:</span> ${tech ? tech.name : 'ยังไม่มอบหมาย'}</p>
+                        <p><span class="font-semibold text-gray-600">วันที่:</span> ${wo.date ? wo.date.toLocaleDateString('th-TH') : 'ยังไม่กำหนด'}</p>
+                    </div>
+                </div>
+            `;
+            
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeDetailsPopup() {
+            document.getElementById('details-modal').classList.add('hidden');
+        }
+
+        function changeMonth(offset) {
+            currentDate.setMonth(currentDate.getMonth() + offset, 1);
+            renderPlanner();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderPlanner();
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>
