@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Powered Triage Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Sarabun', 'Inter', sans-serif;
+        }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .spinner {
+            border-color: #3b82f6;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .list-item {
+            transition: transform 0.5s ease-in-out, box-shadow 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 md:p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <i data-lucide="filter" class="mx-auto h-12 w-12 text-blue-600"></i>
+            <h1 class="text-3xl font-bold text-gray-800 mt-2">AI-Powered Triage</h1>
+            <p class="text-gray-500 mt-1">สาธิตการจัดลำดับความสำคัญใบงานซ่อมด้วย AI</p>
+        </div>
+
+        <!-- Control Button -->
+        <div class="text-center mb-6">
+            <button id="triage-button" onclick="runAiTriage()" class="bg-blue-600 text-white font-semibold px-8 py-3 rounded-lg shadow-md hover:bg-blue-700 transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2 mx-auto">
+                <i data-lucide="brain-circuit" class="h-5 w-5"></i>
+                ให้ AI จัดลำดับความสำคัญ
+            </button>
+            <div id="processing-indicator" class="hidden items-center justify-center text-gray-600">
+                <div class="spinner w-6 h-6 rounded-full border-4 mr-3"></div>
+                <span>AI กำลังวิเคราะห์ข้อมูล...</span>
+            </div>
+        </div>
+
+        <!-- Work Order List -->
+        <div id="work-order-list" class="space-y-4">
+            <!-- Work order items will be injected here -->
+        </div>
+    </div>
+
+    <script>
+        // Mock Data for new Work Orders
+        let workOrders = [
+            { id: 1, machineName: 'Air Compressor #3', description: 'แรงดันตกเล็กน้อย', assetCriticality: 'Medium', downtimeCost: 3000, rul: '> 30 วัน', aiScore: 0, timestamp: '09:30' },
+            { id: 2, machineName: 'Main Coolant Pump', description: 'AI ตรวจพบการสั่นสะเทือนสูง', assetCriticality: 'Critical', downtimeCost: 50000, rul: '~48 ชั่วโมง', aiScore: 0, timestamp: '09:35' },
+            { id: 3, machineName: 'HVAC Unit (Office)', description: 'แอร์ไม่เย็น', assetCriticality: 'Low', downtimeCost: 500, rul: '> 30 วัน', aiScore: 0, timestamp: '09:20' },
+            { id: 4, machineName: 'CNC Machine #5', description: 'แกน X เคลื่อนที่ติดขัด', assetCriticality: 'High', downtimeCost: 25000, rul: 'N/A', aiScore: 0, timestamp: '09:25' },
+            { id: 5, machineName: 'Conveyor Belt #2', description: 'สายพานเสียงดัง', assetCriticality: 'High', downtimeCost: 15000, rul: '~10 วัน', aiScore: 0, timestamp: '09:15' },
+        ];
+
+        const triageButton = document.getElementById('triage-button');
+        const processingIndicator = document.getElementById('processing-indicator');
+        const workOrderList = document.getElementById('work-order-list');
+
+        function getCriticalityStyles(criticality) {
+            switch (criticality) {
+                case 'Critical': return 'bg-red-100 text-red-800';
+                case 'High': return 'bg-yellow-100 text-yellow-800';
+                case 'Medium': return 'bg-blue-100 text-blue-800';
+                default: return 'bg-gray-100 text-gray-800';
+            }
+        }
+
+        function renderWorkOrders() {
+            workOrderList.innerHTML = '';
+            workOrders.forEach((wo, index) => {
+                const criticalityStyles = getCriticalityStyles(wo.assetCriticality);
+                const item = document.createElement('div');
+                item.id = `wo-${wo.id}`;
+                item.className = 'list-item bg-white rounded-lg shadow p-4 border-l-4 border-gray-300';
+                item.innerHTML = `
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <p class="font-bold text-gray-800">${wo.machineName}</p>
+                            <p class="text-sm text-gray-600">${wo.description}</p>
+                        </div>
+                        <div class="flex items-center mt-3 md:mt-0">
+                            <div id="ai-score-${wo.id}" class="text-right mr-4 ${wo.aiScore > 0 ? 'fade-in' : 'opacity-0'}">
+                                <p class="font-bold text-lg text-blue-600">${wo.aiScore.toFixed(0)}</p>
+                                <p class="text-xs text-gray-500">AI Priority Score</p>
+                            </div>
+                            <div class="text-2xl font-bold text-gray-300">#${index + 1}</div>
+                        </div>
+                    </div>
+                    <div class="mt-3 pt-3 border-t border-gray-200 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                        <div><span class="font-semibold">ความสำคัญ:</span> <span class="px-2 py-1 rounded-full ${criticalityStyles}">${wo.assetCriticality}</span></div>
+                        <div><span class="font-semibold">ค่าเสียโอกาส:</span> ฿${wo.downtimeCost.toLocaleString()}/ชม.</div>
+                        <div><span class="font-semibold">RUL (PdM):</span> ${wo.rul}</div>
+                        <div><span class="font-semibold">เวลาที่แจ้ง:</span> ${wo.timestamp}</div>
+                    </div>
+                `;
+                workOrderList.appendChild(item);
+            });
+        }
+
+        function calculateAiScore(wo) {
+            let score = 0;
+            // Asset Criticality Score
+            const criticalityMap = { 'Critical': 100, 'High': 70, 'Medium': 30, 'Low': 10 };
+            score += criticalityMap[wo.assetCriticality] || 0;
+
+            // Downtime Cost Score
+            score += wo.downtimeCost / 500;
+
+            // RUL Score
+            if (wo.rul.includes('ชั่วโมง')) {
+                const hours = parseInt(wo.rul.replace(/[^0-9]/g, ''));
+                score += (100 - hours); // Higher score for fewer hours left
+            } else if (wo.rul.includes('วัน')) {
+                const days = parseInt(wo.rul.replace(/[^0-9]/g, ''));
+                score += (50 - days * 2);
+            }
+            
+            return score;
+        }
+
+        function runAiTriage() {
+            triageButton.classList.add('hidden');
+            processingIndicator.classList.add('flex');
+            processingIndicator.classList.remove('hidden');
+
+            setTimeout(() => {
+                // Calculate AI scores
+                workOrders.forEach(wo => {
+                    wo.aiScore = calculateAiScore(wo);
+                });
+
+                // Sort by AI score descending
+                workOrders.sort((a, b) => b.aiScore - a.aiScore);
+                
+                // Animate reordering
+                reorderDOM();
+
+                processingIndicator.classList.remove('flex');
+                processingIndicator.classList.add('hidden');
+                triageButton.innerHTML = '<i data-lucide="refresh-cw" class="h-5 w-5"></i> จัดลำดับใหม่';
+                triageButton.classList.remove('hidden');
+                lucide.createIcons();
+            }, 2500);
+        }
+
+        function reorderDOM() {
+            const container = workOrderList;
+            const itemRects = {};
+            
+            // 1. Get initial positions
+            Array.from(container.children).forEach(child => {
+                itemRects[child.id] = child.getBoundingClientRect();
+            });
+
+            // 2. Re-render in the new order (virtually)
+            renderWorkOrders();
+
+            // 3. Animate from old position to new position
+            Array.from(container.children).forEach(child => {
+                const oldRect = itemRects[child.id];
+                const newRect = child.getBoundingClientRect();
+                
+                const deltaX = oldRect.left - newRect.left;
+                const deltaY = oldRect.top - newRect.top;
+
+                child.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+                child.style.transition = 'transform 0s';
+
+                requestAnimationFrame(() => {
+                    child.style.transform = '';
+                    child.style.transition = 'transform 0.5s ease-in-out';
+                });
+            });
+        }
+
+        // Initial render
+        document.addEventListener('DOMContentLoaded', () => {
+            renderWorkOrders();
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>
