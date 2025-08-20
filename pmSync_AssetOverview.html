@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asset Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Sarabun', 'Inter', sans-serif;
+        }
+        .view { display: none; }
+        .view.active { display: block; animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .tab-button.active {
+            border-bottom-color: #4f46e5; /* indigo-600 */
+            color: #4f46e5;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <!-- Asset List View -->
+        <div id="asset-list-view" class="view active">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6">รายการเครื่องจักรทั้งหมด</h1>
+            
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="bg-white p-5 rounded-lg shadow flex items-center justify-between">
+                    <div>
+                        <h2 class="text-gray-500 text-sm font-medium">เครื่องจักรทั้งหมด</h2>
+                        <p id="total-assets" class="text-3xl font-bold text-blue-600"></p>
+                    </div>
+                    <div class="bg-blue-100 p-3 rounded-full"><i data-lucide="server" class="h-6 w-6 text-blue-600"></i></div>
+                </div>
+                <div class="bg-white p-5 rounded-lg shadow flex items-center justify-between">
+                    <div>
+                        <h2 class="text-gray-500 text-sm font-medium">ภาวะปกติ</h2>
+                        <p id="healthy-assets" class="text-3xl font-bold text-green-600"></p>
+                    </div>
+                    <div class="bg-green-100 p-3 rounded-full"><i data-lucide="shield-check" class="h-6 w-6 text-green-600"></i></div>
+                </div>
+                <div class="bg-white p-5 rounded-lg shadow flex items-center justify-between">
+                    <div>
+                        <h2 class="text-gray-500 text-sm font-medium">แจ้งเตือน/วิกฤต</h2>
+                        <p id="alert-assets" class="text-3xl font-bold text-red-600"></p>
+                    </div>
+                    <div class="bg-red-100 p-3 rounded-full"><i data-lucide="shield-alert" class="h-6 w-6 text-red-600"></i></div>
+                </div>
+            </div>
+
+            <!-- Controls Bar -->
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-6 bg-white p-4 rounded-lg shadow-sm">
+                <input id="search-input" type="text" placeholder="ค้นหาเครื่องจักร..." class="w-full md:w-auto px-4 py-2 border border-gray-300 rounded-lg">
+                <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm font-medium text-gray-600">แสดง:</span>
+                        <button id="filter-all-btn" onclick="filterBy('All')" class="px-3 py-1 rounded-md text-sm font-semibold transition-colors">ทั้งหมด</button>
+                        <button id="filter-healthy-btn" onclick="filterBy('Healthy')" class="px-3 py-1 rounded-md text-sm font-semibold transition-colors">ภาวะปกติ</button>
+                        <button id="filter-alerts-btn" onclick="filterBy('Alerts')" class="px-3 py-1 rounded-md text-sm font-semibold transition-colors">แจ้งเตือน/วิกฤต</button>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm font-medium text-gray-600">จัดเรียง:</span>
+                        <button id="sort-status-btn" onclick="sortBy('status')" class="px-3 py-1 rounded-md text-sm font-semibold transition-colors">สถานะ</button>
+                        <button id="sort-name-btn" onclick="sortBy('name')" class="px-3 py-1 rounded-md text-sm font-semibold transition-colors">ชื่อ</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="asset-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <!-- Asset cards injected by JS -->
+            </div>
+        </div>
+
+        <!-- Asset Detail View -->
+        <div id="asset-detail-view" class="view">
+            <!-- Asset detail content injected by JS -->
+        </div>
+    </div>
+
+    <script>
+        // Mock Data
+        let assets = [
+            { id: 'PUMP-001', name: 'Main Coolant Pump', location: 'Production Line 1', status: 'Critical', photo: 'https://placehold.co/600x400/ef4444/ffffff?text=PUMP-001', kpis: { mtbf: '1,200 ชม.', mttr: '4.5 ชม.', downtime: '28 ชม./ปี', cost: 150000 } },
+            { id: 'CONV-003', name: 'Conveyor Belt Motor', location: 'Packaging Area', status: 'Warning', photo: 'https://placehold.co/600x400/f59e0b/ffffff?text=CONV-003', kpis: { mtbf: '3,500 ชม.', mttr: '2.1 ชม.', downtime: '12 ชม./ปี', cost: 85000 } },
+            { id: 'HVAC-002', name: 'HVAC Unit 2', location: 'Office Building', status: 'Healthy', photo: 'https://placehold.co/600x400/22c55e/ffffff?text=HVAC-002', kpis: { mtbf: '8,500 ชม.', mttr: '1.5 ชม.', downtime: '5 ชม./ปี', cost: 45000 } },
+            ...Array.from({ length: 97 }, (_, i) => {
+                const machineTypes = ['Pump', 'Motor', 'Fan', 'Compressor', 'Press', 'Robot Arm', 'HVAC Unit', 'Conveyor'];
+                const locations = ['Production Line 1', 'Production Line 2', 'Packaging Area', 'Warehouse', 'Utility Room'];
+                const type = machineTypes[Math.floor(Math.random() * machineTypes.length)];
+                const num = String(101 + i).padStart(3, '0');
+                const statusChance = Math.random();
+                let status, color;
+                if (statusChance < 0.8) { status = 'Healthy'; color = '22c55e'; } else if (statusChance < 0.95) { status = 'Warning'; color = 'f59e0b'; } else { status = 'Critical'; color = 'ef4444'; }
+                const id = `${type.slice(0, 4).toUpperCase()}-${num}`;
+                return {
+                    id: id, name: `${type} #${num}`, location: locations[Math.floor(Math.random() * locations.length)], status: status, photo: `https://placehold.co/600x400/${color}/ffffff?text=${id}`,
+                    kpis: { mtbf: `${(Math.floor(Math.random() * 80) + 10) * 100} ชม.`, mttr: `${(Math.random() * 5 + 1).toFixed(1)} ชม.`, downtime: `${Math.floor(Math.random() * 30) + 5} ชม./ปี`, cost: (Math.floor(Math.random() * 150) + 20) * 1000 }
+                };
+            })
+        ];
+        
+        let workHistory = { 'PUMP-001': [{ id: 'WO-1024', task: 'เปลี่ยนตลับลูกปืน', date: '2025-07-15', status: 'Completed' }, { id: 'WO-1001', task: 'ซ่อมซีลรั่ว', date: '2025-05-02', status: 'Completed' }] };
+        
+        // Generate sample work history for all assets
+        assets.forEach(asset => {
+            if (!workHistory[asset.id]) {
+                workHistory[asset.id] = [];
+                const historyCount = Math.floor(Math.random() * 4); // 0 to 3 history items
+                for (let i = 0; i < historyCount; i++) {
+                    const randomDate = new Date(2025, Math.floor(Math.random() * 8), Math.floor(Math.random() * 28) + 1);
+                    workHistory[asset.id].push({
+                        id: `WO-${Math.floor(Math.random() * 900) + 1000}`,
+                        task: `ซ่อมบำรุงตามรอบ ${i+1}`,
+                        date: randomDate.toISOString().split('T')[0].replace(/-/g, '-'),
+                        status: 'Completed'
+                    });
+                }
+            }
+        });
+
+        let pmPlan = { 'PUMP-001': [{ task: 'ตรวจสอบการรั่วซึม', frequency: 'ทุกวัน', partsRequired: [] }, { task: 'อัดจาระบี', frequency: 'ทุกเดือน', partsRequired: ['SP-003'] }, { task: 'Overhaul', frequency: 'ทุก 2 ปี', partsRequired: ['SP-001', 'SP-005'] }] };
+        let spareParts = { 'PUMP-001': [{ id: 'SP-001', name: 'Bearing #6204', onHand: 5 }, { id: 'SP-005', name: 'Hydraulic Seal Kit', onHand: 15 }, { id: 'SP-003', name: 'Lubricant G-5', onHand: 2 }] };
+        let documents = { 'PUMP-001': [{ name: 'คู่มือการใช้งาน.pdf', type: 'Manual' }, { name: 'แบบไฟฟ้า.dwg', type: 'Schematic' }] };
+
+        const assetListView = document.getElementById('asset-list-view');
+        const assetDetailView = document.getElementById('asset-detail-view');
+        let chartInstance = null;
+        let currentSort = 'status';
+        let currentFilter = 'All';
+        let tempSelectedParts = [];
+
+        function switchView(viewName, assetId = null) {
+            assetListView.classList.remove('active');
+            assetDetailView.classList.remove('active');
+            if (viewName === 'list') {
+                assetListView.classList.add('active');
+            } else if (viewName === 'detail' && assetId) {
+                renderAssetDetail(assetId);
+                assetDetailView.classList.add('active');
+            }
+        }
+
+        function getStatusStyles(status) {
+            switch (status) {
+                case 'Critical': return { text: 'text-red-600', bg: 'bg-red-100', border: 'border-red-600' };
+                case 'Warning': return { text: 'text-yellow-600', bg: 'bg-yellow-100', border: 'border-yellow-600' };
+                default: return { text: 'text-green-600', bg: 'bg-green-100', border: 'border-green-600' };
+            }
+        }
+
+        function renderSummary() {
+            document.getElementById('total-assets').textContent = assets.length;
+            document.getElementById('healthy-assets').textContent = assets.filter(a => a.status === 'Healthy').length;
+            document.getElementById('alert-assets').textContent = assets.filter(a => a.status !== 'Healthy').length;
+        }
+
+        function renderAssetList() {
+            const container = document.getElementById('asset-list-container');
+            const searchText = document.getElementById('search-input').value.toLowerCase();
+
+            let processedAssets = assets.filter(asset => {
+                const matchesSearch = asset.name.toLowerCase().includes(searchText) || asset.id.toLowerCase().includes(searchText);
+                if (!matchesSearch) return false;
+                if (currentFilter === 'All') return true;
+                if (currentFilter === 'Healthy' && asset.status === 'Healthy') return true;
+                if (currentFilter === 'Alerts' && (asset.status === 'Warning' || asset.status === 'Critical')) return true;
+                return false;
+            });
+
+            const statusPriority = { 'Critical': 0, 'Warning': 1, 'Healthy': 2 };
+            if (currentSort === 'status') {
+                processedAssets.sort((a, b) => statusPriority[a.status] - statusPriority[b.status] || a.name.localeCompare(b.name));
+            } else {
+                processedAssets.sort((a, b) => a.name.localeCompare(b.name));
+            }
+
+            container.innerHTML = processedAssets.map(asset => {
+                const styles = getStatusStyles(asset.status);
+                return `<div class="bg-white rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-xl transition-shadow" onclick="switchView('detail', '${asset.id}')">
+                        <img src="${asset.photo}" alt="${asset.name}" class="w-full h-48 object-cover">
+                        <div class="p-4">
+                            <div class="flex justify-between items-start">
+                                <div><h2 class="text-xl font-bold text-gray-800">${asset.name}</h2><p class="text-sm text-gray-500">${asset.id}</p></div>
+                                <span class="text-xs font-semibold px-2 py-1 rounded-full ${styles.bg} ${styles.text}">${asset.status}</span>
+                            </div>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        function renderAssetDetail(assetId) {
+            const asset = assets.find(a => a.id === assetId);
+            if (!asset) return;
+            const styles = getStatusStyles(asset.status);
+
+            assetDetailView.innerHTML = `
+                <button onclick="switchView('list')" class="flex items-center text-blue-600 mb-4 font-semibold"><i data-lucide="chevron-left" class="h-5 w-5"></i> กลับไปรายการเครื่องจักร</button>
+                <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                    <div class="md:flex">
+                        <img src="${asset.photo}" alt="${asset.name}" class="md:w-1/3 h-64 md:h-auto object-cover">
+                        <div class="p-6 flex flex-col justify-between">
+                            <div>
+                                <p class="text-sm text-gray-500">${asset.location}</p>
+                                <h1 class="text-3xl font-bold text-gray-800">${asset.name}</h1>
+                                <p class="text-lg text-gray-500">${asset.id}</p>
+                                <div class="mt-4 text-lg font-bold flex items-center ${styles.text}"><span class="h-3 w-3 rounded-full ${styles.bg.replace('100', '500')} mr-2"></span>สถานะ: ${asset.status}</div>
+                            </div>
+                            <div class="mt-4 flex space-x-2">
+                                <button class="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg flex items-center gap-2"><i data-lucide="plus-circle" class="h-4 w-4"></i>สร้างใบงาน</button>
+                                <button class="bg-gray-200 text-gray-700 font-semibold px-4 py-2 rounded-lg flex items-center gap-2"><i data-lucide="box-select" class="h-4 w-4"></i>Digital Twin</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-px bg-gray-200">
+                        <div class="bg-white p-4 text-center"><p class="text-sm text-gray-500">MTBF</p><p class="text-xl font-bold">${asset.kpis.mtbf}</p></div>
+                        <div class="bg-white p-4 text-center"><p class="text-sm text-gray-500">MTTR</p><p class="text-xl font-bold">${asset.kpis.mttr}</p></div>
+                        <div class="bg-white p-4 text-center"><p class="text-sm text-gray-500">Downtime</p><p class="text-xl font-bold">${asset.kpis.downtime}</p></div>
+                        <div class="bg-white p-4 text-center"><p class="text-sm text-gray-500">Maintenance Cost</p><p class="text-xl font-bold">${asset.kpis.cost.toLocaleString('th-TH')} ฿/ปี</p></div>
+                    </div>
+                    <div class="p-6">
+                        <div class="border-b border-gray-200"><nav id="detail-tabs" class="-mb-px flex space-x-6 overflow-x-auto"></nav></div>
+                        <div id="tab-content" class="mt-6"></div>
+                    </div>
+                </div>
+            `;
+            renderTabs(assetId);
+            lucide.createIcons();
+        }
+
+        function renderTabs(assetId) {
+            const tabs = [
+                { id: 'history', name: 'ประวัติการซ่อม' }, { id: 'pm_plan', name: 'แผนซ่อมบำรุง' }, { id: 'parts', name: 'อะไหล่' },
+                { id: 'docs', name: 'เอกสาร' }, { id: 'iot', name: 'ข้อมูลเซ็นเซอร์' },
+            ];
+            const tabContainer = document.getElementById('detail-tabs');
+            tabContainer.innerHTML = tabs.map(tab => `<button class="tab-button py-3 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" onclick="switchTab('${tab.id}', '${assetId}', this)">${tab.name}</button>`).join('');
+            switchTab('history', assetId, tabContainer.children[0]);
+        }
+
+        window.switchTab = (tabId, assetId, element) => {
+            document.querySelectorAll('#detail-tabs .tab-button').forEach(btn => btn.classList.remove('active'));
+            element.classList.add('active');
+            const contentContainer = document.getElementById('tab-content');
+            
+            if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+
+            if (tabId === 'history') {
+                const history = workHistory[assetId] || [];
+                contentContainer.innerHTML = `<div class="space-y-3">${history.map(h => `<div class="p-3 bg-gray-50 rounded-md flex justify-between"><div><p class="font-semibold">${h.task}</p><p class="text-sm text-gray-500">ID: ${h.id}</p></div><p class="text-sm text-gray-500">${new Date(h.date).toLocaleDateString('th-TH')}</p></div>`).join('') || '<p class="text-gray-500">ไม่มีประวัติการซ่อม</p>'}</div>`;
+            } else if (tabId === 'pm_plan') {
+                renderPmPlanTab(assetId);
+            } else if (tabId === 'parts') {
+                renderPartsTab(assetId);
+            } else if (tabId === 'docs') {
+                renderDocsTab(assetId);
+            } else if (tabId === 'iot') {
+                contentContainer.innerHTML = `<canvas id="iot-chart"></canvas>`;
+                const ctx = document.getElementById('iot-chart').getContext('2d');
+                chartInstance = new Chart(ctx, { type: 'line', data: { labels: ['-6h', '-5h', '-4h', '-3h', '-2h', '-1h', 'Now'], datasets: [{ label: 'Vibration (g)', data: [0.12, 0.13, 0.12, 0.15, 0.14, 0.18, 0.25], borderColor: 'rgb(75, 192, 192)', tension: 0.1 }] }, options: { responsive: true } });
+            }
+            lucide.createIcons();
+        }
+        
+        function renderPmPlanTab(assetId) {
+            tempSelectedParts = [];
+            const contentContainer = document.getElementById('tab-content');
+            const plan = pmPlan[assetId] || [];
+            if (!spareParts[assetId]) spareParts[assetId] = [];
+
+            let planHtml = `<div id="pm-plan-list" class="space-y-3">${plan.map((p, index) => {
+                const requiredParts = (p.partsRequired || []).map(partId => {
+                    const part = spareParts[assetId].find(sp => sp.id === partId);
+                    return part ? `<span class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded-full">${part.name}</span>` : '';
+                }).join(' ');
+                return `<div class="p-3 bg-gray-50 rounded-md">
+                    <div class="flex justify-between items-center">
+                        <div><p class="font-semibold">${p.task}</p></div>
+                        <div class="flex items-center gap-4">
+                            <p class="text-sm font-semibold text-blue-600">${p.frequency}</p>
+                            <button onclick="deletePmTask('${assetId}', ${index})" class="text-gray-400 hover:text-red-500"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
+                        </div>
+                    </div>
+                    ${p.partsRequired && p.partsRequired.length > 0 ? `<div class="mt-2 pt-2 border-t text-xs text-gray-500"><b>อะไหล่ที่ใช้:</b> <span class="flex flex-wrap gap-1 mt-1">${requiredParts}</span></div>` : ''}
+                </div>`;
+            }).join('') || '<p class="text-gray-500">ไม่มีแผนซ่อมบำรุง</p>'}</div>`;
+            
+            planHtml += `
+                <div class="mt-6 border-t pt-4">
+                    <h4 class="font-semibold text-gray-700 mb-2">เพิ่มรายการ PM ใหม่</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <input id="new-pm-task" type="text" placeholder="ชื่องาน" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        <input id="new-pm-frequency" type="text" placeholder="ความถี่" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div class="mt-2">
+                        <label class="text-sm font-medium text-gray-700">อะไหล่ที่ใช้:</label>
+                        <div id="selected-parts-container" class="flex flex-wrap gap-2 my-2"></div>
+                        <div class="flex items-center gap-2">
+                            <select id="part-selector" class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white"></select>
+                            <button onclick="addSelectedPart('${assetId}')" class="bg-gray-200 text-gray-700 font-semibold px-4 py-2 rounded-lg">เพิ่ม</button>
+                        </div>
+                        <div class="flex items-center gap-2 mt-2">
+                            <input id="new-part-name" type="text" placeholder="หรือพิมพ์ชื่ออะไหล่ใหม่..." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                             <button onclick="addNewPartAndSelect('${assetId}')" class="bg-green-500 text-white font-semibold px-4 py-2 rounded-lg">เพิ่มใหม่</button>
+                        </div>
+                    </div>
+                    <button onclick="addPmTask('${assetId}')" class="mt-4 bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700">บันทึกแผน PM</button>
+                </div>`;
+            contentContainer.innerHTML = planHtml;
+            updatePartSelector(assetId);
+            lucide.createIcons();
+        }
+
+        function renderDocsTab(assetId) {
+            const contentContainer = document.getElementById('tab-content');
+            const docs = documents[assetId] || [];
+            let docsHtml = `<div class="space-y-3">${docs.map(d => `
+                <div class="p-3 bg-gray-50 rounded-md flex items-center gap-3">
+                    <i data-lucide="file-text" class="h-5 w-5 text-gray-500"></i>
+                    <p class="font-semibold text-blue-600 cursor-pointer hover:underline">${d.name}</p>
+                </div>`).join('') || '<p class="text-gray-500">ไม่มีเอกสาร</p>'}
+            </div>`;
+
+            docsHtml += `
+                <div class="mt-6 border-t pt-4">
+                    <h4 class="font-semibold text-gray-700 mb-2">อัปโหลดเอกสารใหม่</h4>
+                    <input type="file" id="file-upload-${assetId}" class="hidden" onchange="handleFileUpload('${assetId}', this)">
+                    <button onclick="document.getElementById('file-upload-${assetId}').click()" class="w-full bg-gray-200 text-gray-700 font-semibold px-4 py-2 rounded-lg hover:bg-gray-300 flex items-center justify-center gap-2">
+                        <i data-lucide="upload-cloud" class="h-4 w-4"></i>
+                        เลือกไฟล์
+                    </button>
+                </div>
+            `;
+            contentContainer.innerHTML = docsHtml;
+            lucide.createIcons();
+        }
+
+        window.handleFileUpload = (assetId, input) => {
+            if (input.files.length > 0) {
+                const file = input.files[0];
+                if (!documents[assetId]) {
+                    documents[assetId] = [];
+                }
+                documents[assetId].push({ name: file.name, type: 'Manual' }); // Assume it's a manual for simplicity
+                renderDocsTab(assetId);
+            }
+        }
+
+        function updatePartSelector(assetId) {
+            const selector = document.getElementById('part-selector');
+            const existingParts = spareParts[assetId] || [];
+            selector.innerHTML = existingParts.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+        }
+
+        function renderSelectedParts(assetId) {
+            const container = document.getElementById('selected-parts-container');
+            container.innerHTML = tempSelectedParts.map((partId, index) => {
+                const part = spareParts[assetId].find(p => p.id === partId);
+                return `<span class="flex items-center gap-1 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                    ${part.name}
+                    <button onclick="removeSelectedPart('${assetId}', ${index})" class="text-blue-500 hover:text-blue-700"><i data-lucide="x" class="h-3 w-3"></i></button>
+                </span>`;
+            }).join('');
+            lucide.createIcons();
+        }
+        
+        window.addSelectedPart = (assetId) => {
+            const selector = document.getElementById('part-selector');
+            if (selector.value && !tempSelectedParts.includes(selector.value)) {
+                tempSelectedParts.push(selector.value);
+                renderSelectedParts(assetId);
+            }
+        }
+
+        window.addNewPartAndSelect = (assetId) => {
+            const input = document.getElementById('new-part-name');
+            if (input.value.trim() === '') return;
+            if (!spareParts[assetId]) spareParts[assetId] = [];
+            
+            const newPartId = `SP-${Math.floor(Math.random() * 900) + 100}`;
+            const newPart = { id: newPartId, name: input.value.trim(), onHand: 0 };
+            spareParts[assetId].push(newPart);
+            
+            tempSelectedParts.push(newPartId);
+            input.value = '';
+            updatePartSelector(assetId);
+            renderSelectedParts(assetId);
+        }
+
+        window.removeSelectedPart = (assetId, index) => {
+            tempSelectedParts.splice(index, 1);
+            renderSelectedParts(assetId);
+        }
+
+        function renderPartsTab(assetId) {
+            const contentContainer = document.getElementById('tab-content');
+            const parts = spareParts[assetId] || [];
+            const plan = pmPlan[assetId] || [];
+
+            contentContainer.innerHTML = `<div class="space-y-3">${parts.map(p => {
+                const requiredForTasks = plan.filter(task => (task.partsRequired || []).includes(p.id)).map(task => task.task);
+                return `<div class="p-3 bg-gray-50 rounded-md flex justify-between">
+                    <div>
+                        <p class="font-semibold">${p.name}</p>
+                        <p class="text-sm text-gray-500">ID: ${p.id}</p>
+                        ${requiredForTasks.length > 0 ? `<p class="text-xs text-blue-600 mt-1"><b>จำเป็นสำหรับ:</b> ${requiredForTasks.join(', ')}</p>` : ''}
+                    </div>
+                    <p class="text-sm text-gray-500">คงเหลือ: ${p.onHand}</p>
+                </div>`;
+            }).join('') || '<p class="text-gray-500">ไม่มีข้อมูลอะไหล่</p>'}</div>`;
+        }
+
+        window.addPmTask = (assetId) => {
+            const taskInput = document.getElementById('new-pm-task');
+            const freqInput = document.getElementById('new-pm-frequency');
+            if (taskInput.value && freqInput.value) {
+                if (!pmPlan[assetId]) pmPlan[assetId] = [];
+                pmPlan[assetId].push({ task: taskInput.value, frequency: freqInput.value, partsRequired: [...tempSelectedParts] });
+                renderPmPlanTab(assetId);
+            }
+        }
+
+        window.deletePmTask = (assetId, index) => {
+            if (pmPlan[assetId]) {
+                pmPlan[assetId].splice(index, 1);
+                renderPmPlanTab(assetId);
+            }
+        }
+
+        function updateControlButtons() {
+            const filterButtons = { 'All': document.getElementById('filter-all-btn'), 'Healthy': document.getElementById('filter-healthy-btn'), 'Alerts': document.getElementById('filter-alerts-btn') };
+            Object.values(filterButtons).forEach(btn => { btn.classList.add('bg-gray-200', 'text-gray-700'); btn.classList.remove('bg-blue-600', 'text-white'); });
+            filterButtons[currentFilter].classList.add('bg-blue-600', 'text-white');
+            filterButtons[currentFilter].classList.remove('bg-gray-200', 'text-gray-700');
+
+            const sortButtons = { 'status': document.getElementById('sort-status-btn'), 'name': document.getElementById('sort-name-btn') };
+            Object.values(sortButtons).forEach(btn => { btn.classList.add('bg-gray-200', 'text-gray-700'); btn.classList.remove('bg-blue-600', 'text-white'); });
+            sortButtons[currentSort].classList.add('bg-blue-600', 'text-white');
+            sortButtons[currentSort].classList.remove('bg-gray-200', 'text-gray-700');
+        }
+
+        window.filterBy = (status) => { currentFilter = status; renderAssetList(); updateControlButtons(); }
+        window.sortBy = (method) => { currentSort = method; renderAssetList(); updateControlButtons(); }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderSummary();
+            renderAssetList();
+            updateControlButtons();
+            lucide.createIcons();
+            document.getElementById('search-input').addEventListener('keyup', renderAssetList);
+        });
+    </script>
+</body>
+</html>
