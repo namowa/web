@@ -11,32 +11,18 @@
         body {
             font-family: 'Sarabun', 'Inter', sans-serif;
         }
-        .work-order-card {
-            cursor: grab;
-        }
-        .work-order-card:active {
-            cursor: grabbing;
-        }
-        .dragging {
-            opacity: 0.5;
-            transform: scale(1.05);
-        }
-        .drop-target.drag-over {
-            background-color: #eef2ff; /* bg-indigo-100 */
-            outline: 2px dashed #6366f1; /* outline-indigo-500 */
-        }
-        .task-dot {
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        .task-dot:hover {
-            transform: scale(1.2);
-        }
+        .work-order-card { cursor: grab; }
+        .work-order-card:active { cursor: grabbing; }
+        .dragging { opacity: 0.5; transform: scale(1.05); }
+        .drop-target.drag-over { background-color: #eef2ff; outline: 2px dashed #6366f1; }
+        .task-dot { cursor: pointer; transition: transform 0.2s; }
+        .task-dot:hover { transform: scale(1.2); }
         .popup-enter { animation: popupEnter 0.3s ease-out; }
         @keyframes popupEnter {
             from { opacity: 0; transform: scale(0.95); }
             to { opacity: 1; transform: scale(1); }
         }
+        .view-btn.active { background-color: #4f46e5; color: white; }
     </style>
 </head>
 <body class="bg-gray-100 p-4 md:p-6 h-screen flex flex-col">
@@ -47,28 +33,33 @@
             <i data-lucide="calendar-check" class="h-8 w-8 text-blue-600"></i>
             <h1 class="text-3xl font-bold text-gray-800">Master Planner</h1>
         </div>
-        <div class="flex items-center space-x-4 mt-4 md:mt-0">
-            <button onclick="changeMonth(-1)" class="p-2 rounded-md hover:bg-gray-200"><i data-lucide="chevron-left" class="h-5 w-5"></i></button>
-            <h2 id="current-month-year" class="text-xl font-semibold text-gray-700 w-48 text-center"></h2>
-            <button onclick="changeMonth(1)" class="p-2 rounded-md hover:bg-gray-200"><i data-lucide="chevron-right" class="h-5 w-5"></i></button>
+        <div class="flex items-center space-x-6 mt-4 md:mt-0">
+             <div class="flex items-center space-x-1 bg-gray-200 p-1 rounded-lg">
+                <button id="view-week-btn" onclick="changeView('week')" class="view-btn px-3 py-1 rounded-md text-sm font-semibold">สัปดาห์</button>
+                <button id="view-month-btn" onclick="changeView('month')" class="view-btn px-3 py-1 rounded-md text-sm font-semibold">เดือน</button>
+                <button id="view-year-btn" onclick="changeView('year')" class="view-btn px-3 py-1 rounded-md text-sm font-semibold">ปี</button>
+            </div>
+            <div id="nav-controls" class="flex items-center space-x-4">
+                <button onclick="navigate(-1)" class="p-2 rounded-md hover:bg-gray-200"><i data-lucide="chevron-left" class="h-5 w-5"></i></button>
+                <h2 id="current-period" class="text-xl font-semibold text-gray-700 w-48 text-center"></h2>
+                <button onclick="navigate(1)" class="p-2 rounded-md hover:bg-gray-200"><i data-lucide="chevron-right" class="h-5 w-5"></i></button>
+            </div>
         </div>
     </div>
 
     <!-- Main Planner Layout -->
     <div class="flex-grow flex flex-col lg:flex-row gap-6 overflow-hidden">
         <!-- Unassigned Work Orders -->
-        <div class="lg:w-1/4 flex-shrink-0 flex flex-col bg-white rounded-lg shadow-lg">
+        <div id="unassigned-panel" class="lg:w-1/5 flex-shrink-0 flex flex-col bg-white rounded-lg shadow-lg">
             <h2 class="text-lg font-bold text-gray-800 p-4 border-b">คลังใบงาน</h2>
             <div id="unassigned-list" class="p-4 space-y-3 overflow-y-auto">
                 <!-- Unassigned work orders injected here -->
             </div>
         </div>
 
-        <!-- Monthly Timeline -->
-        <div class="flex-grow bg-white rounded-lg shadow-lg overflow-auto">
-            <div id="timeline-view" class="relative">
-                 <!-- Timeline content injected here -->
-            </div>
+        <!-- Main View Area -->
+        <div id="main-view" class="flex-grow bg-white rounded-lg shadow-lg overflow-auto">
+            <!-- Planner content injected here -->
         </div>
     </div>
     
@@ -81,8 +72,18 @@
 
     <script>
         // Mock Data
-        const technicians = Array.from({ length: 10 }, (_, i) => ({ id: `tech-${i + 1}`, name: `ช่างคนที่ ${i + 1}` }));
-        
+        const technicians = [
+            { id: 'tech-1', name: 'สมชาย เก่งมาก' },
+            { id: 'tech-2', name: 'วีระ ใจดี' },
+            { id: 'tech-3', name: 'มานะ อดทน' },
+            { id: 'tech-4', name: 'สมศักดิ์ ชำนาญ' },
+            { id: 'tech-5', name: 'ประเสริฐ มีชัย' },
+            { id: 'tech-6', name: 'อำนาจ แข็งขัน' },
+            { id: 'tech-7', name: 'สุชาติ รักงาน' },
+            { id: 'tech-8', name: 'บัญชา การดี' },
+            { id: 'tech-9', name: 'เกรียงไกร สามารถ' },
+            { id: 'tech-10', name: 'อดิศักดิ์ พัฒนา' }
+        ];
         let workOrders = [
             { id: 'wo-1', machineName: 'Main Coolant Pump', task: 'PdM: ตรวจสอบ Bearing', type: 'PdM', assignedTo: 'tech-1', date: new Date('2025-08-20') },
             { id: 'wo-2', machineName: 'CNC Machine #5', task: 'PM: ตรวจสอบระบบหล่อลื่น', type: 'PM', assignedTo: 'tech-2', date: new Date('2025-08-20') },
@@ -91,22 +92,13 @@
             { id: 'wo-5', machineName: 'Conveyor Belt #2', task: 'ซ่อมสายพานเสียงดัง', type: 'Corrective', assignedTo: null, date: null },
             { id: 'wo-6', machineName: 'HVAC Unit 2', task: 'Overhaul ประจำปี', type: 'PM', assignedTo: 'tech-1', date: new Date('2025-08-25') },
             ...Array.from({ length: 14 }, (_, i) => {
-                const types = ['PM', 'PdM', 'Corrective'];
-                const tasks = ['ตรวจสอบ', 'ซ่อมบำรุง', 'เปลี่ยนอะไหล่', 'ทำความสะอาด'];
-                const machines = ['Pump', 'Motor', 'Fan', 'Compressor'];
-                const type = types[i % 3];
-                return {
-                    id: `wo-${i + 7}`,
-                    machineName: `${machines[i % 4]} #${i+1}`,
-                    task: `${type}: ${tasks[i % 4]}`,
-                    type: type,
-                    assignedTo: null,
-                    date: null
-                }
+                const types = ['PM', 'PdM', 'Corrective']; const tasks = ['ตรวจสอบ', 'ซ่อมบำรุง', 'เปลี่ยนอะไหล่', 'ทำความสะอาด']; const machines = ['Pump', 'Motor', 'Fan', 'Compressor']; const type = types[i % 3];
+                return { id: `wo-${i + 7}`, machineName: `${machines[i % 4]} #${i+1}`, task: `${type}: ${tasks[i % 4]}`, type: type, assignedTo: null, date: null }
             })
         ];
         
         let currentDate = new Date('2025-08-20');
+        let currentView = 'month'; // 'week', 'month', 'year'
 
         function getTypeStyles(type) {
             switch (type) {
@@ -117,10 +109,13 @@
         }
 
         function renderPlanner() {
-            document.getElementById('current-month-year').textContent = currentDate.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+            updateViewButtons();
             renderUnassignedList();
-            renderTimeline();
+            if (currentView === 'month') renderMonthlyTimeline();
+            else if (currentView === 'week') renderWeeklyTimeline();
+            else renderYearlyView();
             addDragAndDropListeners();
+            lucide.createIcons();
         }
 
         function renderUnassignedList() {
@@ -132,68 +127,134 @@
                 card.id = wo.id;
                 card.className = `work-order-card p-3 rounded-md shadow-sm border-l-4 ${styles.border} ${styles.cardBg}`;
                 card.draggable = true;
-                card.innerHTML = `
-                    <span class="text-xs font-bold ${styles.text}">${wo.type}</span>
-                    <p class="font-semibold text-sm text-gray-800">${wo.task}</p>
-                    <p class="text-xs text-gray-600">${wo.machineName}</p>
-                `;
+                card.innerHTML = `<span class="text-xs font-bold ${styles.text}">${wo.type}</span><p class="font-semibold text-sm text-gray-800">${wo.task}</p><p class="text-xs text-gray-600">${wo.machineName}</p>`;
                 unassignedListEl.appendChild(card);
             });
         }
 
-        function renderTimeline() {
-            const timelineView = document.getElementById('timeline-view');
+        function renderMonthlyTimeline() {
+            document.getElementById('current-period').textContent = currentDate.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+            const mainView = document.getElementById('main-view');
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-            let headerHtml = '<div class="sticky left-0 bg-white z-20"></div>';
+            let gridHtml = '';
+            gridHtml += `<div class="sticky top-0 left-0 z-30 bg-gray-100 font-semibold text-sm text-gray-600 border-b border-r border-gray-300 flex items-center justify-center">ช่างเทคนิค</div>`;
             for (let day = 1; day <= daysInMonth; day++) {
-                headerHtml += `<div class="text-center py-2 border-r border-l border-gray-200">${day}</div>`;
+                gridHtml += `<div class="sticky top-0 z-20 bg-gray-100 text-center py-2 border-b border-r border-l border-gray-200">${day}</div>`;
             }
-
-            let bodyHtml = '';
             technicians.forEach(tech => {
-                bodyHtml += `<div class="sticky left-0 bg-white z-10 font-semibold text-sm p-2 border-b border-r border-gray-200 h-16 flex items-center">${tech.name}</div>`;
+                gridHtml += `<div class="sticky left-0 bg-white z-10 font-semibold text-sm p-2 border-b border-r border-gray-200 h-16 flex items-center">${tech.name}</div>`;
                 for (let day = 1; day <= daysInMonth; day++) {
-                    bodyHtml += `<div class="drop-target h-16 border-b border-r border-gray-200 p-1 flex items-center flex-wrap gap-1" data-tech-id="${tech.id}" data-day="${day}"></div>`;
+                    gridHtml += `<div class="drop-target h-16 border-b border-r border-gray-200 p-1 flex items-center flex-wrap gap-1" data-tech-id="${tech.id}" data-day="${day}"></div>`;
                 }
             });
-
-            timelineView.innerHTML = `
-                <div class="grid" style="grid-template-columns: 150px repeat(${daysInMonth}, minmax(60px, 1fr));">
-                    <!-- Header -->
-                    <div class="sticky top-0 z-30 bg-gray-100 font-semibold text-sm text-gray-600 border-b border-gray-300 flex items-center justify-center">ช่างเทคนิค</div>
-                    ${headerHtml.substring(headerHtml.indexOf('</div>') + 6)}
-                    
-                    <!-- Body -->
-                    ${bodyHtml}
-                </div>
-            `;
             
-            workOrders.filter(wo => wo.assignedTo && wo.date && wo.date.getMonth() === month).forEach(wo => {
-                const targetCell = document.querySelector(`.drop-target[data-tech-id="${wo.assignedTo}"][data-day="${wo.date.getDate()}"]`);
+            mainView.innerHTML = `<div class="grid" style="grid-template-columns: 150px repeat(${daysInMonth}, minmax(45px, 1fr));">${gridHtml}</div>`;
+            
+            workOrders.filter(wo => wo.assignedTo && wo.date && wo.date.getMonth() === month && wo.date.getFullYear() === year).forEach(wo => {
+                const targetCell = mainView.querySelector(`.drop-target[data-tech-id="${wo.assignedTo}"][data-day="${wo.date.getDate()}"]`);
                 if (targetCell) {
                     const styles = getTypeStyles(wo.type);
                     const taskDot = document.createElement('div');
                     taskDot.id = `dot-${wo.id}`;
                     taskDot.className = `task-dot h-4 w-4 rounded-full ${styles.bg}`;
                     taskDot.title = `${wo.task} (${wo.machineName})`;
-                    taskDot.onclick = () => showDetailsPopup(wo.id);
+                    taskDot.onclick = (e) => { e.stopPropagation(); showDetailsPopup(wo.id); };
                     targetCell.appendChild(taskDot);
                 }
             });
         }
+        
+        function renderWeeklyTimeline() {
+            const startOfWeek = new Date(currentDate);
+            startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay() + (startOfWeek.getDay() === 0 ? -6 : 1));
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(endOfWeek.getDate() + 6);
+
+            document.getElementById('current-period').textContent = `${startOfWeek.toLocaleDateString('th-TH', {day: 'numeric', month: 'short'})} - ${endOfWeek.toLocaleDateString('th-TH', {day: 'numeric', month: 'short', year: 'numeric'})}`;
+            const mainView = document.getElementById('main-view');
+
+            let gridHtml = `<div class="sticky top-0 left-0 z-30 bg-gray-100 font-semibold text-sm text-gray-600 border-b border-r border-gray-300 flex items-center justify-center">ช่างเทคนิค</div>`;
+            for (let i = 0; i < 7; i++) {
+                const day = new Date(startOfWeek);
+                day.setDate(day.getDate() + i);
+                gridHtml += `<div class="sticky top-0 z-20 bg-gray-100 text-center py-2 border-b border-r border-l border-gray-200"><p>${day.toLocaleDateString('th-TH', { weekday: 'short' })}</p><p class="font-bold">${day.getDate()}</p></div>`;
+            }
+            technicians.forEach(tech => {
+                gridHtml += `<div class="sticky left-0 bg-white z-10 font-semibold text-sm p-2 border-b border-r border-gray-200 h-24 flex items-center">${tech.name}</div>`;
+                for (let i = 0; i < 7; i++) {
+                    const day = new Date(startOfWeek);
+                    day.setDate(day.getDate() + i);
+                    gridHtml += `<div class="drop-target h-24 border-b border-r border-gray-200 p-1 flex flex-col gap-1 overflow-y-auto" data-tech-id="${tech.id}" data-date="${day.toISOString().split('T')[0]}"></div>`;
+                }
+            });
+
+            mainView.innerHTML = `<div class="grid" style="grid-template-columns: 150px repeat(7, 1fr);">${gridHtml}</div>`;
+
+            workOrders.forEach(wo => {
+                if (wo.assignedTo && wo.date) {
+                    const woDate = new Date(wo.date);
+                    if (woDate >= startOfWeek && woDate <= endOfWeek) {
+                        const targetCell = mainView.querySelector(`.drop-target[data-tech-id="${wo.assignedTo}"][data-date="${woDate.toISOString().split('T')[0]}"]`);
+                        if (targetCell) {
+                            const styles = getTypeStyles(wo.type);
+                            const taskBar = document.createElement('div');
+                            taskBar.id = wo.id;
+                            taskBar.draggable = true;
+                            taskBar.className = `work-order-card task-bar w-full rounded p-1 text-white ${styles.bg} text-xs`;
+                            taskBar.innerHTML = `<p class="font-semibold truncate">${wo.task}</p>`;
+                            taskBar.onclick = (event) => { event.stopPropagation(); showDetailsPopup(wo.id); };
+                            targetCell.appendChild(taskBar);
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderYearlyView() {
+            document.getElementById('current-period').textContent = currentDate.getFullYear() + 543;
+            const mainView = document.getElementById('main-view');
+            const year = currentDate.getFullYear();
+
+            let yearHtml = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-4">';
+            for (let month = 0; month < 12; month++) {
+                const monthDate = new Date(year, month, 1);
+                const monthName = monthDate.toLocaleDateString('th-TH', { month: 'long' });
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const firstDay = monthDate.getDay();
+
+                let monthGrid = `<div class="bg-white p-3 rounded-lg shadow-sm"><h3 class="font-bold text-center mb-2">${monthName}</h3><div class="grid grid-cols-7 gap-1 text-xs">`;
+                ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'].forEach(d => { monthGrid += `<div class="text-center font-semibold text-gray-400">${d}</div>`; });
+                for (let i = 0; i < firstDay; i++) { monthGrid += '<div></div>'; }
+
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const tasksOnDay = workOrders.filter(wo => {
+                        if (!wo.date) return false;
+                        const d = new Date(wo.date);
+                        return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
+                    }).length;
+                    let bgColor = 'bg-gray-100';
+                    if (tasksOnDay > 0 && tasksOnDay <= 2) bgColor = 'bg-blue-200';
+                    else if (tasksOnDay > 2 && tasksOnDay <= 5) bgColor = 'bg-blue-400';
+                    else if (tasksOnDay > 5) bgColor = 'bg-blue-600';
+                    monthGrid += `<div class="${bgColor} w-full aspect-square rounded-sm" title="${tasksOnDay} งานในวันที่ ${day} ${monthName}"></div>`;
+                }
+                monthGrid += '</div></div>';
+                yearHtml += monthGrid;
+            }
+            yearHtml += '</div>';
+            mainView.innerHTML = yearHtml;
+        }
 
         function addDragAndDropListeners() {
+            if (currentView === 'year') return;
             const cards = document.querySelectorAll('.work-order-card');
             const dropTargets = document.querySelectorAll('.drop-target');
 
             cards.forEach(card => {
-                card.addEventListener('dragstart', e => {
-                    card.classList.add('dragging');
-                    e.dataTransfer.setData('text/plain', card.id);
-                });
+                card.addEventListener('dragstart', e => { card.classList.add('dragging'); e.dataTransfer.setData('text/plain', card.id); });
                 card.addEventListener('dragend', () => card.classList.remove('dragging'));
             });
 
@@ -207,7 +268,11 @@
                     const wo = workOrders.find(w => w.id === id);
                     if (wo) {
                         wo.assignedTo = target.dataset.techId;
-                        wo.date = new Date(currentDate.getFullYear(), currentDate.getMonth(), target.dataset.day);
+                        if (currentView === 'week') {
+                            wo.date = new Date(target.dataset.date + 'T09:00:00');
+                        } else {
+                            wo.date = new Date(currentDate.getFullYear(), currentDate.getMonth(), target.dataset.day);
+                        }
                         renderPlanner();
                     }
                 });
@@ -217,7 +282,6 @@
         function showDetailsPopup(workOrderId) {
             const wo = workOrders.find(w => w.id === workOrderId);
             if (!wo) return;
-
             const modal = document.getElementById('details-modal');
             const modalContent = document.getElementById('modal-content');
             const styles = getTypeStyles(wo.type);
@@ -237,8 +301,7 @@
                         <p><span class="font-semibold text-gray-600">มอบหมายให้:</span> ${tech ? tech.name : 'ยังไม่มอบหมาย'}</p>
                         <p><span class="font-semibold text-gray-600">วันที่:</span> ${wo.date ? wo.date.toLocaleDateString('th-TH') : 'ยังไม่กำหนด'}</p>
                     </div>
-                </div>
-            `;
+                </div>`;
             
             modal.classList.remove('hidden');
             lucide.createIcons();
@@ -248,14 +311,26 @@
             document.getElementById('details-modal').classList.add('hidden');
         }
 
-        function changeMonth(offset) {
-            currentDate.setMonth(currentDate.getMonth() + offset, 1);
+        function changeView(view) {
+            currentView = view;
+            document.getElementById('unassigned-panel').style.display = view === 'year' ? 'none' : 'flex';
             renderPlanner();
+        }
+
+        function navigate(offset) {
+            if (currentView === 'month') currentDate.setMonth(currentDate.getMonth() + offset, 1);
+            else if (currentView === 'week') currentDate.setDate(currentDate.getDate() + (offset * 7));
+            else currentDate.setFullYear(currentDate.getFullYear() + offset);
+            renderPlanner();
+        }
+        
+        function updateViewButtons() {
+             document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+             document.getElementById(`view-${currentView}-btn`).classList.add('active');
         }
 
         document.addEventListener('DOMContentLoaded', () => {
             renderPlanner();
-            lucide.createIcons();
         });
     </script>
 </body>
