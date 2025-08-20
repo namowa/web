@@ -14,6 +14,7 @@
             background-color: #0c1445;
             color: #f0f0f0;
             overflow-x: hidden;
+            transition: background-color 0.5s ease;
         }
         .star-container {
             display: block;
@@ -24,6 +25,7 @@
             border-radius: 1rem;
             min-height: 400px;
             height: 60vh; /* Default height for mobile */
+            transition: background 0.5s ease;
         }
         /* For larger screens like tablets and desktops */
         @media (min-width: 1024px) {
@@ -68,7 +70,7 @@
              overflow: hidden;
         }
         #admin-panel.open {
-            max-height: 1000px;
+            max-height: 1500px; /* Increased max-height */
             opacity: 1;
         }
         
@@ -116,7 +118,7 @@
     <div class="max-w-screen-2xl mx-auto">
         <!-- Header -->
         <header class="text-center mb-8">
-            <h1 class="text-4xl md:text-5xl font-bold text-yellow-300">กิจกรรมสอยดาว ลุ้นรางวัล</h1>
+            <h1 id="event-title" class="text-4xl md:text-5xl font-bold text-yellow-300">กิจกรรมสอยดาว ลุ้นรางวัล</h1>
             <p class="text-lg text-gray-300 mt-2">คลิกที่ดาวเพื่อสุ่มรับของรางวัล!</p>
         </header>
 
@@ -143,7 +145,27 @@
 
                 <!-- Admin Panel -->
                 <div id="admin-panel" class="bg-gray-900 p-6 rounded-2xl">
-                    <h2 class="text-2xl font-semibold mb-4 text-blue-300 border-b-2 border-blue-400 pb-2">แก้ไขรายการ</h2>
+                    <!-- Event Settings -->
+                    <h2 class="text-2xl font-semibold mb-4 text-blue-300 border-b-2 border-blue-400 pb-2">ตั้งค่ากิจกรรม</h2>
+                    <div class="space-y-4 mb-6">
+                        <div>
+                            <label for="event-title-input" class="block mb-1 text-sm font-medium">ชื่อกิจกรรม</label>
+                            <input type="text" id="event-title-input" class="w-full bg-gray-700 text-white p-2 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="flex gap-4">
+                            <div class="w-1/2">
+                                <label for="bg-color-input" class="block mb-1 text-sm font-medium">สีพื้นหลัง</label>
+                                <input type="color" id="bg-color-input" class="w-full h-10 p-1 bg-gray-700 rounded-md border border-gray-600 cursor-pointer">
+                            </div>
+                            <div class="w-1/2">
+                                <label for="star-bg-color-input" class="block mb-1 text-sm font-medium">สีฉากดาว</label>
+                                <input type="color" id="star-bg-color-input" class="w-full h-10 p-1 bg-gray-700 rounded-md border border-gray-600 cursor-pointer">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Prize Settings -->
+                    <h2 class="text-2xl font-semibold mb-4 text-blue-300 border-b-2 border-blue-400 pb-2">แก้ไขรายการรางวัล</h2>
                     <div id="edit-prizes-list" class="space-y-3 mb-6"></div>
                     <h3 class="text-xl font-semibold mb-2 text-blue-300">เพิ่มรางวัลใหม่</h3>
                     <form id="add-prize-form" class="flex flex-col sm:flex-row gap-3">
@@ -182,9 +204,15 @@
                 { id: 4, name: 'บัตรกำนัล Big C 500 บาท', stock: 10 },
                 { id: 5, name: 'รางวัลปลอบใจ - ร่ม', stock: 30 }
             ];
+            const defaultSettings = {
+                title: 'กิจกรรมสอยดาว ลุ้นรางวัล',
+                bgColor: '#0c1445',
+                starBgColor: '#1b2735' // Default is a solid color now, gradient is in CSS
+            };
 
             // --- STATE VARIABLES ---
             let prizes = [];
+            let settings = {};
             let prizePool = [];
             let drawnPrize = null;
             let isDrawing = false;
@@ -202,15 +230,34 @@
             const newPrizeNameInput = document.getElementById('new-prize-name');
             const newPrizeStockInput = document.getElementById('new-prize-stock');
             const saveChangesButton = document.getElementById('save-changes-button');
+            const eventTitle = document.getElementById('event-title');
+            const eventTitleInput = document.getElementById('event-title-input');
+            const bgColorInput = document.getElementById('bg-color-input');
+            const starBgColorInput = document.getElementById('star-bg-color-input');
 
             // --- DATA PERSISTENCE FUNCTIONS ---
             function savePrizesToStorage() {
                 localStorage.setItem('luckyStarPrizes', JSON.stringify(prizes));
             }
-
             function loadPrizesFromStorage() {
                 const storedPrizes = localStorage.getItem('luckyStarPrizes');
                 prizes = storedPrizes ? JSON.parse(storedPrizes) : [...defaultPrizes.map(p => ({...p}))];
+            }
+            function saveSettingsToStorage() {
+                localStorage.setItem('luckyStarSettings', JSON.stringify(settings));
+            }
+            function loadSettingsFromStorage() {
+                const storedSettings = localStorage.getItem('luckyStarSettings');
+                settings = storedSettings ? JSON.parse(storedSettings) : { ...defaultSettings };
+            }
+
+            // --- UI UPDATE FUNCTIONS ---
+            function applySettings() {
+                eventTitle.textContent = settings.title;
+                document.body.style.backgroundColor = settings.bgColor;
+                // We set background color, but the gradient will remain unless overridden completely
+                // For simplicity, we'll just set the color. To keep gradient, would need more complex logic.
+                starContainer.style.background = settings.starBgColor;
             }
 
             // --- GAME LOGIC FUNCTIONS ---
@@ -229,12 +276,10 @@
                     starContainer.innerHTML = '<p class="text-2xl text-yellow-400 p-8 text-center">ของรางวัลหมดแล้ว!</p>';
                     return;
                 }
-
                 const containerRect = starContainer.getBoundingClientRect();
                 const placedStars = [];
                 const starSize = 60; 
                 const maxAttempts = 100;
-
                 prizePool.forEach(() => {
                     let position, overlaps, attempts = 0;
                     do {
@@ -250,7 +295,6 @@
                         }
                         attempts++;
                     } while (overlaps && attempts < maxAttempts);
-
                     if (!overlaps) {
                         placedStars.push(position);
                         const star = document.createElement('div');
@@ -293,9 +337,7 @@
                     rainDrop.style.animationDuration = `${duration}s`;
                     rainDrop.style.animationDelay = `${delay}s`;
                     starContainer.appendChild(rainDrop);
-                    setTimeout(() => {
-                        rainDrop.remove();
-                    }, (duration + delay) * 1000);
+                    setTimeout(() => { rainDrop.remove(); }, (duration + delay) * 1000);
                 }
             }
 
@@ -334,6 +376,12 @@
 
             // --- ADMIN PANEL FUNCTIONS ---
             function renderAdminPanel() {
+                // Populate settings
+                eventTitleInput.value = settings.title;
+                bgColorInput.value = settings.bgColor;
+                starBgColorInput.value = settings.starBgColor;
+
+                // Populate prize list
                 editPrizesList.innerHTML = '';
                 prizes.forEach((prize, index) => {
                     const div = document.createElement('div');
@@ -366,6 +414,9 @@
 
             function initializeFullApp() {
                 loadPrizesFromStorage();
+                loadSettingsFromStorage();
+                applySettings();
+
                 initializeAppGame();
                 confirmButton.addEventListener('click', handleConfirm);
                 toggleAdminButton.addEventListener('click', () => {
@@ -374,7 +425,16 @@
                 });
                 addPrizeForm.addEventListener('submit', handleAddPrize);
                 saveChangesButton.addEventListener('click', () => {
+                    // Save settings
+                    settings.title = eventTitleInput.value;
+                    settings.bgColor = bgColorInput.value;
+                    settings.starBgColor = starBgColorInput.value;
+                    saveSettingsToStorage();
+                    applySettings();
+
+                    // Save prizes
                     savePrizesToStorage();
+                    
                     adminPanel.classList.remove('open');
                     initializeAppGame();
                     const modal = document.createElement('div');
