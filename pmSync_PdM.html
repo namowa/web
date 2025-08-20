@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI PdM Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Sarabun', 'Inter', sans-serif;
+        }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .popup-enter { animation: popupEnter 0.3s ease-out; }
+        @keyframes popupEnter {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800">Asset Intelligence Dashboard</h1>
+                <p class="text-gray-500">ภาพรวมสุขภาพเครื่องจักรโดย AI Predictive Maintenance</p>
+            </div>
+            <div class="text-sm text-gray-500 mt-2 md:mt-0">
+                อัปเดตล่าสุด: <span id="last-updated" class="font-semibold text-gray-700"></span>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 fade-in">
+            <div class="bg-white p-5 rounded-lg shadow flex items-center justify-between">
+                <div>
+                    <h2 class="text-gray-500 text-sm font-medium">เครื่องจักรทั้งหมด</h2>
+                    <p id="total-assets" class="text-3xl font-bold text-blue-600"></p>
+                </div>
+                <div class="bg-blue-100 p-3 rounded-full">
+                    <i data-lucide="server" class="h-6 w-6 text-blue-600"></i>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-lg shadow flex items-center justify-between">
+                <div>
+                    <h2 class="text-gray-500 text-sm font-medium">ภาวะปกติ (Healthy)</h2>
+                    <p id="healthy-assets" class="text-3xl font-bold text-green-600"></p>
+                </div>
+                <div class="bg-green-100 p-3 rounded-full">
+                    <i data-lucide="shield-check" class="h-6 w-6 text-green-600"></i>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-lg shadow flex items-center justify-between">
+                <div>
+                    <h2 class="text-gray-500 text-sm font-medium">แจ้งเตือน / วิกฤต</h2>
+                    <p id="alert-assets" class="text-3xl font-bold text-red-600"></p>
+                </div>
+                <div class="bg-red-100 p-3 rounded-full">
+                    <i data-lucide="shield-alert" class="h-6 w-6 text-red-600"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls Bar -->
+        <div class="flex flex-wrap items-center justify-end gap-x-6 gap-y-3 mb-4">
+            <!-- Filter Controls -->
+            <div class="flex items-center space-x-2">
+                <span class="text-sm font-medium text-gray-600">แสดง:</span>
+                <button id="filter-all-btn" onclick="filterBy('All')" class="px-3 py-1 rounded-md text-sm font-semibold transition-colors">ทั้งหมด</button>
+                <button id="filter-healthy-btn" onclick="filterBy('Healthy')" class="px-3 py-1 rounded-md text-sm font-semibold transition-colors">ภาวะปกติ</button>
+                <button id="filter-alerts-btn" onclick="filterBy('Alerts')" class="px-3 py-1 rounded-md text-sm font-semibold transition-colors">แจ้งเตือน/วิกฤต</button>
+            </div>
+            <!-- Sorting Controls -->
+            <div class="flex items-center space-x-2">
+                <span class="text-sm font-medium text-gray-600">จัดเรียง:</span>
+                <button id="sort-urgency-btn" onclick="sortBy('urgency')" class="px-3 py-1 rounded-md text-sm font-semibold transition-colors">ความเร่งด่วน</button>
+                <button id="sort-name-btn" onclick="sortBy('name')" class="px-3 py-1 rounded-md text-sm font-semibold transition-colors">ชื่อ</button>
+            </div>
+        </div>
+
+        <!-- Machine Status Grid -->
+        <div id="machine-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 fade-in">
+            <!-- Machine cards will be inserted here by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Details Modal -->
+    <div id="details-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden" onclick="closeDetailsPopup()">
+        <div id="modal-content" class="bg-white rounded-lg shadow-xl w-full max-w-lg m-4 popup-enter" onclick="event.stopPropagation()">
+            <!-- Modal content will be injected here -->
+        </div>
+    </div>
+
+    <script>
+        const machineData = [
+            { id: 'PUMP-001', name: 'Main Coolant Pump', status: 'Critical', aiInsight: 'ตรวจพบความน่าจะเป็นสูงที่ตลับลูกปืนจะเสียหาย', rul: '~72 ชั่วโมง', vibration: '1.25 g', temperature: '85°C' },
+            { id: 'CONV-003', name: 'Conveyor Belt Motor', status: 'Warning', aiInsight: 'ตรวจพบความผิดปกติเล็กน้อยของการสั่นสะเทือน', rul: '~14 วัน', vibration: '0.78 g', temperature: '65°C' },
+            { id: 'HVAC-002', name: 'HVAC Unit 2', status: 'Healthy', aiInsight: 'ทำงานปกติในทุกพารามิเตอร์', rul: '> 30 วัน', vibration: '0.15 g', temperature: '45°C' },
+            { id: 'CNC-005', name: 'CNC Milling Machine', status: 'Healthy', aiInsight: 'ทำงานปกติในทุกพารามิเตอร์', rul: '> 30 วัน', vibration: '0.21 g', temperature: '52°C' },
+            { id: 'COMP-007', name: 'Air Compressor 7', status: 'Warning', aiInsight: 'แรงดันอากาศตกเล็กน้อย อาจมีรอยรั่ว', rul: '~20 วัน', pressure: '115 psi', temperature: '70°C' },
+            { id: 'ROBO-004', name: 'Welding Robot Arm 4', status: 'Critical', aiInsight: 'มอเตอร์แกน Z ใช้กระแสไฟเกินพิกัด', rul: '~24 ชั่วโมง', current: '15.5 A', temperature: '92°C' },
+            { id: 'PUMP-002', name: 'Secondary Water Pump', status: 'Healthy', aiInsight: 'ทำงานปกติในทุกพารามิเตอร์', rul: '> 30 วัน', vibration: '0.18 g', temperature: '50°C' },
+            ...Array.from({ length: 93 }, (_, i) => {
+                const machineTypes = ['Pump', 'Motor', 'Fan', 'Compressor', 'Press', 'Robot Arm', 'HVAC Unit', 'Conveyor'];
+                const type = machineTypes[Math.floor(Math.random() * machineTypes.length)];
+                const num = String(101 + i).padStart(3, '0');
+                const statusChance = Math.random();
+                let status, insight, rul, vibration, temperature;
+                if (statusChance < 0.75) { status = 'Healthy'; insight = 'ทำงานปกติในทุกพารามิเตอร์'; rul = '> 30 วัน'; vibration = `${(Math.random() * 0.3 + 0.1).toFixed(2)} g`; temperature = `${Math.floor(Math.random() * 15 + 45)}°C`; } 
+                else if (statusChance < 0.95) { status = 'Warning'; insight = 'ตรวจพบความผิดปกติเล็กน้อย'; rul = `~${Math.floor(Math.random() * 10 + 10)} วัน`; vibration = `${(Math.random() * 0.4 + 0.6).toFixed(2)} g`; temperature = `${Math.floor(Math.random() * 10 + 65)}°C`; } 
+                else { status = 'Critical'; insight = 'ตรวจพบความน่าจะเป็นสูงที่จะเสียหาย'; rul = `~${Math.floor(Math.random() * 48 + 24)} ชั่วโมง`; vibration = `${(Math.random() * 0.5 + 1.0).toFixed(2)} g`; temperature = `${Math.floor(Math.random() * 10 + 80)}°C`; }
+                return { id: `${type.slice(0, 4).toUpperCase()}-${num}`, name: `${type} #${num}`, status: status, aiInsight: insight, rul: rul, vibration: vibration, temperature: temperature, };
+            })
+        ];
+
+        let currentSort = 'urgency';
+        let currentFilter = 'All';
+
+        const getStatusStyles = (status) => {
+            switch (status) {
+                case 'Critical': return { borderColor: 'border-red-500', bgColor: 'bg-red-50', textColor: 'text-red-800', icon: 'shield-alert' };
+                case 'Warning': return { borderColor: 'border-yellow-500', bgColor: 'bg-yellow-50', textColor: 'text-yellow-800', icon: 'shield-alert' };
+                default: return { borderColor: 'border-green-500', bgColor: 'bg-green-50', textColor: 'text-green-800', icon: 'shield-check' };
+            }
+        };
+
+        function renderSummary() {
+            const total = machineData.length;
+            const healthy = machineData.filter(m => m.status === 'Healthy').length;
+            const alerts = total - healthy;
+            document.getElementById('total-assets').textContent = total;
+            document.getElementById('healthy-assets').textContent = healthy;
+            document.getElementById('alert-assets').textContent = alerts;
+        }
+
+        function renderMachineGrid() {
+            const grid = document.getElementById('machine-grid');
+            grid.innerHTML = ''; 
+
+            // 1. Filter Data
+            let filteredData;
+            if (currentFilter === 'All') {
+                filteredData = [...machineData];
+            } else if (currentFilter === 'Alerts') {
+                filteredData = machineData.filter(m => m.status === 'Warning' || m.status === 'Critical');
+            } else { // Healthy
+                filteredData = machineData.filter(m => m.status === currentFilter);
+            }
+
+            // 2. Sort Data
+            let sortedData = filteredData;
+            const statusPriority = { 'Critical': 0, 'Warning': 1, 'Healthy': 2 };
+            if (currentSort === 'urgency') {
+                sortedData.sort((a, b) => statusPriority[a.status] - statusPriority[b.status] || a.name.localeCompare(b.name));
+            } else { // 'name'
+                sortedData.sort((a, b) => a.name.localeCompare(b.name));
+            }
+
+            // 3. Render Cards
+            sortedData.forEach(machine => {
+                const styles = getStatusStyles(machine.status);
+                const card = document.createElement('div');
+                card.className = `bg-white rounded-lg shadow border-t-4 ${styles.borderColor} p-3 cursor-pointer transition-transform duration-200 hover:scale-105`;
+                card.onclick = () => showDetailsPopup(machine.id);
+                
+                card.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="font-bold text-gray-800 text-sm truncate">${machine.name}</p>
+                            <p class="text-xs text-gray-500">${machine.id}</p>
+                        </div>
+                        <div class="${styles.bgColor} p-2 rounded-full">
+                            <i data-lucide="${styles.icon}" class="h-5 w-5 ${styles.textColor}"></i>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        function showDetailsPopup(machineId) {
+            const machine = machineData.find(m => m.id === machineId);
+            if (!machine) return;
+
+            const modal = document.getElementById('details-modal');
+            const modalContent = document.getElementById('modal-content');
+            const styles = getStatusStyles(machine.status);
+
+            let sensorDataHtml = '';
+            if (machine.vibration) sensorDataHtml += `<div class="text-xs text-gray-500">Vibration: <span class="font-semibold">${machine.vibration}</span></div>`;
+            if (machine.temperature) sensorDataHtml += `<div class="text-xs text-gray-500">Temp: <span class="font-semibold">${machine.temperature}</span></div>`;
+            if (machine.pressure) sensorDataHtml += `<div class="text-xs text-gray-500">Pressure: <span class="font-semibold">${machine.pressure}</span></div>`;
+            if (machine.current) sensorDataHtml += `<div class="text-xs text-gray-500">Current: <span class="font-semibold">${machine.current}</span></div>`;
+
+            modalContent.innerHTML = `
+                <div class="p-4 border-t-4 ${styles.borderColor} rounded-t-lg">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-800">${machine.name}</h3>
+                            <p class="text-sm text-gray-500">${machine.id}</p>
+                        </div>
+                        <button onclick="closeDetailsPopup()" class="text-gray-400 hover:text-gray-600">
+                            <i data-lucide="x" class="h-5 w-5"></i>
+                        </button>
+                    </div>
+                    <div class="mt-4 p-3 rounded-md ${styles.bgColor}">
+                        <p class="text-sm font-semibold ${styles.textColor}">AI Insight:</p>
+                        <p class="text-sm ${styles.textColor}">${machine.aiInsight}</p>
+                    </div>
+                    <div class="mt-4">
+                        <div class="flex justify-between items-center text-sm mb-2">
+                            <span class="font-semibold text-gray-600">อายุใช้งานที่เหลือ (RUL):</span>
+                            <span class="font-bold text-lg ${styles.textColor}">${machine.rul}</span>
+                        </div>
+                        <div class="border-t pt-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            ${sensorDataHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeDetailsPopup() {
+            document.getElementById('details-modal').classList.add('hidden');
+        }
+
+        function updateTimestamp() {
+            const now = new Date();
+            document.getElementById('last-updated').textContent = now.toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+        
+        function updateSortButtons() {
+            const urgencyBtn = document.getElementById('sort-urgency-btn');
+            const nameBtn = document.getElementById('sort-name-btn');
+            if (currentSort === 'urgency') {
+                urgencyBtn.classList.add('bg-blue-600', 'text-white');
+                urgencyBtn.classList.remove('bg-gray-200', 'text-gray-700');
+                nameBtn.classList.add('bg-gray-200', 'text-gray-700');
+                nameBtn.classList.remove('bg-blue-600', 'text-white');
+            } else {
+                nameBtn.classList.add('bg-blue-600', 'text-white');
+                nameBtn.classList.remove('bg-gray-200', 'text-gray-700');
+                urgencyBtn.classList.add('bg-gray-200', 'text-gray-700');
+                urgencyBtn.classList.remove('bg-blue-600', 'text-white');
+            }
+        }
+
+        function updateFilterButtons() {
+            const buttons = {
+                'All': document.getElementById('filter-all-btn'),
+                'Healthy': document.getElementById('filter-healthy-btn'),
+                'Alerts': document.getElementById('filter-alerts-btn')
+            };
+            Object.values(buttons).forEach(btn => {
+                btn.classList.add('bg-gray-200', 'text-gray-700');
+                btn.classList.remove('bg-blue-600', 'text-white');
+            });
+            const activeButton = buttons[currentFilter];
+            if (activeButton) {
+                activeButton.classList.add('bg-blue-600', 'text-white');
+                activeButton.classList.remove('bg-gray-200', 'text-gray-700');
+            }
+        }
+
+        function sortBy(method) {
+            currentSort = method;
+            renderMachineGrid();
+            updateSortButtons();
+        }
+
+        function filterBy(status) {
+            currentFilter = status;
+            renderMachineGrid();
+            updateFilterButtons();
+        }
+
+        // Initial render
+        document.addEventListener('DOMContentLoaded', () => {
+            renderSummary();
+            renderMachineGrid();
+            updateTimestamp();
+            updateSortButtons();
+            updateFilterButtons();
+            
+            setInterval(updateTimestamp, 30000);
+        });
+    </script>
+</body>
+</html>
