@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intelligent Manual Parser</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Sarabun', 'Inter', sans-serif;
+        }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .spinner {
+            border-color: #3b82f6;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-4xl mx-auto">
+        <div class="bg-white rounded-2xl shadow-lg p-6 md:p-8">
+
+            <!-- Title Section -->
+            <div class="text-center mb-6">
+                <i data-lucide="brain-circuit" class="mx-auto h-12 w-12 text-blue-600"></i>
+                <h1 class="text-2xl md:text-3xl font-bold text-gray-800 mt-2">Intelligent Manual Parser</h1>
+                <p class="text-gray-500 mt-1">อัปโหลดคู่มือเครื่องจักร แล้วให้ AI สร้างแผนซ่อมบำรุงให้คุณ</p>
+            </div>
+
+            <!-- 1. Upload Section -->
+            <div id="upload-section">
+                <label for="file-upload" class="relative block w-full h-48 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gray-50 transition-colors">
+                    <i data-lucide="upload-cloud" class="h-12 w-12 text-gray-400"></i>
+                    <span class="mt-2 block font-semibold text-gray-700">ลากไฟล์คู่มือมาวางที่นี่</span>
+                    <span class="mt-1 block text-sm text-gray-500">หรือ คลิกเพื่อเลือกไฟล์ (PDF, DOCX)</span>
+                </label>
+                <input id="file-upload" type="file" class="hidden">
+                <p id="file-name" class="text-center mt-2 text-sm text-gray-600"></p>
+            </div>
+
+            <!-- 2. Processing Section -->
+            <div id="processing-section" class="hidden text-center py-10">
+                <div class="spinner w-12 h-12 rounded-full border-4 mx-auto"></div>
+                <h2 class="text-xl font-semibold text-gray-700 mt-4">AI กำลังวิเคราะห์คู่มือ...</h2>
+                <p class="text-gray-500">กำลังสกัดข้อมูลและสร้างเงื่อนไข PM ที่เหมาะสม</p>
+            </div>
+
+            <!-- 3. Result Section -->
+            <div id="result-section" class="hidden fade-in">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800">แผนการซ่อมบำรุงเชิงป้องกัน (PM Plan)</h2>
+                        <p class="text-gray-500">สร้างจากคู่มือ: <span class="font-medium text-gray-700" id="manual-name">Pump-P5000-Manual.pdf</span></p>
+                    </div>
+                    <button onclick="resetApp()" class="mt-3 md:mt-0 flex items-center justify-center gap-2 bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                        <i data-lucide="upload" class="h-4 w-4"></i>
+                        อัปโหลดไฟล์ใหม่
+                    </button>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="p-3 font-semibold text-sm text-gray-600">หัวข้อการทำ</th>
+                                <th class="p-3 font-semibold text-sm text-gray-600">ความถี่</th>
+                                <th class="p-3 font-semibold text-sm text-gray-600">เงื่อนไขการทำ</th>
+                                <th class="p-3 font-semibold text-sm text-gray-600 text-center">จำนวนคน</th>
+                                <th class="p-3 font-semibold text-sm text-gray-600">เวลาที่ใช้</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pm-plan-table" class="bg-white divide-y divide-gray-200">
+                            <!-- AI Generated Rows will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const uploadSection = document.getElementById('upload-section');
+        const processingSection = document.getElementById('processing-section');
+        const resultSection = document.getElementById('result-section');
+        const fileUploadInput = document.getElementById('file-upload');
+        const fileNameDisplay = document.getElementById('file-name');
+        const manualNameDisplay = document.getElementById('manual-name');
+        const pmPlanTable = document.getElementById('pm-plan-table');
+
+        // Mock data that AI would generate
+        const mockPmPlan = [
+            { task: 'ตรวจสอบการรั่วซึมที่ซีลและข้อต่อ', frequency: 'ทุกวัน', condition: 'ขณะเครื่องทำงาน', personnel: '1 คน', time: '5 นาที' },
+            { task: 'ตรวจสอบระดับน้ำมันหล่อลื่น', frequency: 'ทุกสัปดาห์', condition: 'ขณะเครื่องหยุด', personnel: '1 คน', time: '10 นาที' },
+            { task: 'อัดจาระบีตลับลูกปืนมอเตอร์', frequency: 'ทุกเดือน', condition: 'ขณะเครื่องหยุด', personnel: '1 คน', time: '15 นาที' },
+            { task: 'ตรวจสอบและทำความสะอาดไส้กรอง', frequency: 'ทุก 3 เดือน', condition: 'ขณะเครื่องหยุด', personnel: '1 คน', time: '30 นาที' },
+            { task: 'วัดค่าการสั่นสะเทือน (Vibration)', frequency: 'ทุก 6 เดือน', condition: 'ขณะเครื่องทำงาน', personnel: '1 ช่างเทคนิค', time: '20 นาที' },
+            { task: 'ตั้งศูนย์เพลา (Shaft Alignment)', frequency: 'ทุกปี', condition: 'ขณะเครื่องหยุด', personnel: '2 คน', time: '4 ชั่วโมง' },
+            { task: 'Overhaul เปลี่ยนซีลและตลับลูกปืน', frequency: 'ทุก 2 ปี', condition: 'ตามแผนซ่อมใหญ่', personnel: '2 ช่างเทคนิค', time: '8 ชั่วโมง' }
+        ];
+
+        fileUploadInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                fileNameDisplay.textContent = `ไฟล์ที่เลือก: ${file.name}`;
+                manualNameDisplay.textContent = file.name;
+                startProcessing();
+            }
+        });
+
+        function startProcessing() {
+            uploadSection.classList.add('hidden');
+            processingSection.classList.remove('hidden');
+
+            // Simulate AI analysis time
+            setTimeout(() => {
+                processingSection.classList.add('hidden');
+                displayResults();
+            }, 3500); // 3.5 seconds
+        }
+
+        function displayResults() {
+            pmPlanTable.innerHTML = ''; // Clear previous results
+            mockPmPlan.forEach(item => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                row.innerHTML = `
+                    <td class="p-3 text-gray-800">${item.task}</td>
+                    <td class="p-3 text-gray-600"><span class="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full">${item.frequency}</span></td>
+                    <td class="p-3 text-gray-600">${item.condition}</td>
+                    <td class="p-3 text-gray-600 text-center">${item.personnel}</td>
+                    <td class="p-3 text-gray-600 whitespace-nowrap">${item.time}</td>
+                `;
+                pmPlanTable.appendChild(row);
+            });
+            resultSection.classList.remove('hidden');
+        }
+        
+        function resetApp() {
+            resultSection.classList.add('hidden');
+            uploadSection.classList.remove('hidden');
+            fileUploadInput.value = ''; // Reset file input
+            fileNameDisplay.textContent = '';
+        }
+
+        // Initialize icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>
