@@ -28,56 +28,17 @@
 <body class="bg-gray-100">
 
     <div class="container mx-auto p-4 md:p-8">
+        <!-- Line List View -->
+        <div id="line-list-view" class="view active">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6">ภาพรวมไลน์การผลิต</h1>
+            <div id="line-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Line cards injected by JS -->
+            </div>
+        </div>
+
         <!-- Asset List View -->
-        <div id="asset-list-view" class="view active">
-            <h1 class="text-3xl font-bold text-gray-800 mb-6">จัดการเครื่องจักร</h1>
-            
-            <!-- Summary Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div class="bg-white p-5 rounded-lg shadow flex items-center justify-between">
-                    <div>
-                        <h2 class="text-gray-500 text-sm font-medium">เครื่องจักรทั้งหมด</h2>
-                        <p id="total-assets" class="text-3xl font-bold text-blue-600"></p>
-                    </div>
-                    <div class="bg-blue-100 p-3 rounded-full"><i data-lucide="server" class="h-6 w-6 text-blue-600"></i></div>
-                </div>
-                <div class="bg-white p-5 rounded-lg shadow flex items-center justify-between">
-                    <div>
-                        <h2 class="text-gray-500 text-sm font-medium">ภาวะปกติ</h2>
-                        <p id="healthy-assets" class="text-3xl font-bold text-green-600"></p>
-                    </div>
-                    <div class="bg-green-100 p-3 rounded-full"><i data-lucide="shield-check" class="h-6 w-6 text-green-600"></i></div>
-                </div>
-                <div class="bg-white p-5 rounded-lg shadow flex items-center justify-between">
-                    <div>
-                        <h2 class="text-gray-500 text-sm font-medium">แจ้งเตือน/วิกฤต</h2>
-                        <p id="alert-assets" class="text-3xl font-bold text-red-600"></p>
-                    </div>
-                    <div class="bg-red-100 p-3 rounded-full"><i data-lucide="shield-alert" class="h-6 w-6 text-red-600"></i></div>
-                </div>
-            </div>
-
-            <!-- Controls Bar -->
-            <div class="flex flex-wrap items-center justify-between gap-4 mb-6 bg-white p-4 rounded-lg shadow-sm">
-                <input id="search-input" type="text" placeholder="ค้นหาเครื่องจักร..." class="w-full md:w-auto px-4 py-2 border border-gray-300 rounded-lg">
-                <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
-                    <div class="flex items-center space-x-2">
-                        <label for="line-filter" class="text-sm font-medium text-gray-600">ไลน์การผลิต:</label>
-                        <select id="line-filter" class="px-3 py-1 rounded-md text-sm border-gray-300 focus:ring-blue-500 focus:border-blue-500"></select>
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <span class="text-sm font-medium text-gray-600">จัดเรียง:</span>
-                        <button id="sort-status-btn" onclick="sortBy('status')" class="px-3 py-1 rounded-md text-sm font-semibold transition-colors">สถานะ</button>
-                        <button id="sort-name-btn" onclick="sortBy('name')" class="px-3 py-1 rounded-md text-sm font-semibold transition-colors">ชื่อ</button>
-                        <button id="sort-cost-btn" onclick="sortBy('cost')" class="px-3 py-1 rounded-md text-sm font-semibold transition-colors">ค่าใช้จ่าย</button>
-                        <button id="sort-pm-btn" onclick="sortBy('pmCount')" class="px-3 py-1 rounded-md text-sm font-semibold transition-colors">จำนวนงาน</button>
-                    </div>
-                </div>
-            </div>
-
-            <div id="asset-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                <!-- Asset cards injected by JS -->
-            </div>
+        <div id="asset-list-view" class="view">
+            <!-- Asset list content injected by JS -->
         </div>
 
         <!-- Asset Detail View -->
@@ -99,16 +60,7 @@
                 const num = String(101 + i).padStart(3, '0');
                 const statusChance = Math.random();
                 let status, color;
-                if (statusChance < 0.90) { // 90% Healthy
-                    status = 'Healthy';
-                    color = '22c55e';
-                } else if (statusChance < 0.98) { // 8% Warning
-                    status = 'Warning';
-                    color = 'f59e0b';
-                } else { // 2% Critical
-                    status = 'Critical';
-                    color = 'ef4444';
-                }
+                if (statusChance < 0.90) { status = 'Healthy'; color = '22c55e'; } else if (statusChance < 0.98) { status = 'Warning'; color = 'f59e0b'; } else { status = 'Critical'; color = 'ef4444'; }
                 const id = `${type.slice(0, 4).toUpperCase()}-${num}`;
                 return {
                     id: id, name: `${type} #${num}`, location: locations[Math.floor(Math.random() * locations.length)], status: status, photo: `https://placehold.co/600x400/${color}/ffffff?text=${id}`,
@@ -139,20 +91,24 @@
         };
         let documents = { 'PUMP-001': [{ name: 'คู่มือการใช้งาน.pdf', type: 'Manual' }, { name: 'แบบไฟฟ้า.dwg', type: 'Schematic' }] };
 
+        const lineListView = document.getElementById('line-list-view');
         const assetListView = document.getElementById('asset-list-view');
         const assetDetailView = document.getElementById('asset-detail-view');
         let chartInstance = null;
         let currentSort = 'status';
-        let currentLineFilter = 'All';
         let tempSelectedParts = [];
 
-        function switchView(viewName, assetId = null) {
+        function switchView(viewName, dataId = null) {
+            lineListView.classList.remove('active');
             assetListView.classList.remove('active');
             assetDetailView.classList.remove('active');
-            if (viewName === 'list') {
+            if (viewName === 'line-list') {
+                lineListView.classList.add('active');
+            } else if (viewName === 'asset-list' && dataId) {
+                renderAssetList(dataId);
                 assetListView.classList.add('active');
-            } else if (viewName === 'detail' && assetId) {
-                renderAssetDetail(assetId);
+            } else if (viewName === 'asset-detail' && dataId) {
+                renderAssetDetail(dataId);
                 assetDetailView.classList.add('active');
             }
         }
@@ -165,21 +121,56 @@
             }
         }
 
-        function renderSummary() {
-            document.getElementById('total-assets').textContent = assets.length;
-            document.getElementById('healthy-assets').textContent = assets.filter(a => a.status === 'Healthy').length;
-            document.getElementById('alert-assets').textContent = assets.filter(a => a.status !== 'Healthy').length;
+        function renderLineList() {
+            const container = document.getElementById('line-list-container');
+            const locations = [...new Set(assets.map(asset => asset.location))];
+            
+            container.innerHTML = locations.map(location => {
+                const assetsInLine = assets.filter(a => a.location === location);
+                const totalAssets = assetsInLine.length;
+                const alertAssets = assetsInLine.filter(a => a.status !== 'Healthy').length;
+                
+                return `
+                    <div class="bg-white rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-xl transition-shadow" onclick="switchView('asset-list', '${location}')">
+                        <div class="p-6">
+                            <h2 class="text-2xl font-bold text-gray-800">${location}</h2>
+                            <div class="mt-4 flex justify-between items-center text-sm text-gray-600">
+                                <div class="flex items-center"><i data-lucide="server" class="h-5 w-5 mr-2 text-blue-500"></i> ทั้งหมด: <span class="font-bold ml-1">${totalAssets} เครื่อง</span></div>
+                                <div class="flex items-center"><i data-lucide="shield-alert" class="h-5 w-5 mr-2 text-red-500"></i> แจ้งเตือน: <span class="font-bold ml-1">${alertAssets} เครื่อง</span></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
         }
 
-        function renderAssetList() {
-            const container = document.getElementById('asset-list-container');
-            const searchText = document.getElementById('search-input').value.toLowerCase();
+        function renderAssetList(location) {
+            assetListView.innerHTML = `
+                <button onclick="switchView('line-list')" class="flex items-center text-blue-600 mb-4 font-semibold"><i data-lucide="chevron-left" class="h-5 w-5"></i> กลับไปภาพรวมไลน์การผลิต</button>
+                <h1 class="text-3xl font-bold text-gray-800 mb-6">${location}</h1>
+                <div id="asset-list-controls" class="flex flex-wrap items-center justify-between gap-4 mb-6 bg-white p-4 rounded-lg shadow-sm"></div>
+                <div id="asset-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+            `;
+            
+            const controlsContainer = assetListView.querySelector('#asset-list-controls');
+            controlsContainer.innerHTML = `
+                <input id="search-input" type="text" placeholder="ค้นหาเครื่องจักร..." class="w-full md:w-auto px-4 py-2 border border-gray-300 rounded-lg">
+                <div class="flex items-center space-x-2">
+                    <span class="text-sm font-medium text-gray-600">จัดเรียง:</span>
+                    <button id="sort-status-btn" onclick="sortBy('status')" class="px-3 py-1 rounded-md text-sm font-semibold transition-colors">สถานะ</button>
+                    <button id="sort-name-btn" onclick="sortBy('name')" class="px-3 py-1 rounded-md text-sm font-semibold transition-colors">ชื่อ</button>
+                    <button id="sort-cost-btn" onclick="sortBy('cost')" class="px-3 py-1 rounded-md text-sm font-semibold transition-colors">ค่าใช้จ่าย</button>
+                    <button id="sort-pm-btn" onclick="sortBy('pmCount')" class="px-3 py-1 rounded-md text-sm font-semibold transition-colors">จำนวนงาน</button>
+                </div>
+            `;
+
+            const container = assetListView.querySelector('#asset-list-container');
+            const searchText = assetListView.querySelector('#search-input').value.toLowerCase();
 
             let processedAssets = assets.filter(asset => {
-                const matchesSearch = asset.name.toLowerCase().includes(searchText) || asset.id.toLowerCase().includes(searchText);
-                if (!matchesSearch) return false;
-                if (currentLineFilter !== 'All' && asset.location !== currentLineFilter) return false;
-                return true;
+                if (asset.location !== location) return false;
+                return asset.name.toLowerCase().includes(searchText) || asset.id.toLowerCase().includes(searchText);
             });
 
             const statusPriority = { 'Critical': 0, 'Warning': 1, 'Healthy': 2 };
@@ -196,7 +187,7 @@
             container.innerHTML = processedAssets.map(asset => {
                 const styles = getStatusStyles(asset.status);
                 const pmTaskCount = (pmPlan[asset.id] || []).length;
-                return `<div class="bg-white rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-xl transition-shadow" onclick="switchView('detail', '${asset.id}')">
+                return `<div class="bg-white rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-xl transition-shadow" onclick="switchView('asset-detail', '${asset.id}')">
                         <img src="${asset.photo}" alt="${asset.name}" class="w-full h-32 object-cover">
                         <div class="p-4">
                             <div class="flex justify-between items-start">
@@ -211,7 +202,10 @@
                         </div>
                     </div>`;
             }).join('');
+            
+            updateControlButtons();
             lucide.createIcons();
+            assetListView.querySelector('#search-input').addEventListener('keyup', () => renderAssetList(location));
         }
 
         function renderAssetDetail(assetId) {
@@ -220,7 +214,7 @@
             const styles = getStatusStyles(asset.status);
 
             assetDetailView.innerHTML = `
-                <button onclick="switchView('list')" class="flex items-center text-blue-600 mb-4 font-semibold"><i data-lucide="chevron-left" class="h-5 w-5"></i> กลับไปรายการเครื่องจักร</button>
+                <button onclick="switchView('asset-list', '${asset.location}')" class="flex items-center text-blue-600 mb-4 font-semibold"><i data-lucide="chevron-left" class="h-5 w-5"></i> กลับไปรายการเครื่องจักร</button>
                 <div class="bg-white rounded-lg shadow-lg overflow-hidden">
                     <div class="md:flex">
                         <img src="${asset.photo}" alt="${asset.name}" class="md:w-1/3 h-64 md:h-auto object-cover">
@@ -473,21 +467,14 @@
 
         window.sortBy = (method) => {
             currentSort = method;
-            renderAssetList();
+            const currentLine = document.querySelector('#asset-list-view h1').textContent;
+            renderAssetList(currentLine);
             updateControlButtons();
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            renderSummary();
-            populateLineFilter();
-            renderAssetList();
-            updateControlButtons();
+            renderLineList();
             lucide.createIcons();
-            document.getElementById('search-input').addEventListener('keyup', renderAssetList);
-            document.getElementById('line-filter').addEventListener('change', (e) => {
-                currentLineFilter = e.target.value;
-                renderAssetList();
-            });
         });
     </script>
 </body>
