@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROI Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Sarabun', 'Inter', sans-serif;
+        }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <i data-lucide="calculator" class="mx-auto h-12 w-12 text-blue-600"></i>
+            <h1 class="text-3xl font-bold text-gray-800 mt-2">เครื่องคำนวณ ROI</h1>
+            <p class="text-gray-500 mt-1">ประเมินความคุ้มค่าในการลงทุนระบบ CMMS อัจฉริยะ</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Left Column: Inputs -->
+            <div class="bg-white rounded-lg shadow-lg p-6 space-y-6">
+                <!-- Step 1: Feature Selection -->
+                <div>
+                    <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2"><span class="bg-blue-600 text-white rounded-full h-6 w-6 flex items-center justify-center text-sm">1</span> เลือกฟังก์ชันที่ต้องการลงทุน</h2>
+                    <div id="feature-selection" class="mt-4 space-y-3">
+                        <!-- Feature checkboxes injected by JS -->
+                    </div>
+                </div>
+
+                <!-- Step 2: Company Data -->
+                <div>
+                    <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2"><span class="bg-blue-600 text-white rounded-full h-6 w-6 flex items-center justify-center text-sm">2</span> กรอกข้อมูลค่าใช้จ่ายปัจจุบันของคุณ</h2>
+                    <div class="mt-4 space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">ค่าใช้จ่ายซ่อมบำรุงต่อปี (บาท)</label>
+                            <input type="number" id="maintenance-cost" value="10000000" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">ชั่วโมง Downtime ที่ไม่คาดคิดต่อปี</label>
+                            <input type="number" id="downtime-hours" value="500" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">ค่าเสียโอกาสต่อชั่วโมงของ Downtime (บาท)</label>
+                            <input type="number" id="downtime-cost-per-hour" value="30000" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                        </div>
+                         <div>
+                            <label class="block text-sm font-medium text-gray-700">มูลค่าสต็อกอะไหล่ปัจจุบัน (บาท)</label>
+                            <input type="number" id="inventory-value" value="2000000" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Results -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-2xl font-bold text-gray-800 text-center">ผลการประเมิน</h2>
+                
+                <!-- Investment Summary -->
+                <div class="mt-6 text-center">
+                    <p class="text-gray-500">เงินลงทุนโดยประมาณ</p>
+                    <p id="total-investment" class="text-4xl font-bold text-blue-600"></p>
+                </div>
+
+                <!-- Savings Breakdown -->
+                <div class="mt-6 space-y-3">
+                    <h3 class="font-semibold text-gray-700">ผลประโยชน์ที่จะได้รับต่อปี (โดยประมาณ):</h3>
+                    <div class="p-3 bg-gray-50 rounded-md flex justify-between items-center">
+                        <span class="text-gray-600">ลดค่าใช้จ่ายซ่อมบำรุง</span>
+                        <span id="maintenance-savings" class="font-bold text-green-600"></span>
+                    </div>
+                    <div class="p-3 bg-gray-50 rounded-md flex justify-between items-center">
+                        <span class="text-gray-600">ลดค่าเสียโอกาสจาก Downtime</span>
+                        <span id="downtime-savings" class="font-bold text-green-600"></span>
+                    </div>
+                    <div class="p-3 bg-gray-50 rounded-md flex justify-between items-center">
+                        <span class="text-gray-600">ลดต้นทุนสต็อกอะไหล่</span>
+                        <span id="inventory-savings" class="font-bold text-green-600"></span>
+                    </div>
+                    <div class="p-3 bg-blue-50 rounded-md flex justify-between items-center text-lg">
+                        <span class="font-bold text-blue-800">รวมผลประโยชน์ต่อปี</span>
+                        <span id="total-savings" class="font-bold text-blue-800"></span>
+                    </div>
+                </div>
+
+                <!-- ROI & Payback -->
+                <div class="mt-6 grid grid-cols-2 gap-4 text-center">
+                    <div class="bg-green-100 p-4 rounded-lg">
+                        <p class="text-sm text-green-800">ROI (ปีแรก)</p>
+                        <p id="roi-result" class="text-3xl font-bold text-green-800"></p>
+                    </div>
+                    <div class="bg-green-100 p-4 rounded-lg">
+                        <p class="text-sm text-green-800">ระยะเวลาคืนทุน</p>
+                        <p id="payback-result" class="text-3xl font-bold text-green-800"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const features = [
+            { id: 'core-cmms', name: 'ระบบ CMMS พื้นฐาน', cost: 1000000, savings: { maintenance: 0.10, downtime: 0.10, inventory: 0.05 } },
+            { id: 'pdm', name: 'Predictive Maintenance (PdM)', cost: 1200000, savings: { maintenance: 0.15, downtime: 0.25, inventory: 0.05 } },
+            { id: 'triage', name: 'AI-Powered Triage', cost: 500000, savings: { maintenance: 0.0, downtime: 0.10, inventory: 0.0 } },
+            { id: 'spare-parts', name: 'ระบบจัดการอะไหล่อัจฉริยะ', cost: 800000, savings: { maintenance: 0.05, downtime: 0.0, inventory: 0.15 } },
+            { id: 'mobile-app', name: 'Mobile App สำหรับช่าง', cost: 500000, savings: { maintenance: 0.05, downtime: 0.05, inventory: 0.0 } },
+        ];
+
+        function formatCurrency(value) {
+            return `฿${Math.round(value).toLocaleString()}`;
+        }
+
+        function calculateROI() {
+            // 1. Calculate Total Investment
+            let totalInvestment = 0;
+            const selectedFeatures = [];
+            features.forEach(feature => {
+                const checkbox = document.getElementById(feature.id);
+                if (checkbox.checked) {
+                    totalInvestment += feature.cost;
+                    selectedFeatures.push(feature);
+                }
+            });
+            document.getElementById('total-investment').textContent = formatCurrency(totalInvestment);
+
+            // 2. Get User Inputs
+            const maintenanceCost = parseFloat(document.getElementById('maintenance-cost').value) || 0;
+            const downtimeHours = parseFloat(document.getElementById('downtime-hours').value) || 0;
+            const downtimeCostPerHour = parseFloat(document.getElementById('downtime-cost-per-hour').value) || 0;
+            const inventoryValue = parseFloat(document.getElementById('inventory-value').value) || 0;
+            const totalDowntimeCost = downtimeHours * downtimeCostPerHour;
+
+            // 3. Calculate Savings
+            let maintenanceSavingsRate = 0;
+            let downtimeSavingsRate = 0;
+            let inventorySavingsRate = 0;
+            selectedFeatures.forEach(feature => {
+                maintenanceSavingsRate += feature.savings.maintenance;
+                downtimeSavingsRate += feature.savings.downtime;
+                inventorySavingsRate += feature.savings.inventory;
+            });
+            
+            const maintenanceSavings = maintenanceCost * Math.min(maintenanceSavingsRate, 1);
+            const downtimeSavings = totalDowntimeCost * Math.min(downtimeSavingsRate, 1);
+            const inventorySavings = inventoryValue * Math.min(inventorySavingsRate, 1);
+            const totalSavings = maintenanceSavings + downtimeSavings + inventorySavings;
+            
+            document.getElementById('maintenance-savings').textContent = formatCurrency(maintenanceSavings);
+            document.getElementById('downtime-savings').textContent = formatCurrency(downtimeSavings);
+            document.getElementById('inventory-savings').textContent = formatCurrency(inventorySavings);
+            document.getElementById('total-savings').textContent = formatCurrency(totalSavings);
+
+            // 4. Calculate ROI and Payback
+            if (totalInvestment > 0) {
+                const roi = ((totalSavings - totalInvestment) / totalInvestment) * 100;
+                const paybackMonths = (totalInvestment / (totalSavings / 12));
+                
+                document.getElementById('roi-result').textContent = `${roi.toFixed(1)}%`;
+                document.getElementById('payback-result').textContent = `${paybackMonths.toFixed(1)} เดือน`;
+            } else {
+                document.getElementById('roi-result').textContent = '-';
+                document.getElementById('payback-result').textContent = '-';
+            }
+        }
+
+        function renderFeatures() {
+            const container = document.getElementById('feature-selection');
+            container.innerHTML = features.map(feature => `
+                <label class="flex items-center justify-between p-3 bg-gray-50 rounded-md cursor-pointer hover:bg-gray-100">
+                    <div class="flex items-center">
+                        <input type="checkbox" id="${feature.id}" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
+                        <span class="ml-3 text-sm font-medium text-gray-900">${feature.name}</span>
+                    </div>
+                    <span class="text-sm text-gray-600">${formatCurrency(feature.cost)}</span>
+                </label>
+            `).join('');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderFeatures();
+            calculateROI();
+            lucide.createIcons();
+            
+            document.querySelectorAll('input, select').forEach(el => {
+                el.addEventListener('change', calculateROI);
+                el.addEventListener('keyup', calculateROI);
+            });
+        });
+    </script>
+</body>
+</html>
