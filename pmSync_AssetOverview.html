@@ -43,17 +43,17 @@
                 </div>
                 <div class="bg-white p-5 rounded-lg shadow flex items-center justify-between">
                     <div>
-                        <h2 class="text-gray-500 text-sm font-medium">จำนวนแผน PM ทั้งหมด</h2>
-                        <p id="total-pm-tasks" class="text-3xl font-bold text-green-600"></p>
+                        <h2 class="text-gray-500 text-sm font-medium">ภาวะปกติ</h2>
+                        <p id="healthy-assets" class="text-3xl font-bold text-green-600"></p>
                     </div>
-                    <div class="bg-green-100 p-3 rounded-full"><i data-lucide="list-checks" class="h-6 w-6 text-green-600"></i></div>
+                    <div class="bg-green-100 p-3 rounded-full"><i data-lucide="shield-check" class="h-6 w-6 text-green-600"></i></div>
                 </div>
                 <div class="bg-white p-5 rounded-lg shadow flex items-center justify-between">
                     <div>
-                        <h2 class="text-gray-500 text-sm font-medium">ค่าใช้จ่ายรวมต่อปี</h2>
-                        <p id="total-cost" class="text-3xl font-bold text-red-600"></p>
+                        <h2 class="text-gray-500 text-sm font-medium">แจ้งเตือน/วิกฤต</h2>
+                        <p id="alert-assets" class="text-3xl font-bold text-red-600"></p>
                     </div>
-                    <div class="bg-red-100 p-3 rounded-full"><i data-lucide="trending-down" class="h-6 w-6 text-red-600"></i></div>
+                    <div class="bg-red-100 p-3 rounded-full"><i data-lucide="shield-alert" class="h-6 w-6 text-red-600"></i></div>
                 </div>
             </div>
 
@@ -67,6 +67,7 @@
                     </div>
                     <div class="flex items-center space-x-2">
                         <span class="text-sm font-medium text-gray-600">จัดเรียง:</span>
+                        <button id="sort-status-btn" onclick="sortBy('status')" class="px-3 py-1 rounded-md text-sm font-semibold transition-colors">สถานะ</button>
                         <button id="sort-name-btn" onclick="sortBy('name')" class="px-3 py-1 rounded-md text-sm font-semibold transition-colors">ชื่อ</button>
                         <button id="sort-cost-btn" onclick="sortBy('cost')" class="px-3 py-1 rounded-md text-sm font-semibold transition-colors">ค่าใช้จ่าย</button>
                         <button id="sort-pm-btn" onclick="sortBy('pmCount')" class="px-3 py-1 rounded-md text-sm font-semibold transition-colors">จำนวนงาน</button>
@@ -88,23 +89,26 @@
     <script>
         // Mock Data
         let assets = [
-            { id: 'PUMP-001', name: 'Main Coolant Pump', location: 'Production Line 1', photo: 'https://placehold.co/600x400/60a5fa/ffffff?text=PUMP-001', kpis: { mtbf: '1,200 ชม.', mttr: '4.5 ชม.', downtime: '28 ชม./ปี', cost: 150000 } },
-            { id: 'CONV-003', name: 'Conveyor Belt Motor', location: 'Packaging Area', photo: 'https://placehold.co/600x400/60a5fa/ffffff?text=CONV-003', kpis: { mtbf: '3,500 ชม.', mttr: '2.1 ชม.', downtime: '12 ชม./ปี', cost: 85000 } },
-            { id: 'HVAC-002', name: 'HVAC Unit 2', location: 'Office Building', photo: 'https://placehold.co/600x400/60a5fa/ffffff?text=HVAC-002', kpis: { mtbf: '8,500 ชม.', mttr: '1.5 ชม.', downtime: '5 ชม./ปี', cost: 45000 } },
+            { id: 'PUMP-001', name: 'Main Coolant Pump', location: 'Production Line 1', status: 'Critical', photo: 'https://placehold.co/600x400/ef4444/ffffff?text=PUMP-001', kpis: { mtbf: '1,200 ชม.', mttr: '4.5 ชม.', downtime: '28 ชม./ปี', cost: 150000 } },
+            { id: 'CONV-003', name: 'Conveyor Belt Motor', location: 'Packaging Area', status: 'Warning', photo: 'https://placehold.co/600x400/f59e0b/ffffff?text=CONV-003', kpis: { mtbf: '3,500 ชม.', mttr: '2.1 ชม.', downtime: '12 ชม./ปี', cost: 85000 } },
+            { id: 'HVAC-002', name: 'HVAC Unit 2', location: 'Office Building', status: 'Healthy', photo: 'https://placehold.co/600x400/22c55e/ffffff?text=HVAC-002', kpis: { mtbf: '8,500 ชม.', mttr: '1.5 ชม.', downtime: '5 ชม./ปี', cost: 45000 } },
             ...Array.from({ length: 97 }, (_, i) => {
-                const machineTypes = ['Pump', 'Motor', 'Fan', 'Compressor', 'Press', 'Robot Arm', 'HVAC Unit', 'Conveyor'];
-                const locations = ['Production Line 1', 'Production Line 2', 'Packaging Area', 'Warehouse', 'Utility Room'];
+                const machineTypes = ['Pump', 'Motor', 'Fan', 'Press', 'Robot Arm', 'HVAC Unit', 'Conveyor'];
+                const locations = ['Production Line 1', 'Production Line 2', 'Packaging Area', 'Warehouse', 'Utility Room', 'Assembly Line'];
                 const type = machineTypes[Math.floor(Math.random() * machineTypes.length)];
                 const num = String(101 + i).padStart(3, '0');
+                const statusChance = Math.random();
+                let status, color;
+                if (statusChance < 0.8) { status = 'Healthy'; color = '22c55e'; } else if (statusChance < 0.95) { status = 'Warning'; color = 'f59e0b'; } else { status = 'Critical'; color = 'ef4444'; }
                 const id = `${type.slice(0, 4).toUpperCase()}-${num}`;
                 return {
-                    id: id, name: `${type} #${num}`, location: locations[Math.floor(Math.random() * locations.length)], photo: `https://placehold.co/600x400/94a3b8/ffffff?text=${id}`,
+                    id: id, name: `${type} #${num}`, location: locations[Math.floor(Math.random() * locations.length)], status: status, photo: `https://placehold.co/600x400/${color}/ffffff?text=${id}`,
                     kpis: { mtbf: `${(Math.floor(Math.random() * 80) + 10) * 100} ชม.`, mttr: `${(Math.random() * 5 + 1).toFixed(1)} ชม.`, downtime: `${Math.floor(Math.random() * 30) + 5} ชม./ปี`, cost: (Math.floor(Math.random() * 150) + 20) * 1000 }
                 };
             })
         ];
         let workHistory = {};
-        let pmPlan = { 'PUMP-001': [{ task: 'ตรวจสอบการรั่วซึม', frequency: 'ทุกวัน', partsRequired: [] }, { task: 'อัดจาระบี', frequency: 'ทุกเดือน', partsRequired: ['SP-003'] }, { task: 'Overhaul', frequency: 'ทุก 2 ปี', partsRequired: ['SP-001', 'SP-005'] }] };
+        let pmPlan = {};
         
         assets.forEach(asset => {
             workHistory[asset.id] = [];
@@ -113,22 +117,23 @@
                 const randomDate = new Date(2025, Math.floor(Math.random() * 8), Math.floor(Math.random() * 28) + 1);
                 workHistory[asset.id].push({ id: `WO-${Math.floor(Math.random() * 900) + 1000}`, task: `ซ่อมบำรุงตามรอบ ${i+1}`, date: randomDate.toISOString().split('T')[0].replace(/-/g, '-'), status: 'Completed' });
             }
-            if (!pmPlan[asset.id]) {
-                pmPlan[asset.id] = [];
-                const pmCount = Math.floor(Math.random() * 5) + 1;
-                for (let i = 0; i < pmCount; i++) {
-                    pmPlan[asset.id].push({ task: `ตรวจสอบประจำ ${i === 0 ? 'วัน' : 'เดือน'}`, frequency: i === 0 ? 'ทุกวัน' : `ทุก ${i+1} เดือน`, partsRequired: [] });
-                }
-            }
+            pmPlan[asset.id] = [{ task: 'ตรวจสอบรายเดือน', frequency: 'ทุกเดือน', partsRequired: [] }];
         });
+        
+        pmPlan['PUMP-001'].push({ task: 'Overhaul ประจำปี', frequency: 'ทุกปี', partsRequired: ['SP-001', 'SP-005'] });
+        pmPlan['CONV-003'].push({ task: 'เปลี่ยนสายพาน', frequency: 'ทุก 6 เดือน', partsRequired: [] });
+        pmPlan['HVAC-002'].push({ task: 'เปลี่ยนฟิลเตอร์', frequency: 'ทุก 3 เดือน', partsRequired: ['SP-HVAC-F1'] });
 
-        let spareParts = { 'PUMP-001': [{ id: 'SP-001', name: 'Bearing #6204', onHand: 5 }, { id: 'SP-005', name: 'Hydraulic Seal Kit', onHand: 15 }, { id: 'SP-003', name: 'Lubricant G-5', onHand: 2 }] };
+        let spareParts = { 
+            'PUMP-001': [{ id: 'SP-001', name: 'Bearing #6204', onHand: 5 }, { id: 'SP-005', name: 'Hydraulic Seal Kit', onHand: 15 }, { id: 'SP-003', name: 'Lubricant G-5', onHand: 2 }],
+            'HVAC-002': [{ id: 'SP-HVAC-F1', name: 'HVAC Filter X-1', onHand: 10 }]
+        };
         let documents = { 'PUMP-001': [{ name: 'คู่มือการใช้งาน.pdf', type: 'Manual' }, { name: 'แบบไฟฟ้า.dwg', type: 'Schematic' }] };
 
         const assetListView = document.getElementById('asset-list-view');
         const assetDetailView = document.getElementById('asset-detail-view');
         let chartInstance = null;
-        let currentSort = 'name';
+        let currentSort = 'status';
         let currentLineFilter = 'All';
         let tempSelectedParts = [];
 
@@ -143,12 +148,18 @@
             }
         }
 
+        function getStatusStyles(status) {
+            switch (status) {
+                case 'Critical': return { text: 'text-red-600', bg: 'bg-red-100', border: 'border-red-600' };
+                case 'Warning': return { text: 'text-yellow-600', bg: 'bg-yellow-100', border: 'border-yellow-600' };
+                default: return { text: 'text-green-600', bg: 'bg-green-100', border: 'border-green-600' };
+            }
+        }
+
         function renderSummary() {
-            const totalPmTasks = Object.values(pmPlan).reduce((sum, plan) => sum + plan.length, 0);
-            const totalCost = assets.reduce((sum, asset) => sum + asset.kpis.cost, 0);
             document.getElementById('total-assets').textContent = assets.length;
-            document.getElementById('total-pm-tasks').textContent = totalPmTasks;
-            document.getElementById('total-cost').textContent = `฿${(totalCost / 1000000).toFixed(2)}M`;
+            document.getElementById('healthy-assets').textContent = assets.filter(a => a.status === 'Healthy').length;
+            document.getElementById('alert-assets').textContent = assets.filter(a => a.status !== 'Healthy').length;
         }
 
         function renderAssetList() {
@@ -162,7 +173,10 @@
                 return true;
             });
 
-            if (currentSort === 'name') {
+            const statusPriority = { 'Critical': 0, 'Warning': 1, 'Healthy': 2 };
+            if (currentSort === 'status') {
+                processedAssets.sort((a, b) => statusPriority[a.status] - statusPriority[b.status] || a.name.localeCompare(b.name));
+            } else if (currentSort === 'name') {
                 processedAssets.sort((a, b) => a.name.localeCompare(b.name));
             } else if (currentSort === 'cost') {
                 processedAssets.sort((a, b) => b.kpis.cost - a.kpis.cost);
@@ -171,26 +185,30 @@
             }
 
             container.innerHTML = processedAssets.map(asset => {
+                const styles = getStatusStyles(asset.status);
                 const pmTaskCount = (pmPlan[asset.id] || []).length;
-                return `
-                <div class="bg-white rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-xl transition-shadow" onclick="switchView('detail', '${asset.id}')">
-                    <img src="${asset.photo}" alt="${asset.name}" class="w-full h-32 object-cover">
-                    <div class="p-4">
-                        <h2 class="text-lg font-bold text-gray-800 truncate">${asset.name}</h2>
-                        <p class="text-sm text-gray-500">${asset.id}</p>
-                        <div class="flex items-center justify-between text-xs text-gray-500 mt-2 pt-2 border-t">
-                            <div class="flex items-center"><i data-lucide="list-checks" class="h-4 w-4 mr-1 text-blue-500"></i><span>${pmTaskCount} แผน PM</span></div>
-                            <div class="font-semibold text-red-500">฿${asset.kpis.cost.toLocaleString('th-TH')}/ปี</div>
+                return `<div class="bg-white rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-xl transition-shadow" onclick="switchView('detail', '${asset.id}')">
+                        <img src="${asset.photo}" alt="${asset.name}" class="w-full h-32 object-cover">
+                        <div class="p-4">
+                            <div class="flex justify-between items-start">
+                                <h2 class="text-lg font-bold text-gray-800 truncate">${asset.name}</h2>
+                                <span class="text-xs font-semibold px-2 py-1 rounded-full ${styles.bg} ${styles.text}">${asset.status}</span>
+                            </div>
+                            <p class="text-sm text-gray-500">${asset.id}</p>
+                            <div class="flex items-center justify-between text-xs text-gray-500 mt-2 pt-2 border-t">
+                                <div class="flex items-center"><i data-lucide="list-checks" class="h-4 w-4 mr-1 text-blue-500"></i><span>${pmTaskCount} แผน PM</span></div>
+                                <div class="font-semibold text-red-500">฿${asset.kpis.cost.toLocaleString('th-TH')}/ปี</div>
+                            </div>
                         </div>
-                    </div>
-                </div>
-            `}).join('');
+                    </div>`;
+            }).join('');
             lucide.createIcons();
         }
 
         function renderAssetDetail(assetId) {
             const asset = assets.find(a => a.id === assetId);
             if (!asset) return;
+            const styles = getStatusStyles(asset.status);
 
             assetDetailView.innerHTML = `
                 <button onclick="switchView('list')" class="flex items-center text-blue-600 mb-4 font-semibold"><i data-lucide="chevron-left" class="h-5 w-5"></i> กลับไปรายการเครื่องจักร</button>
@@ -202,6 +220,7 @@
                                 <p class="text-sm text-gray-500">${asset.location}</p>
                                 <h1 class="text-3xl font-bold text-gray-800">${asset.name}</h1>
                                 <p class="text-lg text-gray-500">${asset.id}</p>
+                                <div class="mt-4 text-lg font-bold flex items-center ${styles.text}"><span class="h-3 w-3 rounded-full ${styles.bg.replace('100', '500')} mr-2"></span>สถานะ: ${asset.status}</div>
                             </div>
                             <div class="mt-4 flex space-x-2">
                                 <button class="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg flex items-center gap-2"><i data-lucide="plus-circle" class="h-4 w-4"></i>สร้างใบงาน</button>
@@ -425,7 +444,7 @@
         }
 
         function updateControlButtons() {
-            const sortButtons = { 'name': document.getElementById('sort-name-btn'), 'cost': document.getElementById('sort-cost-btn'), 'pmCount': document.getElementById('sort-pm-btn') };
+            const sortButtons = { 'status': document.getElementById('sort-status-btn'), 'name': document.getElementById('sort-name-btn'), 'cost': document.getElementById('sort-cost-btn'), 'pmCount': document.getElementById('sort-pm-btn') };
             Object.values(sortButtons).forEach(btn => {
                 btn.classList.add('bg-gray-200', 'text-gray-700');
                 btn.classList.remove('bg-blue-600', 'text-white');
@@ -433,7 +452,7 @@
             sortButtons[currentSort].classList.add('bg-blue-600', 'text-white');
             sortButtons[currentSort].classList.remove('bg-gray-200', 'text-gray-700');
         }
-        
+
         function populateLineFilter() {
             const lineFilter = document.getElementById('line-filter');
             const locations = [...new Set(assets.map(asset => asset.location))];
