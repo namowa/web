@@ -136,6 +136,7 @@
             activities: [],
             rewards: [],
             numberedLotteryData: {},
+            lotterySettings: { cost: 20, limit: 5 }, // Default lottery settings
             pendingRequests: [], 
             allUsers: [], 
             userSearchTerm: '',
@@ -448,10 +449,10 @@
         }
 
         function renderNumberedLottery() {
-            const NUMBERED_LOTTERY_COST = 20;
+            const { cost, limit } = state.lotterySettings;
             const ticketsOwned = Object.values(state.numberedLotteryData).filter(ticket => ticket.ownerId === state.userId).length;
-            const canBuyMore = ticketsOwned < 5;
-            const hasEnoughPoints = state.userData.points >= NUMBERED_LOTTERY_COST;
+            const canBuyMore = ticketsOwned < limit;
+            const hasEnoughPoints = state.userData.points >= cost;
 
             let numbersHTML = '';
             for (let i = 0; i < 1000; i++) {
@@ -482,8 +483,8 @@
                 <div class="bg-white p-6 rounded-xl shadow-md">
                     <div class="text-center mb-4">
                         <h2 class="text-2xl font-bold mb-2 text-gray-800">สลาก SHE&E</h2>
-                        <p class="text-gray-600">เลือกซื้อเบอร์ที่คุณต้องการ (ใช้ ${NUMBERED_LOTTERY_COST} คะแนนต่อใบ, ซื้อได้สูงสุด 5 ใบ)</p>
-                        <p class="mt-2 font-semibold text-blue-600">คุณซื้อไปแล้ว: ${ticketsOwned} / 5 ใบ</p>
+                        <p class="text-gray-600">เลือกซื้อเบอร์ที่คุณต้องการ (ใช้ ${cost} คะแนนต่อใบ, ซื้อได้สูงสุด ${limit} ใบ)</p>
+                        <p class="mt-2 font-semibold text-blue-600">คุณซื้อไปแล้ว: ${ticketsOwned} / ${limit} ใบ</p>
                     </div>
                     <div class="grid grid-cols-5 sm:grid-cols-10 gap-2 max-h-96 overflow-y-auto p-2 bg-gray-50 rounded-lg border">
                         ${numbersHTML}
@@ -683,6 +684,21 @@
 
             section.innerHTML = `
                 <h2 class="text-2xl font-bold mb-4 text-gray-800">จัดการสลาก SHE&E</h2>
+                <form id="lottery-settings-form" class="space-y-3 border-b pb-4 mb-4">
+                    <h3 class="font-semibold text-lg">ตั้งค่าสลาก</h3>
+                     <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="lottery-cost-input" class="block text-sm font-medium text-gray-700">ราคาสลาก (คะแนน)</label>
+                            <input type="number" id="lottery-cost-input" value="${state.lotterySettings.cost}" class="w-full p-2 border rounded mt-1" required>
+                        </div>
+                        <div>
+                            <label for="lottery-limit-input" class="block text-sm font-medium text-gray-700">จำกัดการซื้อสูงสุด (ใบ/คน)</label>
+                            <input type="number" id="lottery-limit-input" value="${state.lotterySettings.limit}" class="w-full p-2 border rounded mt-1" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700">บันทึกการตั้งค่า</button>
+                </form>
+
                 <div class="space-y-2 mb-6 max-h-64 overflow-y-auto border p-2 rounded-lg">
                     ${soldTickets.length > 0 ? soldTickets.map(([number, data]) => `
                         <div class="flex items-center justify-between p-2 border rounded-lg bg-gray-50">
@@ -858,20 +874,20 @@
         }
         
         async function handleBuyNumberedTicket(numberStr) {
-            const NUMBERED_LOTTERY_COST = 20;
+            const { cost, limit } = state.lotterySettings;
 
-            if (state.userData.points < NUMBERED_LOTTERY_COST) {
-                showToast(`คุณต้องมี ${NUMBERED_LOTTERY_COST} คะแนนเพื่อซื้อสลาก`, true);
+            if (state.userData.points < cost) {
+                showToast(`คุณต้องมี ${cost} คะแนนเพื่อซื้อสลาก`, true);
                 return;
             }
 
             const ticketsOwned = Object.values(state.numberedLotteryData).filter(ticket => ticket.ownerId === state.userId).length;
-            if (ticketsOwned >= 5) {
-                showToast("คุณซื้อสลากครบ 5 ใบแล้ว", true);
+            if (ticketsOwned >= limit) {
+                showToast(`คุณซื้อสลากครบ ${limit} ใบแล้ว`, true);
                 return;
             }
             
-            showConfirmModal(`คุณต้องการใช้ ${NUMBERED_LOTTERY_COST} คะแนน เพื่อซื้อสลากเบอร์ ${numberStr} ใช่หรือไม่?`, async () => {
+            showConfirmModal(`คุณต้องการใช้ ${cost} คะแนน เพื่อซื้อสลากเบอร์ ${numberStr} ใช่หรือไม่?`, async () => {
                 const ticketRef = doc(db, 'numberedLottery', numberStr);
                 const userRef = doc(db, 'users', state.userId);
 
@@ -882,9 +898,9 @@
 
                         if (!userDoc.exists()) throw "ไม่พบข้อมูลผู้ใช้";
                         if (ticketDoc.exists() && ticketDoc.data().isSold) throw "เบอร์นี้ถูกซื้อไปแล้ว";
-                        if (userDoc.data().points < NUMBERED_LOTTERY_COST) throw "คะแนนไม่เพียงพอ";
+                        if (userDoc.data().points < cost) throw "คะแนนไม่เพียงพอ";
 
-                        const newPoints = userDoc.data().points - NUMBERED_LOTTERY_COST;
+                        const newPoints = userDoc.data().points - cost;
                         transaction.update(userRef, { points: newPoints });
 
                         transaction.set(ticketRef, {
@@ -1060,6 +1076,27 @@
                 showToast("ลบของรางวัลสำเร็จ!");
             });
         }
+        
+        async function handleLotterySettingsSave(e) {
+            e.preventDefault();
+            const newSettings = {
+                cost: Number(document.getElementById('lottery-cost-input').value),
+                limit: Number(document.getElementById('lottery-limit-input').value)
+            };
+
+            if (newSettings.cost < 0 || newSettings.limit < 0) {
+                showToast("ค่าต้องไม่ติดลบ", true);
+                return;
+            }
+
+            try {
+                await setDoc(doc(db, "settings", "lottery"), newSettings);
+                showToast("บันทึกการตั้งค่าสลากสำเร็จ!");
+            } catch (error) {
+                console.error("Error saving lottery settings:", error);
+                showToast("เกิดข้อผิดพลาดในการบันทึก", true);
+            }
+        }
 
         async function handleClearIndividualTicket(ticketId) {
             showConfirmModal(`คุณต้องการล้างค่าสลากเบอร์ ${ticketId} ใช่หรือไม่?`, async () => {
@@ -1138,8 +1175,14 @@
                 });
                 if(state.userId) render();
             });
+            const unsubLotterySettings = onSnapshot(doc(db, "settings", "lottery"), (doc) => {
+                if (doc.exists()) {
+                    state.lotterySettings = doc.data();
+                }
+                if (state.userId) render();
+            });
             
-            state.unsubscribers.push(unsubActivities, unsubRewards, unsubNumberedLottery);
+            state.unsubscribers.push(unsubActivities, unsubRewards, unsubNumberedLottery, unsubLotterySettings);
         }
 
         function setupNav() {
@@ -1196,7 +1239,7 @@
 
                 // --- Hardcoded Admin Check ---
                 // !!! IMPORTANT: Replace with the actual LINE User ID of the admin !!!
-                const ADMIN_USER_ID = "U722ca367a6a72d0b0a9b4c26fa2c7c5c";
+                const ADMIN_USER_ID = "Ueca2453bb7e4434877a936491363292b";
                 const isAdmin = state.userId === ADMIN_USER_ID;
 
                 if (isAdmin) {
@@ -1327,6 +1370,7 @@
                 if (e.target.id === 'activity-form') handleActivitySave(e);
                 if (e.target.id === 'reward-form') handleRewardSave(e);
                 if (e.target.id === 'user-form') handleUserSave(e);
+                if (e.target.id === 'lottery-settings-form') handleLotterySettingsSave(e);
             });
         });
     </script>
