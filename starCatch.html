@@ -111,6 +111,47 @@
             from { transform: translate(0, 0); }
             to { transform: translate(-15px, -20px); }
         }
+        
+        /* Toggle Switch Styles */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 28px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+        input:checked + .slider:before {
+            transform: translateX(22px);
+        }
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -162,15 +203,22 @@
                                 <input type="color" id="star-bg-color-input" class="w-full h-10 p-1 bg-gray-700 rounded-md border border-gray-600 cursor-pointer">
                             </div>
                         </div>
+                        <div class="flex justify-between items-center">
+                            <label for="graphics-toggle" class="text-sm font-medium">เปิด/ปิด แอนิเมชัน</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="graphics-toggle">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
                     </div>
 
                     <!-- Prize Settings -->
                     <h2 class="text-2xl font-semibold mb-4 text-blue-300 border-b-2 border-blue-400 pb-2">แก้ไขรายการรางวัล</h2>
                     <div id="edit-prizes-list" class="space-y-3 mb-6"></div>
                     <h3 class="text-xl font-semibold mb-2 text-blue-300">เพิ่มรางวัลใหม่</h3>
-                    <form id="add-prize-form" class="flex flex-col sm:flex-row gap-3">
+                    <form id="add-prize-form" class="flex gap-3">
                         <input type="text" id="new-prize-name" placeholder="ชื่อของรางวัล" class="flex-grow bg-gray-700 text-white p-2 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                        <input type="number" id="new-prize-stock" placeholder="จำนวน" min="1" class="w-full sm:w-28 bg-gray-700 text-white p-2 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        <input type="number" id="new-prize-stock" placeholder="จำนวน" min="1" class="w-20 bg-gray-700 text-white p-2 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
                         <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">เพิ่ม</button>
                     </form>
                     <div class="mt-6 text-center">
@@ -207,7 +255,8 @@
             const defaultSettings = {
                 title: 'กิจกรรมสอยดาว ลุ้นรางวัล',
                 bgColor: '#0c1445',
-                starBgColor: '#1b2735' // Default is a solid color now, gradient is in CSS
+                starBgColor: '#1b2735',
+                graphicsEnabled: true
             };
 
             // --- STATE VARIABLES ---
@@ -234,6 +283,7 @@
             const eventTitleInput = document.getElementById('event-title-input');
             const bgColorInput = document.getElementById('bg-color-input');
             const starBgColorInput = document.getElementById('star-bg-color-input');
+            const graphicsToggle = document.getElementById('graphics-toggle');
 
             // --- DATA PERSISTENCE FUNCTIONS ---
             function savePrizesToStorage() {
@@ -248,15 +298,14 @@
             }
             function loadSettingsFromStorage() {
                 const storedSettings = localStorage.getItem('luckyStarSettings');
-                settings = storedSettings ? JSON.parse(storedSettings) : { ...defaultSettings };
+                // Merge with defaults to ensure new settings are applied
+                settings = storedSettings ? { ...defaultSettings, ...JSON.parse(storedSettings) } : { ...defaultSettings };
             }
 
             // --- UI UPDATE FUNCTIONS ---
             function applySettings() {
                 eventTitle.textContent = settings.title;
                 document.body.style.backgroundColor = settings.bgColor;
-                // We set background color, but the gradient will remain unless overridden completely
-                // For simplicity, we'll just set the color. To keep gradient, would need more complex logic.
                 starContainer.style.background = settings.starBgColor;
             }
 
@@ -345,16 +394,26 @@
                 if (isDrawing || prizePool.length === 0) return;
                 isDrawing = true;
                 const clickedStarElement = event.target;
-                clickedStarElement.classList.add('disappearing');
-                setTimeout(() => {
-                    triggerStarRain(40);
+                
+                if (settings.graphicsEnabled) {
+                    clickedStarElement.classList.add('disappearing');
                     setTimeout(() => {
-                        const randomIndex = Math.floor(Math.random() * prizePool.length);
-                        drawnPrize = prizePool[randomIndex];
-                        prizeNameEl.textContent = drawnPrize;
-                        resultContainer.classList.remove('hidden');
-                    }, 1500);
-                }, 500);
+                        triggerStarRain(40);
+                        setTimeout(() => {
+                            showPrizePopup();
+                        }, 1500);
+                    }, 500);
+                } else {
+                    clickedStarElement.remove(); // Instantly remove star
+                    showPrizePopup();
+                }
+            }
+
+            function showPrizePopup() {
+                const randomIndex = Math.floor(Math.random() * prizePool.length);
+                drawnPrize = prizePool[randomIndex];
+                prizeNameEl.textContent = drawnPrize;
+                resultContainer.classList.remove('hidden');
             }
 
             function handleConfirm() {
@@ -380,13 +439,14 @@
                 eventTitleInput.value = settings.title;
                 bgColorInput.value = settings.bgColor;
                 starBgColorInput.value = settings.starBgColor;
+                graphicsToggle.checked = settings.graphicsEnabled;
 
                 // Populate prize list
                 editPrizesList.innerHTML = '';
                 prizes.forEach((prize, index) => {
                     const div = document.createElement('div');
-                    div.className = 'flex flex-col sm:flex-row items-center gap-3 bg-gray-800 p-3 rounded-lg';
-                    div.innerHTML = `<input type="text" value="${prize.name}" data-index="${index}" class="prize-name-input flex-grow w-full bg-gray-700 text-white p-2 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"><input type="number" value="${prize.stock}" data-index="${index}" min="0" class="prize-stock-input w-full sm:w-28 bg-gray-700 text-white p-2 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"><button data-index="${index}" class="delete-prize-button w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">ลบ</button>`;
+                    div.className = 'flex items-center gap-3 bg-gray-800 p-3 rounded-lg';
+                    div.innerHTML = `<input type="text" value="${prize.name}" data-index="${index}" class="prize-name-input flex-grow w-full bg-gray-700 text-white p-2 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"><input type="number" value="${prize.stock}" data-index="${index}" min="0" class="prize-stock-input w-20 bg-gray-700 text-white p-2 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"><button data-index="${index}" class="delete-prize-button bg-red-600 hover:bg-red-700 text-white font-bold p-2 rounded-lg">ลบ</button>`;
                     editPrizesList.appendChild(div);
                 });
                 document.querySelectorAll('.prize-name-input').forEach(input => { input.addEventListener('change', (e) => { prizes[e.target.dataset.index].name = e.target.value; }); });
@@ -429,6 +489,7 @@
                     settings.title = eventTitleInput.value;
                     settings.bgColor = bgColorInput.value;
                     settings.starBgColor = starBgColorInput.value;
+                    settings.graphicsEnabled = graphicsToggle.checked;
                     saveSettingsToStorage();
                     applySettings();
 
