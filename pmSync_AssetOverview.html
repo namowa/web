@@ -99,7 +99,16 @@
                 const num = String(101 + i).padStart(3, '0');
                 const statusChance = Math.random();
                 let status, color;
-                if (statusChance < 0.8) { status = 'Healthy'; color = '22c55e'; } else if (statusChance < 0.95) { status = 'Warning'; color = 'f59e0b'; } else { status = 'Critical'; color = 'ef4444'; }
+                if (statusChance < 0.90) { // 90% Healthy
+                    status = 'Healthy';
+                    color = '22c55e';
+                } else if (statusChance < 0.98) { // 8% Warning
+                    status = 'Warning';
+                    color = 'f59e0b';
+                } else { // 2% Critical
+                    status = 'Critical';
+                    color = 'ef4444';
+                }
                 const id = `${type.slice(0, 4).toUpperCase()}-${num}`;
                 return {
                     id: id, name: `${type} #${num}`, location: locations[Math.floor(Math.random() * locations.length)], status: status, photo: `https://placehold.co/600x400/${color}/ffffff?text=${id}`,
