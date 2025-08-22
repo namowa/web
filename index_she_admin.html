@@ -355,106 +355,47 @@
         }
 
         // --- Event Handlers ---
-        async function handleApproveSelected() {
-            const checkboxes = document.querySelectorAll('.pending-checkbox:checked');
-            const requestIdsToApprove = Array.from(checkboxes).map(cb => cb.dataset.id);
-
-            if (requestIdsToApprove.length === 0) {
-                alert("กรุณาเลือกรายการที่ต้องการอนุมัติ");
-                return;
-            }
-            
-            const batch = writeBatch(db);
-
-            for (const requestId of requestIdsToApprove) {
-                const request = state.pendingRequests.find(r => r.id === requestId);
-                if (!request) continue;
-
-                const activity = state.activities.find(a => a.id === request.activityId);
-                if (!activity) continue;
-
-                const userRef = doc(db, "users", request.userId);
-                const requestRef = doc(db, "pendingRequests", requestId);
-                
-                const userDoc = state.allUsers.find(u => u.id === request.userId);
-                if (userDoc) {
-                    const newPoints = (userDoc.points || 0) + activity.points;
-                    const currentStatus = userDoc.activityStatus || {};
-                    const newStatus = { ...currentStatus, [request.activityId]: 'completed' };
-                    batch.update(userRef, { points: newPoints, activityStatus: newStatus });
-                    batch.delete(requestRef);
-                }
-            }
-
+        async function handleApproveRequest(requestId) {
+            const requestRef = doc(db, "pendingRequests", requestId);
             try {
-                await batch.commit();
-                alert(`${requestIdsToApprove.length} รายการได้รับการอนุมัติแล้ว`);
+                await runTransaction(db, async (transaction) => {
+                    const requestDoc = await transaction.get(requestRef);
+                    if (!requestDoc.exists()) throw "ไม่พบคำขอนี้แล้ว";
+
+                    const { userId, activityId } = requestDoc.data();
+                    const activity = state.activities.find(a => a.id === activityId);
+                    if (!activity) throw "ไม่พบกิจกรรมนี้";
+
+                    const userRef = doc(db, "users", userId);
+                    const userDoc = await transaction.get(userRef);
+                    if (!userDoc.exists()) throw "ไม่พบผู้ใช้";
+
+                    const newPoints = (userDoc.data().points || 0) + activity.points;
+                    const currentStatus = userDoc.data().activityStatus || {};
+                    const newStatus = { ...currentStatus, [activityId]: 'completed' };
+
+                    transaction.update(userRef, {
+                        points: newPoints,
+                        activityStatus: newStatus
+                    });
+                    transaction.delete(requestRef);
+                });
+                alert("อนุมัติคำขอสำเร็จ!");
             } catch (e) {
-                console.error("Batch approve failed:", e);
-                alert("เกิดข้อผิดพลาดในการอนุมัติ");
+                console.error("Approve request failed:", e);
+                alert(typeof e === 'string' ? e : "เกิดข้อผิดพลาด");
             }
         }
 
-        async function handleRejectSelected() {
-            const checkboxes = document.querySelectorAll('.pending-checkbox:checked');
-            const requestIdsToReject = Array.from(checkboxes).map(cb => cb.dataset.id);
-
-            if (requestIdsToReject.length === 0) {
-                alert("กรุณาเลือกรายการที่ต้องการปฏิเสธ");
-                return;
-            }
-
-            const batch = writeBatch(db);
-
-            for (const requestId of requestIdsToReject) {
-                const requestRef = doc(db, "pendingRequests", requestId);
-                batch.delete(requestRef);
-            }
-
-            try {
-                await batch.commit();
-                alert(`${requestIdsToReject.length} รายการถูกปฏิเสธแล้ว`);
-            } catch (e) {
-                console.error("Batch reject failed:", e);
-                alert("เกิดข้อผิดพลาดในการปฏิเสธรายการ");
-            }
-        }
-        
-        async function handleApproveAllFiltered() {
-            const activityId = state.pendingFilterActivityId;
-            if (activityId === 'all') return;
-
-            const requestsToApprove = state.pendingRequests.filter(req => req.activityId === activityId);
-            if (requestsToApprove.length === 0) {
-                alert("ไม่มีคำขอสำหรับกิจกรรมนี้");
-                return;
-            }
-
-            const batch = writeBatch(db);
-
-            for (const request of requestsToApprove) {
-                const activity = state.activities.find(a => a.id === request.activityId);
-                if (!activity) continue;
-
-                const userRef = doc(db, "users", request.userId);
-                const requestRef = doc(db, "pendingRequests", request.id);
-                
-                const userDoc = state.allUsers.find(u => u.id === request.userId);
-                if (userDoc) {
-                    const newPoints = (userDoc.points || 0) + activity.points;
-                    const currentStatus = userDoc.activityStatus || {};
-                    const newStatus = { ...currentStatus, [request.activityId]: 'completed' };
-                    batch.update(userRef, { points: newPoints, activityStatus: newStatus });
-                    batch.delete(requestRef);
+        async function handleRejectRequest(requestId) {
+            if (confirm(`คุณต้องการปฏิเสธคำขอนี้ใช่หรือไม่?`)) {
+                try {
+                    await deleteDoc(doc(db, "pendingRequests", requestId));
+                    alert("ปฏิเสธคำขอเรียบร้อยแล้ว");
+                } catch (e) {
+                    console.error("Reject request failed:", e);
+                    alert("เกิดข้อผิดพลาด");
                 }
-            }
-
-            try {
-                await batch.commit();
-                alert(`อนุมัติคำขอทั้งหมด ${requestsToApprove.length} รายการสำหรับกิจกรรมนี้แล้ว`);
-            } catch (e) {
-                console.error("Batch approve all filtered failed:", e);
-                alert("เกิดข้อผิดพลาดในการอนุมัติทั้งหมด");
             }
         }
 
@@ -464,15 +405,15 @@
 
             const unsubActivities = onSnapshot(collection(db, "activities"), (snapshot) => {
                 state.activities = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                if(state.currentPage === 'pending') render();
+                render();
             });
             const unsubUsers = onSnapshot(collection(db, "users"), (snapshot) => {
                 state.allUsers = snapshot.docs.map(doc => doc.data()).filter(user => user.id !== 'admin');
-                if(state.currentPage === 'dashboard' || state.currentPage === 'users' || state.currentPage === 'pending') render();
+                render();
             });
             const unsubPending = onSnapshot(collection(db, "pendingRequests"), (snapshot) => {
                 state.pendingRequests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                if(state.currentPage === 'dashboard' || state.currentPage === 'pending') render();
+                render();
             });
             
             state.unsubscribers.push(unsubActivities, unsubUsers, unsubPending);
@@ -514,33 +455,13 @@
                 }
             });
 
-            mainContent.addEventListener('change', (e) => {
-                if (e.target.id === 'select-all-checkbox') {
-                    const isChecked = e.target.checked;
-                    document.querySelectorAll('.pending-checkbox').forEach(cb => cb.checked = isChecked);
-                }
-                
-                if (e.target.matches('.pending-checkbox') || e.target.id === 'select-all-checkbox') {
-                    const anyChecked = document.querySelectorAll('.pending-checkbox:checked').length > 0;
-                    document.getElementById('approve-selected-btn').disabled = !anyChecked;
-                    document.getElementById('reject-selected-btn').disabled = !anyChecked;
-                }
-                
-                if (e.target.id === 'activity-filter') {
-                    state.pendingFilterActivityId = e.target.value;
-                    renderAdminPendingRequests();
-                }
-            });
-
             mainContent.addEventListener('click', (e) => {
-                 if (e.target.id === 'approve-selected-btn') {
-                    handleApproveSelected();
+                const target = e.target;
+                if (target.matches('.approve-request-btn')) {
+                    handleApproveRequest(target.dataset.id);
                 }
-                if (e.target.id === 'reject-selected-btn') {
-                    handleRejectSelected();
-                }
-                if (e.target.id === 'approve-all-filtered-btn') {
-                    handleApproveAllFiltered();
+                if (target.matches('.reject-request-btn')) {
+                    handleRejectRequest(target.dataset.id);
                 }
             });
         });
