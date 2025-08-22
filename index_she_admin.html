@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - SHE&E Activity</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body {
+            font-family: 'Kanit', sans-serif;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div id="loading-screen" class="min-h-screen flex flex-col items-center justify-center">
+        <div class="loader"></div>
+        <p class="text-gray-600 mt-4">กำลังตรวจสอบสิทธิ์...</p>
+    </div>
+
+    <div id="admin-container" class="hidden md:flex">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-gray-800 text-white min-h-screen p-4">
+            <h1 class="text-2xl font-bold mb-8">SHE&E Admin</h1>
+            <nav id="admin-nav" class="space-y-2">
+                <!-- Nav links will be inserted here -->
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main id="admin-main-content" class="flex-1 p-6 md:p-10">
+            <!-- Content will be rendered here -->
+        </main>
+    </div>
+    
+    <div id="unauthorized-screen" class="hidden min-h-screen flex flex-col items-center justify-center text-center p-4">
+        <h2 class="text-2xl font-bold text-red-600">ไม่ได้รับอนุญาต</h2>
+        <p class="text-gray-600 mt-2">คุณไม่มีสิทธิ์เข้าถึงหน้านี้</p>
+    </div>
+
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, runTransaction, deleteDoc, query, where, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+         apiKey: "AIzaSyDATchWwmazw3wPnuNk4i-d79rnyBpSDM0",
+         authDomain: "line-liff-a543c.firebaseapp.com",
+         projectId: "line-liff-a543c",
+         storageBucket: "line-liff-a543c.appspot.com",
+         messagingSenderId: "617440448369",
+         appId: "1:617440448369:web:182dc1785335950c6c30d0"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let state = {
+            currentPage: 'dashboard',
+            activities: [],
+            rewards: [],
+            allUsers: [],
+            pendingRequests: [],
+            lotterySettings: { cost: 20, limit: 5 },
+            numberedLotteryData: {},
+            unsubscribers: []
+        };
+
+        const loadingScreen = document.getElementById('loading-screen');
+        const adminContainer = document.getElementById('admin-container');
+        const unauthorizedScreen = document.getElementById('unauthorized-screen');
+        const mainContent = document.getElementById('admin-main-content');
+        const adminNav = document.getElementById('admin-nav');
+
+        function renderNav() {
+            const navItems = [
+                { page: 'dashboard', text: 'แดชบอร์ด' },
+                { page: 'users', text: 'จัดการผู้ใช้งาน' },
+                { page: 'pending', text: 'อนุมัติกิจกรรม' },
+                { page: 'activities', text: 'จัดการกิจกรรม' },
+                { page: 'rewards', text: 'จัดการของรางวัล' },
+                { page: 'lottery', text: 'จัดการสลาก' },
+            ];
+
+            adminNav.innerHTML = navItems.map(item => `
+                <button data-page="${item.page}" class="nav-button w-full text-left px-4 py-2 rounded-lg transition-colors ${state.currentPage === item.page ? 'bg-gray-700' : 'hover:bg-gray-700'}">
+                    ${item.text}
+                </button>
+            `).join('');
+        }
+
+        function render() {
+            renderNav();
+            mainContent.innerHTML = `<div class="loader"></div>`;
+            switch (state.currentPage) {
+                case 'dashboard': renderDashboard(); break;
+                case 'users': renderAdminUsers(); break;
+                case 'pending': renderAdminPendingRequests(); break;
+                case 'activities': renderAdminActivities(); break;
+                case 'rewards': renderAdminRewards(); break;
+                case 'lottery': renderAdminNumberedLottery(); break;
+                default: mainContent.innerHTML = '<h2>Page Not Found</h2>';
+            }
+        }
+        
+        function renderDashboard() {
+             mainContent.innerHTML = `
+                <h2 class="text-3xl font-bold mb-6 text-gray-800">แดชบอร์ด</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-lg font-semibold text-gray-500">ผู้ใช้งานทั้งหมด</h3>
+                        <p class="text-4xl font-bold text-blue-600">${state.allUsers.length}</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-lg font-semibold text-gray-500">คำขอรอดำเนินการ</h3>
+                        <p class="text-4xl font-bold text-yellow-600">${state.pendingRequests.length}</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-lg font-semibold text-gray-500">กิจกรรมทั้งหมด</h3>
+                        <p class="text-4xl font-bold text-green-600">${state.activities.length}</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderAdminUsers() {
+             mainContent.innerHTML = `<div id="admin-users-section" class="bg-white p-6 rounded-xl shadow-md"></div>`;
+             // The rest of the rendering logic is now inside this function
+             const section = document.getElementById('admin-users-section');
+             section.innerHTML = `
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">จัดการผู้ใช้งาน</h2>
+                <p>Content for user management goes here.</p>
+             `;
+        }
+        
+        function renderAdminPendingRequests() {
+            mainContent.innerHTML = `<div id="admin-pending-section" class="bg-white p-6 rounded-xl shadow-md"></div>`;
+            const section = document.getElementById('admin-pending-section');
+            
+            const pendingRequests = state.pendingRequests || [];
+            pendingRequests.sort((a, b) => new Date(a.requestDate) - new Date(b.requestDate));
+
+            section.innerHTML = `
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-gray-800">อนุมัติกิจกรรม (${pendingRequests.length})</h2>
+                    <button id="approve-selected-btn" class="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400" disabled>อนุมัติรายการที่เลือก</button>
+                </div>
+                <div class="space-y-2 max-h-[60vh] overflow-y-auto border p-2 rounded-lg">
+                     <div class="flex items-center p-2 border-b">
+                        <input type="checkbox" id="select-all-checkbox" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                        <label for="select-all-checkbox" class="ml-3 block text-sm font-medium text-gray-700">เลือกทั้งหมด</label>
+                    </div>
+                    ${pendingRequests.length > 0 ? pendingRequests.map(req => `
+                        <div class="flex items-center justify-between p-2 border rounded-lg bg-yellow-50">
+                            <div class="flex items-center">
+                                <input type="checkbox" data-id="${req.id}" class="pending-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                <div class="ml-4">
+                                    <p class="font-semibold text-sm">${req.activityName}</p>
+                                    <p class="text-xs text-gray-600">โดย: ${req.userName} (${req.userId})</p>
+                                </div>
+                            </div>
+                            <div>
+                                <button data-id="${req.id}" class="approve-request-btn text-green-500 hover:text-green-700 mr-2 font-semibold">อนุมัติ</button>
+                                <button data-id="${req.id}" class="reject-request-btn text-red-500 hover:text-red-700 font-semibold">ปฏิเสธ</button>
+                            </div>
+                        </div>
+                    `).join('') : '<p class="text-gray-500 text-center p-4">ไม่มีคำขอที่รอดำเนินการ</p>'}
+                </div>
+            `;
+        }
+        
+        function renderAdminActivities() {
+            mainContent.innerHTML = `<p>Activity Management</p>`;
+        }
+        function renderAdminRewards() {
+            mainContent.innerHTML = `<p>Reward Management</p>`;
+        }
+        function renderAdminNumberedLottery() {
+            mainContent.innerHTML = `<p>Lottery Management</p>`;
+        }
+
+        async function handleApproveSelected() {
+            const checkboxes = document.querySelectorAll('.pending-checkbox:checked');
+            const requestIdsToApprove = Array.from(checkboxes).map(cb => cb.dataset.id);
+
+            if (requestIdsToApprove.length === 0) {
+                alert("กรุณาเลือกรายการที่ต้องการอนุมัติ");
+                return;
+            }
+
+            const batch = writeBatch(db);
+
+            for (const requestId of requestIdsToApprove) {
+                const request = state.pendingRequests.find(r => r.id === requestId);
+                if (!request) continue;
+
+                const activity = state.activities.find(a => a.id === request.activityId);
+                if (!activity) continue;
+
+                const userRef = doc(db, "users", request.userId);
+                const requestRef = doc(db, "pendingRequests", requestId);
+                
+                // Note: We can't read inside a batch write. This assumes user data exists.
+                // A more robust solution might use a Cloud Function for transactional updates.
+                // For this app's scale, we update based on current knowledge.
+                const userDoc = state.allUsers.find(u => u.id === request.userId);
+                if (userDoc) {
+                    const newPoints = (userDoc.points || 0) + activity.points;
+                    const currentStatus = userDoc.activityStatus || {};
+                    const newStatus = { ...currentStatus, [request.activityId]: 'completed' };
+                    batch.update(userRef, { points: newPoints, activityStatus: newStatus });
+                    batch.delete(requestRef);
+                }
+            }
+
+            try {
+                await batch.commit();
+                alert(`${requestIdsToApprove.length} รายการได้รับการอนุมัติแล้ว`);
+            } catch (e) {
+                console.error("Batch approve failed:", e);
+                alert("เกิดข้อผิดพลาดในการอนุมัติ");
+            }
+        }
+
+        function attachListeners() {
+            state.unsubscribers.forEach(unsub => unsub());
+            state.unsubscribers = [];
+
+            const unsubActivities = onSnapshot(collection(db, "activities"), (snapshot) => {
+                state.activities = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                render();
+            });
+            const unsubUsers = onSnapshot(collection(db, "users"), (snapshot) => {
+                state.allUsers = snapshot.docs.map(doc => doc.data()).filter(user => user.id !== 'admin');
+                render();
+            });
+            const unsubPending = onSnapshot(collection(db, "pendingRequests"), (snapshot) => {
+                state.pendingRequests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                render();
+            });
+            
+            state.unsubscribers.push(unsubActivities, unsubUsers, unsubPending);
+        }
+
+        async function main() {
+            try {
+                await liff.init({ liffId: "1654435774-E1myB7b4" });
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
+                const profile = await liff.getProfile();
+                const ADMIN_USER_ID = "YOUR_ADMIN_LINE_USER_ID"; // !!! IMPORTANT !!!
+                
+                if (profile.userId === ADMIN_USER_ID) {
+                    loadingScreen.classList.add('hidden');
+                    adminContainer.classList.remove('hidden');
+                    attachListeners();
+                } else {
+                    loadingScreen.classList.add('hidden');
+                    unauthorizedScreen.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error("LIFF/Admin Init failed", error);
+                loadingScreen.classList.add('hidden');
+                unauthorizedScreen.classList.remove('hidden');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            main();
+
+            adminNav.addEventListener('click', (e) => {
+                const button = e.target.closest('.nav-button');
+                if (button) {
+                    state.currentPage = button.dataset.page;
+                    render();
+                }
+            });
+
+            mainContent.addEventListener('change', (e) => {
+                if (e.target.id === 'select-all-checkbox') {
+                    const isChecked = e.target.checked;
+                    document.querySelectorAll('.pending-checkbox').forEach(cb => cb.checked = isChecked);
+                }
+                
+                const anyChecked = document.querySelectorAll('.pending-checkbox:checked').length > 0;
+                document.getElementById('approve-selected-btn').disabled = !anyChecked;
+            });
+
+            mainContent.addEventListener('click', (e) => {
+                 if (e.target.id === 'approve-selected-btn') {
+                    handleApproveSelected();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
