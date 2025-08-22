@@ -255,6 +255,11 @@
                 <input type="text" id="user-search-input" placeholder="ค้นหาด้วยรหัส, ชื่อ, หรือ LINE ID..." value="${state.userSearchTerm}" class="w-full p-2 border rounded mb-4">
                 <div class="space-y-2 mb-6 max-h-72 overflow-y-auto border p-2 rounded-lg">
                     ${filteredUsers.length > 0 ? filteredUsers.map(user => {
+                        const completedActivities = Object.keys(user.activityStatus || {})
+                            .filter(key => user.activityStatus[key] === 'completed')
+                            .map(key => state.activities.find(a => a.id === key)?.name || key)
+                            .join(', ');
+
                         const redeemedRewardsHTML = (user.redeemedRewards && user.redeemedRewards.length > 0)
                             ? user.redeemedRewards.map(r => `<li class="text-xs text-gray-600">${r.name} (-${r.cost} pts)</li>`).join('')
                             : '<li class="text-xs text-gray-500">ไม่มี</li>';
@@ -279,8 +284,10 @@
                                     <button data-id="${user.id}" class="delete-user-btn text-red-500 hover:text-red-700 font-semibold">ลบ</button>
                                 </div>
                             </div>
-                            <div class="user-details hidden mt-2 pt-2 border-t border-gray-200">
-                                <h4 class="font-semibold text-xs mb-1">ของรางวัลที่แลก:</h4>
+                            <div class="user-details hidden mt-2 pt-2 border-t border-gray-200 text-left">
+                                <h4 class="font-semibold text-xs mb-1">กิจกรรมที่สำเร็จ:</h4>
+                                <p class="text-xs text-gray-600">${completedActivities || 'ไม่มี'}</p>
+                                <h4 class="font-semibold text-xs mt-2 mb-1">ของรางวัลที่แลก:</h4>
                                 <ul class="list-disc list-inside pl-4">${redeemedRewardsHTML}</ul>
                                 <h4 class="font-semibold text-xs mt-2 mb-1">สลากที่ซื้อ:</h4>
                                 <ul class="list-disc list-inside pl-4">${purchasedTicketsHTML}</ul>
@@ -512,19 +519,151 @@
         }
         
         async function handleExportUsers() {
-            const dataToExport = state.allUsers.map(user => ({
-                'รหัสพนักงาน': user.employeeId || '',
-                'ชื่อ-นามสกุล': user.name,
-                'คะแนน': user.points,
-                'LINE User ID': user.id,
-            }));
+            const dataToExport = state.allUsers.map(user => {
+                const completedActivities = Object.keys(user.activityStatus || {})
+                    .filter(key => user.activityStatus[key] === 'completed')
+                    .map(key => state.activities.find(a => a.id === key)?.name || key)
+                    .join(', ');
+
+                return {
+                    'รหัสพนักงาน': user.employeeId || '',
+                    'ชื่อ-นามสกุล': user.name,
+                    'คะแนน': user.points,
+                    'LINE User ID': user.id,
+                    'กิจกรรมที่สำเร็จแล้ว': completedActivities
+                };
+            });
             const worksheet = XLSX.utils.json_to_sheet(dataToExport);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Users");
             XLSX.writeFile(workbook, "user_data.xlsx");
         }
 
-        // ... [Other handlers for activities, rewards, lottery]
+        async function handleActivitySave(e) {
+            e.preventDefault();
+            const id = document.getElementById('activity-id').value.trim();
+            if (!id) { showToast("กรุณากรอก Activity ID", true); return; }
+            const activityData = {
+                id: id,
+                name: document.getElementById('activity-name').value.trim(),
+                description: document.getElementById('activity-description').value.trim(),
+                points: Number(document.getElementById('activity-points').value),
+                stampIcon: document.getElementById('activity-icon').value.trim(),
+                type: document.getElementById('activity-type').value.trim(),
+                isVisible: true
+            };
+
+            if (activityData.type === 'online') {
+                activityData.message = document.getElementById('activity-message').value.trim();
+                activityData.link = document.getElementById('activity-link').value.trim();
+                if (!activityData.message || !activityData.link) {
+                    showToast("กรุณากรอกข้อความและลิ้งสำหรับกิจกรรมออนไลน์", true);
+                    return;
+                }
+            }
+
+            await setDoc(doc(db, "activities", id), activityData, { merge: true });
+            showToast("บันทึกกิจกรรมสำเร็จ!");
+            e.target.reset();
+            document.getElementById('online-activity-fields').classList.add('hidden');
+        }
+
+        async function handleActivityDelete(id) {
+             if(confirm(`คุณต้องการลบกิจกรรม ID: ${id} ใช่หรือไม่?`)) {
+                await deleteDoc(doc(db, "activities", id));
+                showToast("ลบกิจกรรมสำเร็จ!");
+            }
+        }
+
+        async function handleToggleActivityVisibility(activityId) {
+            const activityRef = doc(db, "activities", activityId);
+            try {
+                const activityDoc = await getDoc(activityRef);
+                if (activityDoc.exists()) {
+                    const currentVisibility = activityDoc.data().isVisible !== false;
+                    await updateDoc(activityRef, { isVisible: !currentVisibility });
+                    showToast(`เปลี่ยนสถานะการมองเห็นของ ${activityId} สำเร็จ`);
+                }
+            } catch (error) {
+                console.error("Error toggling visibility:", error);
+                showToast("เกิดข้อผิดพลาด", true);
+            }
+        }
+
+        async function handleRewardSave(e) {
+            e.preventDefault();
+            const id = document.getElementById('reward-id').value.trim();
+            if (!id) { showToast("กรุณากรอก Reward ID", true); return; }
+            const rewardData = {
+                id: id,
+                name: document.getElementById('reward-name').value.trim(),
+                cost: Number(document.getElementById('reward-cost').value),
+                stock: Number(document.getElementById('reward-stock').value),
+                limit: Number(document.getElementById('reward-limit').value) || 0,
+                img: document.getElementById('reward-img').value.trim()
+            };
+            await setDoc(doc(db, "rewards", id), rewardData);
+            showToast("บันทึกของรางวัลสำเร็จ!");
+            e.target.reset();
+        }
+
+        async function handleRewardDelete(id) {
+            if(confirm(`คุณต้องการลบของรางวัล ID: ${id} ใช่หรือไม่?`)) {
+                await deleteDoc(doc(db, "rewards", id));
+                showToast("ลบของรางวัลสำเร็จ!");
+            }
+        }
+
+        async function handleLotterySettingsSave(e) {
+            e.preventDefault();
+            const newSettings = {
+                cost: Number(document.getElementById('lottery-cost-input').value),
+                limit: Number(document.getElementById('lottery-limit-input').value)
+            };
+
+            if (newSettings.cost < 0 || newSettings.limit < 0) {
+                showToast("ค่าต้องไม่ติดลบ", true);
+                return;
+            }
+
+            try {
+                await setDoc(doc(db, "settings", "lottery"), newSettings);
+                showToast("บันทึกการตั้งค่าสลากสำเร็จ!");
+            } catch (error) {
+                console.error("Error saving lottery settings:", error);
+                showToast("เกิดข้อผิดพลาดในการบันทึก", true);
+            }
+        }
+
+        async function handleClearIndividualTicket(ticketId) {
+            if(confirm(`คุณต้องการล้างค่าสลากเบอร์ ${ticketId} ใช่หรือไม่?`)) {
+                try {
+                    await deleteDoc(doc(db, "numberedLottery", ticketId));
+                    showToast(`ล้างค่าสลากเบอร์ ${ticketId} สำเร็จ`);
+                } catch (error) {
+                    console.error("Error clearing ticket:", error);
+                    showToast("เกิดข้อผิดพลาดในการล้างค่าสลาก", true);
+                }
+            }
+        }
+
+        async function handleClearAllLotteryData() {
+            if(confirm('คุณแน่ใจหรือไม่ว่าต้องการล้างข้อมูลสลากทั้งหมด? การกระทำนี้ไม่สามารถย้อนกลับได้')) {
+                const soldTickets = Object.keys(state.numberedLotteryData);
+                if (soldTickets.length === 0) {
+                    showToast("ไม่มีข้อมูลสลากให้ลบ", true);
+                    return;
+                }
+                try {
+                    const deletePromises = soldTickets.map(ticketId => deleteDoc(doc(db, "numberedLottery", ticketId)));
+                    await Promise.all(deletePromises);
+                    showToast("ล้างข้อมูลสลากทั้งหมดสำเร็จ!");
+                } catch (error) {
+                    console.error("Error clearing all lottery data:", error);
+                    showToast("เกิดข้อผิดพลาดในการล้างข้อมูลสลาก", true);
+                }
+            }
+        }
 
         function attachListeners() {
             state.unsubscribers.forEach(unsub => unsub());
@@ -618,6 +757,48 @@
                 }
                 if (target.matches('#clear-user-form')) document.getElementById('user-form').reset();
                 if (target.id === 'export-users-btn') handleExportUsers();
+                if (target.matches('.edit-activity-btn')) {
+                    const act = state.activities.find(a => a.id === target.dataset.id);
+                    if (act) {
+                        document.getElementById('activity-id').value = act.id;
+                        document.getElementById('activity-name').value = act.name;
+                        document.getElementById('activity-description').value = act.description;
+                        document.getElementById('activity-points').value = act.points;
+                        document.getElementById('activity-icon').value = act.stampIcon;
+                        document.getElementById('activity-type').value = act.type || 'onsite';
+                        const onlineFields = document.getElementById('online-activity-fields');
+                        if (act.type === 'online') {
+                            onlineFields.classList.remove('hidden');
+                            document.getElementById('activity-message').value = act.message || '';
+                            document.getElementById('activity-link').value = act.link || '';
+                        } else {
+                            onlineFields.classList.add('hidden');
+                        }
+                        document.getElementById('activity-id').focus();
+                    }
+                }
+                if (target.matches('.delete-activity-btn')) handleActivityDelete(target.dataset.id);
+                if (target.closest('.toggle-visibility-btn')) handleToggleActivityVisibility(target.closest('.toggle-visibility-btn').dataset.id);
+                if (target.matches('#clear-activity-form')) {
+                    document.getElementById('activity-form').reset();
+                    document.getElementById('online-activity-fields').classList.add('hidden');
+                }
+                if (target.matches('.edit-reward-btn')) {
+                    const rew = state.rewards.find(r => r.id === target.dataset.id);
+                    if (rew) {
+                        document.getElementById('reward-id').value = rew.id;
+                        document.getElementById('reward-name').value = rew.name;
+                        document.getElementById('reward-cost').value = rew.cost;
+                        document.getElementById('reward-stock').value = rew.stock;
+                        document.getElementById('reward-limit').value = rew.limit || 0;
+                        document.getElementById('reward-img').value = rew.img;
+                        document.getElementById('reward-id').focus();
+                    }
+                }
+                if (target.matches('.delete-reward-btn')) handleRewardDelete(target.dataset.id);
+                if (target.matches('#clear-reward-form')) document.getElementById('reward-form').reset();
+                if (target.matches('.clear-ticket-btn')) handleClearIndividualTicket(target.dataset.id);
+                if (target.matches('#clear-all-lottery-btn')) handleClearAllLotteryData();
             });
              mainContent.addEventListener('input', (e) => {
                 if (e.target.id === 'user-search-input') {
@@ -628,7 +809,19 @@
             mainContent.addEventListener('submit', (e) => {
                 e.preventDefault();
                 if (e.target.id === 'user-form') handleUserSave(e);
-                // Add other form submissions here if needed
+                if (e.target.id === 'activity-form') handleActivitySave(e);
+                if (e.target.id === 'reward-form') handleRewardSave(e);
+                if (e.target.id === 'lottery-settings-form') handleLotterySettingsSave(e);
+            });
+            mainContent.addEventListener('change', (e) => {
+                if (e.target.id === 'activity-type') {
+                    const onlineFields = document.getElementById('online-activity-fields');
+                    if (e.target.value === 'online') {
+                        onlineFields.classList.remove('hidden');
+                    } else {
+                        onlineFields.classList.add('hidden');
+                    }
+                }
             });
         });
     </script>
