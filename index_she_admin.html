@@ -45,7 +45,7 @@
         </aside>
 
         <!-- Main Content -->
-        <main id="admin-main-content" class="flex-1 p-6 md:p-10">
+        <main id="admin-main-content" class="flex-1 p-6 md:p-10 overflow-y-auto h-screen">
             <!-- Content will be rendered here -->
         </main>
     </div>
@@ -78,9 +78,9 @@
             rewards: [],
             allUsers: [],
             pendingRequests: [],
-            pendingFilterActivityId: 'all',
             lotterySettings: { cost: 20, limit: 5 },
             numberedLotteryData: {},
+            userSearchTerm: '',
             unsubscribers: []
         };
 
@@ -142,57 +142,94 @@
         }
         
         function renderAdminUsers() {
-             mainContent.innerHTML = `<div id="admin-users-section" class="bg-white p-6 rounded-xl shadow-md"></div>`;
-             const section = document.getElementById('admin-users-section');
-             section.innerHTML = `
-                <h2 class="text-2xl font-bold mb-4 text-gray-800">จัดการผู้ใช้งาน</h2>
-                <p>Content for user management goes here.</p>
-             `;
+            mainContent.innerHTML = `<div id="admin-users-section" class="bg-white p-6 rounded-xl shadow-md">${renderAdminUsersContent()}</div>`;
         }
         
         function renderAdminPendingRequests() {
-            mainContent.innerHTML = `<div id="admin-pending-section" class="bg-white p-6 rounded-xl shadow-md"></div>`;
-            const section = document.getElementById('admin-pending-section');
-            
-            const pendingRequests = state.pendingRequests || [];
-            const filteredRequests = state.pendingFilterActivityId === 'all'
-                ? pendingRequests
-                : pendingRequests.filter(req => req.activityId === state.pendingFilterActivityId);
+            mainContent.innerHTML = `<div id="admin-pending-section" class="bg-white p-6 rounded-xl shadow-md">${renderAdminPendingRequestsContent()}</div>`;
+        }
+        
+        function renderAdminActivities() {
+             mainContent.innerHTML = `<div id="admin-activities-section" class="bg-white p-6 rounded-xl shadow-md">${renderAdminActivitiesContent()}</div>`;
+        }
+        function renderAdminRewards() {
+             mainContent.innerHTML = `<div id="admin-rewards-section" class="bg-white p-6 rounded-xl shadow-md">${renderAdminRewardsContent()}</div>`;
+        }
+        function renderAdminNumberedLottery() {
+             mainContent.innerHTML = `<div id="admin-lottery-section" class="bg-white p-6 rounded-xl shadow-md">${renderAdminNumberedLotteryContent()}</div>`;
+        }
 
-            const activitiesWithPending = [...new Set(pendingRequests.map(req => req.activityId))]
-                .map(id => state.activities.find(act => act.id === id))
-                .filter(Boolean); // Filter out undefined if activity was deleted
+        // --- Content Rendering Functions ---
+        function renderAdminUsersContent() {
+            const searchTerm = state.userSearchTerm.toLowerCase();
+            const filteredUsers = state.allUsers.filter(user => {
+                return user.id.toLowerCase().includes(searchTerm) || 
+                       user.name.toLowerCase().includes(searchTerm) ||
+                       (user.employeeId && user.employeeId.toLowerCase().includes(searchTerm));
+            });
 
-            section.innerHTML = `
-                <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
-                    <h2 class="text-2xl font-bold text-gray-800">อนุมัติกิจกรรม (${filteredRequests.length})</h2>
-                    <div class="flex items-center gap-2">
-                        <select id="activity-filter" class="border-gray-300 rounded-lg shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                            <option value="all">กิจกรรมทั้งหมด</option>
-                            ${activitiesWithPending.map(act => `<option value="${act.id}" ${state.pendingFilterActivityId === act.id ? 'selected' : ''}>${act.name}</option>`).join('')}
-                        </select>
-                        <button id="approve-all-filtered-btn" class="bg-cyan-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-cyan-700 disabled:bg-gray-400" ${state.pendingFilterActivityId === 'all' || filteredRequests.length === 0 ? 'disabled' : ''}>อนุมัติทั้งหมดที่แสดง</button>
-                    </div>
-                </div>
-                <div class="flex justify-between items-center mb-4">
-                    <div>
-                        <input type="checkbox" id="select-all-checkbox" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                        <label for="select-all-checkbox" class="ml-3 block text-sm font-medium text-gray-700">เลือกทั้งหมด</label>
-                    </div>
-                    <div>
-                        <button id="reject-selected-btn" class="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 disabled:bg-gray-400 mr-2" disabled>ปฏิเสธรายการที่เลือก</button>
-                        <button id="approve-selected-btn" class="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400" disabled>อนุมัติรายการที่เลือก</button>
-                    </div>
-                </div>
-                <div class="space-y-2 max-h-[60vh] overflow-y-auto border p-2 rounded-lg">
-                    ${filteredRequests.length > 0 ? filteredRequests.map(req => `
-                        <div class="flex items-center justify-between p-2 border rounded-lg bg-yellow-50">
-                            <div class="flex items-center">
-                                <input type="checkbox" data-id="${req.id}" class="pending-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                                <div class="ml-4">
-                                    <p class="font-semibold text-sm">${req.activityName}</p>
-                                    <p class="text-xs text-gray-600">โดย: ${req.userName} (${req.userId})</p>
+            return `
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">จัดการผู้ใช้งาน (${filteredUsers.length})</h2>
+                <input type="text" id="user-search-input" placeholder="ค้นหาด้วยรหัส, ชื่อ, หรือ LINE ID..." value="${state.userSearchTerm}" class="w-full p-2 border rounded mb-4">
+                <div class="space-y-2 mb-6 max-h-72 overflow-y-auto border p-2 rounded-lg">
+                    ${filteredUsers.length > 0 ? filteredUsers.map(user => {
+                        const redeemedRewardsHTML = (user.redeemedRewards && user.redeemedRewards.length > 0)
+                            ? user.redeemedRewards.map(r => `<li class="text-xs text-gray-600">${r.name} (-${r.cost} pts)</li>`).join('')
+                            : '<li class="text-xs text-gray-500">ไม่มี</li>';
+
+                        const purchasedTickets = Object.keys(state.numberedLotteryData).filter(
+                            key => state.numberedLotteryData[key].ownerId === user.id
+                        );
+                        const purchasedTicketsHTML = purchasedTickets.length > 0
+                            ? `<li class="text-xs text-gray-600 font-mono">${purchasedTickets.join(', ')}</li>`
+                            : '<li class="text-xs text-gray-500">ไม่มี</li>';
+
+                        return `
+                        <div class="p-2 border rounded-lg bg-gray-50">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="font-semibold text-sm">${user.name} <span class="font-mono text-xs text-gray-500">(${user.employeeId || 'N/A'})</span></p>
+                                    <p class="text-xs text-gray-600">คะแนน: ${user.points}</p>
                                 </div>
+                                <div class="flex-shrink-0">
+                                    <button data-id="${user.id}" class="toggle-details-btn text-gray-500 hover:text-gray-700 mr-2 font-semibold text-sm">รายละเอียด</button>
+                                    <button data-id="${user.id}" class="edit-user-btn text-blue-500 hover:text-blue-700 mr-2 font-semibold">แก้ไข</button>
+                                    <button data-id="${user.id}" class="delete-user-btn text-red-500 hover:text-red-700 font-semibold">ลบ</button>
+                                </div>
+                            </div>
+                            <div class="user-details hidden mt-2 pt-2 border-t border-gray-200">
+                                <h4 class="font-semibold text-xs mb-1">ของรางวัลที่แลก:</h4>
+                                <ul class="list-disc list-inside pl-4">${redeemedRewardsHTML}</ul>
+                                <h4 class="font-semibold text-xs mt-2 mb-1">สลากที่ซื้อ:</h4>
+                                <ul class="list-disc list-inside pl-4">${purchasedTicketsHTML}</ul>
+                            </div>
+                        </div>
+                        `}).join('') : '<p class="text-gray-500 text-center p-4">ไม่พบผู้ใช้งาน</p>'}
+                </div>
+                <form id="user-form" class="space-y-3 border-t pt-4">
+                    <h3 class="font-semibold text-lg">แก้ไขข้อมูลผู้ใช้</h3>
+                    <input type="text" id="user-id-form" placeholder="LINE User ID" class="w-full p-2 border rounded bg-gray-100" readonly>
+                    <input type="text" id="user-employee-id-form" placeholder="รหัสพนักงาน" class="w-full p-2 border rounded bg-gray-100" readonly>
+                    <input type="text" id="user-name-form" placeholder="ชื่อ-นามสกุล" class="w-full p-2 border rounded" required>
+                    <input type="number" id="user-points-form" placeholder="คะแนน" class="w-full p-2 border rounded" required>
+                    <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700">บันทึกข้อมูลผู้ใช้</button>
+                    <button type="button" id="clear-user-form" class="w-full bg-gray-300 text-gray-800 py-2 rounded-lg font-semibold hover:bg-gray-400 mt-2">ล้างฟอร์ม</button>
+                </form>
+            `;
+        }
+
+        function renderAdminPendingRequestsContent() {
+            const pendingRequests = state.pendingRequests || [];
+            pendingRequests.sort((a, b) => new Date(a.requestDate) - new Date(b.requestDate));
+
+            return `
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">อนุมัติกิจกรรม (${pendingRequests.length})</h2>
+                <div class="space-y-2 max-h-[70vh] overflow-y-auto border p-2 rounded-lg">
+                    ${pendingRequests.length > 0 ? pendingRequests.map(req => `
+                        <div class="flex items-center justify-between p-2 border rounded-lg bg-yellow-50">
+                            <div>
+                                <p class="font-semibold text-sm">${req.activityName}</p>
+                                <p class="text-xs text-gray-600">โดย: ${req.userName} (${req.userId})</p>
                             </div>
                             <div>
                                 <button data-id="${req.id}" class="approve-request-btn text-green-500 hover:text-green-700 mr-2 font-semibold">อนุมัติ</button>
@@ -203,17 +240,121 @@
                 </div>
             `;
         }
-        
-        function renderAdminActivities() {
-            mainContent.innerHTML = `<p>Activity Management</p>`;
+
+        function renderAdminActivitiesContent() {
+             return `
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">จัดการกิจกรรม</h2>
+                <div class="space-y-2 mb-6 max-h-64 overflow-y-auto border p-2 rounded-lg">
+                    ${state.activities.map(act => {
+                        const isVisible = act.isVisible !== false;
+                        return `
+                        <div class="flex items-center justify-between p-2 border rounded-lg ${isVisible ? 'bg-gray-50' : 'bg-red-100'}">
+                            <div>
+                                <span class="truncate font-mono text-sm">${act.id}: ${act.name} (+${act.points})</span>
+                                <span class="text-xs font-semibold px-2 py-1 rounded-full ${act.type === 'online' ? 'bg-blue-200 text-blue-800' : 'bg-green-200 text-green-800'}">${act.type === 'online' ? 'ออนไลน์' : 'หน้างาน'}</span>
+                            </div>
+                            <div class="flex items-center">
+                                <button data-id="${act.id}" class="toggle-visibility-btn p-1 rounded-full hover:bg-gray-200 mr-2" title="${isVisible ? 'ซ่อนกิจกรรม' : 'แสดงกิจกรรม'}">
+                                    ${isVisible ? 
+                                        `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-600" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.022 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>` : 
+                                        `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clip-rule="evenodd" /><path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.742L2.335 6.578A10.025 10.025 0 01.458 10c1.274 4.057 5.022 7 9.542 7 1.126 0 2.206-.24 3.22-.668l-1.536-1.536z" /></svg>`
+                                    }
+                                </button>
+                                <button data-id="${act.id}" class="edit-activity-btn text-blue-500 hover:text-blue-700 mr-2">แก้ไข</button>
+                                <button data-id="${act.id}" class="delete-activity-btn text-red-500 hover:text-red-700">ลบ</button>
+                            </div>
+                        </div>
+                    `}).join('')}
+                </div>
+                <form id="activity-form" class="space-y-3 border-t pt-4">
+                    <h3 class="font-semibold text-lg">เพิ่ม / แก้ไขกิจกรรม</h3>
+                    <input type="text" id="activity-id" placeholder="ID (e.g., act09)" class="w-full p-2 border rounded" required>
+                    <input type="text" id="activity-name" placeholder="ชื่อกิจกรรม" class="w-full p-2 border rounded" required>
+                    <input type="text" id="activity-description" placeholder="คำอธิบาย" class="w-full p-2 border rounded" required>
+                    <input type="number" id="activity-points" placeholder="คะแนน" class="w-full p-2 border rounded" required>
+                    <input type="text" id="activity-icon" placeholder="ไอคอน (Emoji)" class="w-full p-2 border rounded" required>
+                    <select id="activity-type" class="w-full p-2 border rounded" required>
+                        <option value="onsite">กิจกรรมหน้างาน</option>
+                        <option value="online">กิจกรรมออนไลน์</option>
+                    </select>
+                    <div id="online-activity-fields" class="hidden space-y-3 pt-2">
+                        <textarea id="activity-message" placeholder="ข้อความสำหรับกิจกรรมออนไลน์" class="w-full p-2 border rounded" rows="3"></textarea>
+                        <input type="url" id="activity-link" placeholder="https://example.com" class="w-full p-2 border rounded">
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700">บันทึกกิจกรรม</button>
+                    <button type="button" id="clear-activity-form" class="w-full bg-gray-300 text-gray-800 py-2 rounded-lg font-semibold hover:bg-gray-400 mt-2">ล้างฟอร์ม</button>
+                </form>
+            `;
         }
-        function renderAdminRewards() {
-            mainContent.innerHTML = `<p>Reward Management</p>`;
+        function renderAdminRewardsContent() {
+             return `
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">จัดการของรางวัล</h2>
+                <div class="space-y-2 mb-6 max-h-64 overflow-y-auto border p-2 rounded-lg">
+                    ${state.rewards.map(rew => `
+                        <div class="flex items-center justify-between p-2 border rounded-lg bg-gray-50">
+                            <span class="truncate font-mono text-sm">${rew.id}: ${rew.name} (${rew.cost} คะแนน)</span>
+                            <div>
+                                <button data-id="${rew.id}" class="edit-reward-btn text-blue-500 hover:text-blue-700 mr-2">แก้ไข</button>
+                                <button data-id="${rew.id}" class="delete-reward-btn text-red-500 hover:text-red-700">ลบ</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <form id="reward-form" class="space-y-3 border-t pt-4">
+                    <h3 class="font-semibold text-lg">เพิ่ม / แก้ไขของรางวัล</h3>
+                    <input type="text" id="reward-id" placeholder="ID (e.g., rew05)" class="w-full p-2 border rounded" required>
+                    <input type="text" id="reward-name" placeholder="ชื่อของรางวัล" class="w-full p-2 border rounded" required>
+                    <input type="number" id="reward-cost" placeholder="คะแนนที่ใช้แลก" class="w-full p-2 border rounded" required>
+                    <input type="number" id="reward-stock" placeholder="จำนวนคงเหลือ" class="w-full p-2 border rounded" required>
+                    <input type="number" id="reward-limit" placeholder="จำกัดการแลกต่อคน (0 = ไม่จำกัด)" class="w-full p-2 border rounded">
+                    <input type="text" id="reward-img" placeholder="URL รูปภาพ" class="w-full p-2 border rounded" required>
+                    <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700">บันทึกของรางวัล</button>
+                    <button type="button" id="clear-reward-form" class="w-full bg-gray-300 text-gray-800 py-2 rounded-lg font-semibold hover:bg-gray-400 mt-2">ล้างฟอร์ม</button>
+                </form>
+            `;
         }
-        function renderAdminNumberedLottery() {
-            mainContent.innerHTML = `<p>Lottery Management</p>`;
+        function renderAdminNumberedLotteryContent() {
+            const soldTickets = Object.entries(state.numberedLotteryData)
+                                    .filter(([_, data]) => data.isSold)
+                                    .sort((a, b) => a[0].localeCompare(b[0]));
+
+            return `
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">จัดการสลาก SHE&E</h2>
+                <form id="lottery-settings-form" class="space-y-3 border-b pb-4 mb-4">
+                    <h3 class="font-semibold text-lg">ตั้งค่าสลาก</h3>
+                     <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="lottery-cost-input" class="block text-sm font-medium text-gray-700">ราคาสลาก (คะแนน)</label>
+                            <input type="number" id="lottery-cost-input" value="${state.lotterySettings.cost}" class="w-full p-2 border rounded mt-1" required>
+                        </div>
+                        <div>
+                            <label for="lottery-limit-input" class="block text-sm font-medium text-gray-700">จำกัดการซื้อสูงสุด (ใบ/คน)</label>
+                            <input type="number" id="lottery-limit-input" value="${state.lotterySettings.limit}" class="w-full p-2 border rounded mt-1" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700">บันทึกการตั้งค่า</button>
+                </form>
+
+                <div class="space-y-2 mb-6 max-h-64 overflow-y-auto border p-2 rounded-lg">
+                    ${soldTickets.length > 0 ? soldTickets.map(([number, data]) => `
+                        <div class="flex items-center justify-between p-2 border rounded-lg bg-gray-50">
+                            <div>
+                               <span class="font-mono text-sm font-bold">${number}</span>
+                               <span class="text-sm text-gray-600 truncate"> - ${data.ownerName || data.ownerId}</span>
+                            </div>
+                            <button data-id="${number}" class="clear-ticket-btn text-orange-500 hover:text-orange-700 text-sm font-semibold">ล้างค่า</button>
+                        </div>
+                    `).join('') : '<p class="text-gray-500 text-center p-4">ยังไม่มีสลากที่ถูกซื้อ</p>'}
+                </div>
+                <div class="border-t pt-4">
+                     <h3 class="font-semibold text-lg text-red-700">การกระทำที่อันตราย</h3>
+                     <p class="text-sm text-gray-500 mb-2">การกระทำนี้จะลบข้อมูลสลากทั้งหมดและไม่สามารถกู้คืนได้</p>
+                     <button id="clear-all-lottery-btn" class="w-full bg-red-600 text-white py-2 rounded-lg font-semibold hover:bg-red-800 transition-colors">ล้างข้อมูลสลากทั้งหมด</button>
+                </div>
+            `;
         }
 
+        // --- Event Handlers ---
         async function handleApproveSelected() {
             const checkboxes = document.querySelectorAll('.pending-checkbox:checked');
             const requestIdsToApprove = Array.from(checkboxes).map(cb => cb.dataset.id);
@@ -323,15 +464,15 @@
 
             const unsubActivities = onSnapshot(collection(db, "activities"), (snapshot) => {
                 state.activities = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                render();
+                if(state.currentPage === 'pending') render();
             });
             const unsubUsers = onSnapshot(collection(db, "users"), (snapshot) => {
                 state.allUsers = snapshot.docs.map(doc => doc.data()).filter(user => user.id !== 'admin');
-                render();
+                if(state.currentPage === 'dashboard' || state.currentPage === 'users' || state.currentPage === 'pending') render();
             });
             const unsubPending = onSnapshot(collection(db, "pendingRequests"), (snapshot) => {
                 state.pendingRequests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                render();
+                if(state.currentPage === 'dashboard' || state.currentPage === 'pending') render();
             });
             
             state.unsubscribers.push(unsubActivities, unsubUsers, unsubPending);
