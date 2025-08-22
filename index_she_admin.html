@@ -78,6 +78,7 @@
             rewards: [],
             allUsers: [],
             pendingRequests: [],
+            pendingFilterActivityId: 'all',
             lotterySettings: { cost: 20, limit: 5 },
             numberedLotteryData: {},
             unsubscribers: []
@@ -142,7 +143,6 @@
         
         function renderAdminUsers() {
              mainContent.innerHTML = `<div id="admin-users-section" class="bg-white p-6 rounded-xl shadow-md"></div>`;
-             // The rest of the rendering logic is now inside this function
              const section = document.getElementById('admin-users-section');
              section.innerHTML = `
                 <h2 class="text-2xl font-bold mb-4 text-gray-800">จัดการผู้ใช้งาน</h2>
@@ -155,19 +155,37 @@
             const section = document.getElementById('admin-pending-section');
             
             const pendingRequests = state.pendingRequests || [];
-            pendingRequests.sort((a, b) => new Date(a.requestDate) - new Date(b.requestDate));
+            const filteredRequests = state.pendingFilterActivityId === 'all'
+                ? pendingRequests
+                : pendingRequests.filter(req => req.activityId === state.pendingFilterActivityId);
+
+            const activitiesWithPending = [...new Set(pendingRequests.map(req => req.activityId))]
+                .map(id => state.activities.find(act => act.id === id))
+                .filter(Boolean); // Filter out undefined if activity was deleted
 
             section.innerHTML = `
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl font-bold text-gray-800">อนุมัติกิจกรรม (${pendingRequests.length})</h2>
-                    <button id="approve-selected-btn" class="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400" disabled>อนุมัติรายการที่เลือก</button>
+                <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
+                    <h2 class="text-2xl font-bold text-gray-800">อนุมัติกิจกรรม (${filteredRequests.length})</h2>
+                    <div class="flex items-center gap-2">
+                        <select id="activity-filter" class="border-gray-300 rounded-lg shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                            <option value="all">กิจกรรมทั้งหมด</option>
+                            ${activitiesWithPending.map(act => `<option value="${act.id}" ${state.pendingFilterActivityId === act.id ? 'selected' : ''}>${act.name}</option>`).join('')}
+                        </select>
+                        <button id="approve-all-filtered-btn" class="bg-cyan-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-cyan-700 disabled:bg-gray-400" ${state.pendingFilterActivityId === 'all' || filteredRequests.length === 0 ? 'disabled' : ''}>อนุมัติทั้งหมดที่แสดง</button>
+                    </div>
                 </div>
-                <div class="space-y-2 max-h-[60vh] overflow-y-auto border p-2 rounded-lg">
-                     <div class="flex items-center p-2 border-b">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
                         <input type="checkbox" id="select-all-checkbox" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
                         <label for="select-all-checkbox" class="ml-3 block text-sm font-medium text-gray-700">เลือกทั้งหมด</label>
                     </div>
-                    ${pendingRequests.length > 0 ? pendingRequests.map(req => `
+                    <div>
+                        <button id="reject-selected-btn" class="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 disabled:bg-gray-400 mr-2" disabled>ปฏิเสธรายการที่เลือก</button>
+                        <button id="approve-selected-btn" class="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400" disabled>อนุมัติรายการที่เลือก</button>
+                    </div>
+                </div>
+                <div class="space-y-2 max-h-[60vh] overflow-y-auto border p-2 rounded-lg">
+                    ${filteredRequests.length > 0 ? filteredRequests.map(req => `
                         <div class="flex items-center justify-between p-2 border rounded-lg bg-yellow-50">
                             <div class="flex items-center">
                                 <input type="checkbox" data-id="${req.id}" class="pending-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
@@ -204,7 +222,7 @@
                 alert("กรุณาเลือกรายการที่ต้องการอนุมัติ");
                 return;
             }
-
+            
             const batch = writeBatch(db);
 
             for (const requestId of requestIdsToApprove) {
@@ -217,9 +235,6 @@
                 const userRef = doc(db, "users", request.userId);
                 const requestRef = doc(db, "pendingRequests", requestId);
                 
-                // Note: We can't read inside a batch write. This assumes user data exists.
-                // A more robust solution might use a Cloud Function for transactional updates.
-                // For this app's scale, we update based on current knowledge.
                 const userDoc = state.allUsers.find(u => u.id === request.userId);
                 if (userDoc) {
                     const newPoints = (userDoc.points || 0) + activity.points;
@@ -236,6 +251,69 @@
             } catch (e) {
                 console.error("Batch approve failed:", e);
                 alert("เกิดข้อผิดพลาดในการอนุมัติ");
+            }
+        }
+
+        async function handleRejectSelected() {
+            const checkboxes = document.querySelectorAll('.pending-checkbox:checked');
+            const requestIdsToReject = Array.from(checkboxes).map(cb => cb.dataset.id);
+
+            if (requestIdsToReject.length === 0) {
+                alert("กรุณาเลือกรายการที่ต้องการปฏิเสธ");
+                return;
+            }
+
+            const batch = writeBatch(db);
+
+            for (const requestId of requestIdsToReject) {
+                const requestRef = doc(db, "pendingRequests", requestId);
+                batch.delete(requestRef);
+            }
+
+            try {
+                await batch.commit();
+                alert(`${requestIdsToReject.length} รายการถูกปฏิเสธแล้ว`);
+            } catch (e) {
+                console.error("Batch reject failed:", e);
+                alert("เกิดข้อผิดพลาดในการปฏิเสธรายการ");
+            }
+        }
+        
+        async function handleApproveAllFiltered() {
+            const activityId = state.pendingFilterActivityId;
+            if (activityId === 'all') return;
+
+            const requestsToApprove = state.pendingRequests.filter(req => req.activityId === activityId);
+            if (requestsToApprove.length === 0) {
+                alert("ไม่มีคำขอสำหรับกิจกรรมนี้");
+                return;
+            }
+
+            const batch = writeBatch(db);
+
+            for (const request of requestsToApprove) {
+                const activity = state.activities.find(a => a.id === request.activityId);
+                if (!activity) continue;
+
+                const userRef = doc(db, "users", request.userId);
+                const requestRef = doc(db, "pendingRequests", request.id);
+                
+                const userDoc = state.allUsers.find(u => u.id === request.userId);
+                if (userDoc) {
+                    const newPoints = (userDoc.points || 0) + activity.points;
+                    const currentStatus = userDoc.activityStatus || {};
+                    const newStatus = { ...currentStatus, [request.activityId]: 'completed' };
+                    batch.update(userRef, { points: newPoints, activityStatus: newStatus });
+                    batch.delete(requestRef);
+                }
+            }
+
+            try {
+                await batch.commit();
+                alert(`อนุมัติคำขอทั้งหมด ${requestsToApprove.length} รายการสำหรับกิจกรรมนี้แล้ว`);
+            } catch (e) {
+                console.error("Batch approve all filtered failed:", e);
+                alert("เกิดข้อผิดพลาดในการอนุมัติทั้งหมด");
             }
         }
 
@@ -267,7 +345,7 @@
                     return;
                 }
                 const profile = await liff.getProfile();
-                const ADMIN_USER_ID = "U722ca367a6a72d0b0a9b4c26fa2c7c5c"; // !!! IMPORTANT !!!
+                const ADMIN_USER_ID = "YOUR_ADMIN_LINE_USER_ID"; // !!! IMPORTANT !!!
                 
                 if (profile.userId === ADMIN_USER_ID) {
                     loadingScreen.classList.add('hidden');
@@ -301,13 +379,27 @@
                     document.querySelectorAll('.pending-checkbox').forEach(cb => cb.checked = isChecked);
                 }
                 
-                const anyChecked = document.querySelectorAll('.pending-checkbox:checked').length > 0;
-                document.getElementById('approve-selected-btn').disabled = !anyChecked;
+                if (e.target.matches('.pending-checkbox') || e.target.id === 'select-all-checkbox') {
+                    const anyChecked = document.querySelectorAll('.pending-checkbox:checked').length > 0;
+                    document.getElementById('approve-selected-btn').disabled = !anyChecked;
+                    document.getElementById('reject-selected-btn').disabled = !anyChecked;
+                }
+                
+                if (e.target.id === 'activity-filter') {
+                    state.pendingFilterActivityId = e.target.value;
+                    renderAdminPendingRequests();
+                }
             });
 
             mainContent.addEventListener('click', (e) => {
                  if (e.target.id === 'approve-selected-btn') {
                     handleApproveSelected();
+                }
+                if (e.target.id === 'reject-selected-btn') {
+                    handleRejectSelected();
+                }
+                if (e.target.id === 'approve-all-filtered-btn') {
+                    handleApproveAllFiltered();
                 }
             });
         });
