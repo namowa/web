@@ -103,7 +103,6 @@
             rewards: [],
             allUsers: [],
             pendingRequests: [],
-            pendingFilterActivityId: 'all',
             lotterySettings: { cost: 20, limit: 5 },
             numberedLotteryData: {},
             userSearchTerm: '',
@@ -242,10 +241,12 @@
             if (state.activityChart) {
                 state.activityChart.destroy();
             }
-
+            
+            const totalUsers = state.allUsers.length;
             const labels = state.activities.map(act => act.name);
             const data = state.activities.map(act => {
-                return state.allUsers.filter(user => user.activityStatus && user.activityStatus[act.id] === 'completed').length;
+                const completedCount = state.allUsers.filter(user => user.activityStatus && user.activityStatus[act.id] === 'completed').length;
+                return totalUsers > 0 ? (completedCount / totalUsers) * 100 : 0;
             });
 
             state.activityChart = new Chart(ctx, {
@@ -253,7 +254,7 @@
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'จำนวนผู้เข้าร่วม',
+                        label: '% ผู้เข้าร่วม',
                         data: data,
                         backgroundColor: 'rgba(54, 162, 235, 0.6)',
                         borderColor: 'rgba(54, 162, 235, 1)',
@@ -266,8 +267,11 @@
                     scales: {
                         y: {
                             beginAtZero: true,
+                            max: 100,
                             ticks: {
-                                stepSize: 1
+                                callback: function(value) {
+                                    return value + '%'
+                                }
                             }
                         }
                     }
@@ -364,44 +368,16 @@
 
         function renderAdminPendingRequestsContent() {
             const pendingRequests = state.pendingRequests || [];
-            const filteredRequests = state.pendingFilterActivityId === 'all'
-                ? pendingRequests
-                : pendingRequests.filter(req => req.activityId === state.pendingFilterActivityId);
-
-            const activitiesWithPending = [...new Set(pendingRequests.map(req => req.activityId))]
-                .map(id => state.activities.find(act => act.id === id))
-                .filter(Boolean);
+            pendingRequests.sort((a, b) => new Date(a.requestDate) - new Date(b.requestDate));
 
             return `
-                <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
-                    <h2 class="text-2xl font-bold text-gray-800">อนุมัติกิจกรรม (${filteredRequests.length})</h2>
-                    <div class="flex items-center gap-2">
-                        <select id="activity-filter" class="border-gray-300 rounded-lg shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                            <option value="all">กิจกรรมทั้งหมด</option>
-                            ${activitiesWithPending.map(act => `<option value="${act.id}" ${state.pendingFilterActivityId === act.id ? 'selected' : ''}>${act.name}</option>`).join('')}
-                        </select>
-                        <button id="approve-all-filtered-btn" class="bg-cyan-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-cyan-700 disabled:bg-gray-400" ${state.pendingFilterActivityId === 'all' || filteredRequests.length === 0 ? 'disabled' : ''}>อนุมัติทั้งหมดที่แสดง</button>
-                    </div>
-                </div>
-                <div class="flex justify-between items-center mb-4">
-                    <div>
-                        <input type="checkbox" id="select-all-checkbox" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                        <label for="select-all-checkbox" class="ml-3 block text-sm font-medium text-gray-700">เลือกทั้งหมด</label>
-                    </div>
-                    <div>
-                        <button id="reject-selected-btn" class="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 disabled:bg-gray-400 mr-2" disabled>ปฏิเสธรายการที่เลือก</button>
-                        <button id="approve-selected-btn" class="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400" disabled>อนุมัติรายการที่เลือก</button>
-                    </div>
-                </div>
-                <div class="space-y-2 max-h-[60vh] overflow-y-auto border p-2 rounded-lg">
-                    ${filteredRequests.length > 0 ? filteredRequests.map(req => `
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">อนุมัติกิจกรรม (${pendingRequests.length})</h2>
+                <div class="space-y-2 max-h-[70vh] overflow-y-auto border p-2 rounded-lg">
+                    ${pendingRequests.length > 0 ? pendingRequests.map(req => `
                         <div class="flex items-center justify-between p-2 border rounded-lg bg-yellow-50">
-                            <div class="flex items-center">
-                                <input type="checkbox" data-id="${req.id}" class="pending-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                                <div class="ml-4">
-                                    <p class="font-semibold text-sm">${req.activityName}</p>
-                                    <p class="text-xs text-gray-600">โดย: ${req.userName} (${req.userId})</p>
-                                </div>
+                            <div>
+                                <p class="font-semibold text-sm">${req.activityName}</p>
+                                <p class="text-xs text-gray-600">โดย: ${req.userName} (${req.userId})</p>
                             </div>
                             <div>
                                 <button data-id="${req.id}" class="approve-request-btn text-green-500 hover:text-green-700 mr-2 font-semibold">อนุมัติ</button>
@@ -906,21 +882,6 @@
                     } else {
                         onlineFields.classList.add('hidden');
                     }
-                }
-                 if (e.target.id === 'select-all-checkbox') {
-                    const isChecked = e.target.checked;
-                    document.querySelectorAll('.pending-checkbox').forEach(cb => cb.checked = isChecked);
-                }
-                
-                if (e.target.matches('.pending-checkbox') || e.target.id === 'select-all-checkbox') {
-                    const anyChecked = document.querySelectorAll('.pending-checkbox:checked').length > 0;
-                    document.getElementById('approve-selected-btn').disabled = !anyChecked;
-                    document.getElementById('reject-selected-btn').disabled = !anyChecked;
-                }
-                
-                if (e.target.id === 'activity-filter') {
-                    state.pendingFilterActivityId = e.target.value;
-                    renderAdminPendingRequests();
                 }
             });
         });
