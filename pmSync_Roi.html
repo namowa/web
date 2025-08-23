@@ -35,33 +35,54 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <!-- Left Column: Inputs -->
             <div class="bg-white rounded-lg shadow-lg p-6 space-y-6">
-                <!-- Step 1: Feature Selection -->
+                <!-- Step 1: Development Option -->
                 <div>
-                    <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2"><span class="bg-blue-600 text-white rounded-full h-6 w-6 flex items-center justify-center text-sm">1</span> เลือกฟังก์ชันที่ต้องการลงทุน</h2>
+                    <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2"><span class="bg-blue-600 text-white rounded-full h-6 w-6 flex items-center justify-center text-sm">1</span> เลือกรูปแบบการลงทุน</h2>
+                    <div class="mt-4 grid grid-cols-2 gap-2 p-1 bg-gray-200 rounded-lg">
+                        <button id="dev-option-vendor" class="px-3 py-2 text-sm font-semibold rounded-md" onclick="setDevOption('vendor')">ซื้อระบบสำเร็จรูป</button>
+                        <button id="dev-option-inhouse" class="px-3 py-2 text-sm font-semibold rounded-md" onclick="setDevOption('inhouse')">พัฒนาขึ้นเอง</button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Feature Selection -->
+                <div>
+                    <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2"><span class="bg-blue-600 text-white rounded-full h-6 w-6 flex items-center justify-center text-sm">2</span> เลือกฟังก์ชันที่ต้องการ</h2>
                     <div id="feature-selection" class="mt-4 space-y-3">
                         <!-- Feature checkboxes injected by JS -->
                     </div>
                 </div>
 
-                <!-- Step 2: Company Data -->
+                <!-- Step 3: Company Data -->
                 <div>
-                    <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2"><span class="bg-blue-600 text-white rounded-full h-6 w-6 flex items-center justify-center text-sm">2</span> กรอกข้อมูลค่าใช้จ่ายปัจจุบันของคุณ</h2>
+                    <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2"><span class="bg-blue-600 text-white rounded-full h-6 w-6 flex items-center justify-center text-sm">3</span> กรอกข้อมูลค่าใช้จ่ายและระยะเวลา</h2>
                     <div class="mt-4 space-y-4">
                         <div>
+                            <label class="block text-sm font-medium text-gray-700">ระยะเวลาพัฒนา (เดือน)</label>
+                            <input type="text" id="development-time" value="6" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                        </div>
+                        <div>
                             <label class="block text-sm font-medium text-gray-700">ค่าใช้จ่ายซ่อมบำรุงต่อปี (บาท)</label>
-                            <input type="number" id="maintenance-cost" value="10000000" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                            <input type="text" id="maintenance-cost" value="10,000,000" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">ชั่วโมง Downtime ที่ไม่คาดคิดต่อปี</label>
-                            <input type="number" id="downtime-hours" value="500" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                            <input type="text" id="downtime-hours" value="500" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">ค่าเสียโอกาสต่อชั่วโมงของ Downtime (บาท)</label>
-                            <input type="number" id="downtime-cost-per-hour" value="30000" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                            <input type="text" id="downtime-cost-per-hour" value="15,000" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
                         </div>
                          <div>
                             <label class="block text-sm font-medium text-gray-700">มูลค่าสต็อกอะไหล่ปัจจุบัน (บาท)</label>
-                            <input type="number" id="inventory-value" value="2000000" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                            <input type="text" id="inventory-value" value="2,000,000" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">ชั่วโมงแรงงานซ่อมบำรุงต่อปี</label>
+                            <input type="text" id="labor-hours" value="20000" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">ค่าแรงเฉลี่ยต่อชั่วโมง (บาท)</label>
+                            <input type="text" id="labor-cost-per-hour" value="300" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
                         </div>
                     </div>
                 </div>
@@ -71,136 +92,209 @@
             <div class="bg-white rounded-lg shadow-lg p-6">
                 <h2 class="text-2xl font-bold text-gray-800 text-center">ผลการประเมิน</h2>
                 
-                <!-- Investment Summary -->
                 <div class="mt-6 text-center">
                     <p class="text-gray-500">เงินลงทุนโดยประมาณ</p>
                     <p id="total-investment" class="text-4xl font-bold text-blue-600"></p>
                 </div>
 
-                <!-- Savings Breakdown -->
                 <div class="mt-6 space-y-3">
-                    <h3 class="font-semibold text-gray-700">ผลประโยชน์ที่จะได้รับต่อปี (โดยประมาณ):</h3>
+                    <h3 class="font-semibold text-gray-700">ผลประโยชน์ที่จะได้รับในปีแรก (ที่ 50%):</h3>
                     <div class="p-3 bg-gray-50 rounded-md flex justify-between items-center">
-                        <span class="text-gray-600">ลดค่าใช้จ่ายซ่อมบำรุง</span>
+                        <span>ลดค่าใช้จ่ายซ่อมบำรุง</span>
                         <span id="maintenance-savings" class="font-bold text-green-600"></span>
                     </div>
                     <div class="p-3 bg-gray-50 rounded-md flex justify-between items-center">
-                        <span class="text-gray-600">ลดค่าเสียโอกาสจาก Downtime</span>
+                        <span>ลดค่าเสียโอกาสจาก Downtime</span>
                         <span id="downtime-savings" class="font-bold text-green-600"></span>
                     </div>
                     <div class="p-3 bg-gray-50 rounded-md flex justify-between items-center">
-                        <span class="text-gray-600">ลดต้นทุนสต็อกอะไหล่</span>
+                        <span>ลดต้นทุนสต็อกอะไหล่</span>
                         <span id="inventory-savings" class="font-bold text-green-600"></span>
                     </div>
+                    <div class="p-3 bg-gray-50 rounded-md flex justify-between items-center">
+                        <span>ลดค่าใช้จ่ายด้านแรงงาน</span>
+                        <span id="labor-savings" class="font-bold text-green-600"></span>
+                    </div>
                     <div class="p-3 bg-blue-50 rounded-md flex justify-between items-center text-lg">
-                        <span class="font-bold text-blue-800">รวมผลประโยชน์ต่อปี</span>
+                        <span class="font-bold text-blue-800">รวมผลประโยชน์ปีแรก</span>
                         <span id="total-savings" class="font-bold text-blue-800"></span>
                     </div>
                 </div>
 
-                <!-- ROI & Payback -->
                 <div class="mt-6 grid grid-cols-2 gap-4 text-center">
                     <div class="bg-green-100 p-4 rounded-lg">
-                        <p class="text-sm text-green-800">ROI (ปีแรก)</p>
+                        <p class="text-sm text-green-800">ROI (หลังดำเนินการ 1 ปี)</p>
                         <p id="roi-result" class="text-3xl font-bold text-green-800"></p>
                     </div>
                     <div class="bg-green-100 p-4 rounded-lg">
-                        <p class="text-sm text-green-800">ระยะเวลาคืนทุน</p>
+                        <p class="text-sm text-green-800">ระยะเวลาคืนทุนทั้งหมด</p>
                         <p id="payback-result" class="text-3xl font-bold text-green-800"></p>
                     </div>
+                </div>
+
+                <div class="mt-6 border-t pt-4">
+                    <h3 class="font-semibold text-gray-700 mb-2">ประมาณการผลประโยชน์ใน 3 ปีข้างหน้า:</h3>
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-gray-500">
+                            <tr><th class="py-1"></th><th class="py-1 text-right">ปีที่ 1 (50%)</th><th class="py-1 text-right">ปีที่ 2 (75%)</th><th class="py-1 text-right">ปีที่ 3 (100%)</th></tr>
+                        </thead>
+                        <tbody class="divide-y">
+                            <tr><td class="py-1">ผลประโยชน์รวม</td><td id="savings-y1" class="py-1 text-right font-semibold"></td><td id="savings-y2" class="py-1 text-right font-semibold"></td><td id="savings-y3" class="py-1 text-right font-semibold"></td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        const features = [
-            { id: 'core-cmms', name: 'ระบบ CMMS พื้นฐาน', cost: 1000000, savings: { maintenance: 0.10, downtime: 0.10, inventory: 0.05 } },
-            { id: 'pdm', name: 'Predictive Maintenance (PdM)', cost: 1200000, savings: { maintenance: 0.15, downtime: 0.25, inventory: 0.05 } },
-            { id: 'triage', name: 'AI-Powered Triage', cost: 500000, savings: { maintenance: 0.0, downtime: 0.10, inventory: 0.0 } },
-            { id: 'spare-parts', name: 'ระบบจัดการอะไหล่อัจฉริยะ', cost: 800000, savings: { maintenance: 0.05, downtime: 0.0, inventory: 0.15 } },
-            { id: 'mobile-app', name: 'Mobile App สำหรับช่าง', cost: 500000, savings: { maintenance: 0.05, downtime: 0.05, inventory: 0.0 } },
-        ];
+        const features = {
+            vendor: [
+                { id: 'core-cmms', name: 'ระบบ CMMS พื้นฐาน', cost: 1000000, savings: { maintenance: 0.10, downtime: 0.10, inventory: 0.05, labor: 0.05 } },
+                { id: 'pdm', name: 'Predictive Maintenance (PdM)', cost: 1200000, savings: { maintenance: 0.15, downtime: 0.25, inventory: 0.05, labor: 0.05 } },
+                { id: 'triage', name: 'AI-Powered Triage', cost: 500000, savings: { maintenance: 0.0, downtime: 0.10, inventory: 0.0, labor: 0.02 } },
+                { id: 'spare-parts', name: 'ระบบจัดการอะไหล่อัจฉริยะ', cost: 800000, savings: { maintenance: 0.05, downtime: 0.0, inventory: 0.15, labor: 0.03 } },
+                { id: 'mobile-app', name: 'Mobile App', cost: 500000, savings: { maintenance: 0.05, downtime: 0.05, inventory: 0.0, labor: 0.10 } },
+            ],
+            inhouse: [
+                { id: 'core-cmms', name: 'ระบบ CMMS พื้นฐาน', cost: 600000, savings: { maintenance: 0.10, downtime: 0.10, inventory: 0.05, labor: 0.05 } },
+                { id: 'pdm', name: 'Predictive Maintenance (PdM)', cost: 800000, savings: { maintenance: 0.15, downtime: 0.25, inventory: 0.05, labor: 0.05 } },
+                { id: 'triage', name: 'AI-Powered Triage', cost: 300000, savings: { maintenance: 0.0, downtime: 0.10, inventory: 0.0, labor: 0.02 } },
+                { id: 'spare-parts', name: 'ระบบจัดการอะไหล่อัจฉริยะ', cost: 500000, savings: { maintenance: 0.05, downtime: 0.0, inventory: 0.15, labor: 0.03 } },
+                { id: 'mobile-app', name: 'Mobile App', cost: 300000, savings: { maintenance: 0.05, downtime: 0.05, inventory: 0.0, labor: 0.10 } },
+            ]
+        };
+        
+        let currentDevOption = 'vendor';
 
         function formatCurrency(value) {
             return `฿${Math.round(value).toLocaleString()}`;
         }
 
+        function formatNumberInput(input) {
+            let value = input.value.replace(/,/g, '');
+            if (!isNaN(value) && value.length > 0) {
+                input.value = parseFloat(value).toLocaleString('en-US');
+            }
+        }
+
+        function unformatNumberInput(input) {
+            input.value = input.value.replace(/,/g, '');
+        }
+
         function calculateROI() {
-            // 1. Calculate Total Investment
             let totalInvestment = 0;
+            const selectedFeaturesData = features[currentDevOption];
             const selectedFeatures = [];
-            features.forEach(feature => {
+            selectedFeaturesData.forEach(feature => {
                 const checkbox = document.getElementById(feature.id);
-                if (checkbox.checked) {
+                if (checkbox && checkbox.checked) {
                     totalInvestment += feature.cost;
                     selectedFeatures.push(feature);
                 }
             });
             document.getElementById('total-investment').textContent = formatCurrency(totalInvestment);
 
-            // 2. Get User Inputs
-            const maintenanceCost = parseFloat(document.getElementById('maintenance-cost').value) || 0;
-            const downtimeHours = parseFloat(document.getElementById('downtime-hours').value) || 0;
-            const downtimeCostPerHour = parseFloat(document.getElementById('downtime-cost-per-hour').value) || 0;
-            const inventoryValue = parseFloat(document.getElementById('inventory-value').value) || 0;
+            const devTime = parseFloat(document.getElementById('development-time').value.replace(/,/g, '')) || 0;
+            const maintenanceCost = parseFloat(document.getElementById('maintenance-cost').value.replace(/,/g, '')) || 0;
+            const downtimeHours = parseFloat(document.getElementById('downtime-hours').value.replace(/,/g, '')) || 0;
+            const downtimeCostPerHour = parseFloat(document.getElementById('downtime-cost-per-hour').value.replace(/,/g, '')) || 0;
+            const inventoryValue = parseFloat(document.getElementById('inventory-value').value.replace(/,/g, '')) || 0;
+            const laborHours = parseFloat(document.getElementById('labor-hours').value.replace(/,/g, '')) || 0;
+            const laborCostPerHour = parseFloat(document.getElementById('labor-cost-per-hour').value.replace(/,/g, '')) || 0;
+            
             const totalDowntimeCost = downtimeHours * downtimeCostPerHour;
+            const totalLaborCost = laborHours * laborCostPerHour;
 
-            // 3. Calculate Savings
             let maintenanceSavingsRate = 0;
             let downtimeSavingsRate = 0;
             let inventorySavingsRate = 0;
+            let laborSavingsRate = 0;
+
             selectedFeatures.forEach(feature => {
                 maintenanceSavingsRate += feature.savings.maintenance;
                 downtimeSavingsRate += feature.savings.downtime;
                 inventorySavingsRate += feature.savings.inventory;
+                laborSavingsRate += feature.savings.labor;
             });
             
-            const maintenanceSavings = maintenanceCost * Math.min(maintenanceSavingsRate, 1);
-            const downtimeSavings = totalDowntimeCost * Math.min(downtimeSavingsRate, 1);
-            const inventorySavings = inventoryValue * Math.min(inventorySavingsRate, 1);
-            const totalSavings = maintenanceSavings + downtimeSavings + inventorySavings;
-            
-            document.getElementById('maintenance-savings').textContent = formatCurrency(maintenanceSavings);
-            document.getElementById('downtime-savings').textContent = formatCurrency(downtimeSavings);
-            document.getElementById('inventory-savings').textContent = formatCurrency(inventorySavings);
-            document.getElementById('total-savings').textContent = formatCurrency(totalSavings);
+            const potentialMaintenanceSavings = maintenanceCost * Math.min(maintenanceSavingsRate, 1);
+            const potentialDowntimeSavings = totalDowntimeCost * Math.min(downtimeSavingsRate, 1);
+            const potentialInventorySavings = inventoryValue * Math.min(inventorySavingsRate, 1);
+            const potentialLaborSavings = totalLaborCost * Math.min(laborSavingsRate, 1);
+            const potentialTotalSavings = potentialMaintenanceSavings + potentialDowntimeSavings + potentialInventorySavings + potentialLaborSavings;
 
-            // 4. Calculate ROI and Payback
+            // Phased savings
+            const totalSavingsY1 = potentialTotalSavings * 0.50; // 50% in Year 1
+            const totalSavingsY2 = potentialTotalSavings * 0.75; // 75% in Year 2
+            const totalSavingsY3 = potentialTotalSavings * 1.00; // 100% in Year 3
+            
+            document.getElementById('maintenance-savings').textContent = formatCurrency(potentialMaintenanceSavings * 0.5);
+            document.getElementById('downtime-savings').textContent = formatCurrency(potentialDowntimeSavings * 0.5);
+            document.getElementById('inventory-savings').textContent = formatCurrency(potentialInventorySavings * 0.5);
+            document.getElementById('labor-savings').textContent = formatCurrency(potentialLaborSavings * 0.5);
+            document.getElementById('total-savings').textContent = formatCurrency(totalSavingsY1);
+
             if (totalInvestment > 0) {
-                const roi = ((totalSavings - totalInvestment) / totalInvestment) * 100;
-                const paybackMonths = (totalInvestment / (totalSavings / 12));
+                const roi = ((totalSavingsY1 - totalInvestment) / totalInvestment) * 100;
+                const paybackMonthsFromSavings = (totalSavingsY1 > 0) ? (totalInvestment / (totalSavingsY1 / 12)) : Infinity;
+                const totalPaybackMonths = devTime + paybackMonthsFromSavings;
                 
                 document.getElementById('roi-result').textContent = `${roi.toFixed(1)}%`;
-                document.getElementById('payback-result').textContent = `${paybackMonths.toFixed(1)} เดือน`;
+                document.getElementById('payback-result').textContent = totalPaybackMonths === Infinity ? '-' : `${totalPaybackMonths.toFixed(1)} เดือน`;
             } else {
                 document.getElementById('roi-result').textContent = '-';
                 document.getElementById('payback-result').textContent = '-';
             }
+
+            // Projections
+            document.getElementById('savings-y1').textContent = formatCurrency(totalSavingsY1);
+            document.getElementById('savings-y2').textContent = formatCurrency(totalSavingsY2);
+            document.getElementById('savings-y3').textContent = formatCurrency(totalSavingsY3);
         }
 
         function renderFeatures() {
             const container = document.getElementById('feature-selection');
-            container.innerHTML = features.map(feature => `
+            const featuresToRender = features[currentDevOption];
+            container.innerHTML = featuresToRender.map(feature => `
                 <label class="flex items-center justify-between p-3 bg-gray-50 rounded-md cursor-pointer hover:bg-gray-100">
                     <div class="flex items-center">
-                        <input type="checkbox" id="${feature.id}" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
+                        <input type="checkbox" id="${feature.id}" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked onchange="calculateROI()">
                         <span class="ml-3 text-sm font-medium text-gray-900">${feature.name}</span>
                     </div>
                     <span class="text-sm text-gray-600">${formatCurrency(feature.cost)}</span>
                 </label>
             `).join('');
         }
-
-        document.addEventListener('DOMContentLoaded', () => {
+        
+        function setDevOption(option) {
+            currentDevOption = option;
+            const vendorBtn = document.getElementById('dev-option-vendor');
+            const inhouseBtn = document.getElementById('dev-option-inhouse');
+            if (option === 'vendor') {
+                vendorBtn.classList.add('bg-blue-600', 'text-white');
+                inhouseBtn.classList.remove('bg-blue-600', 'text-white');
+            } else {
+                inhouseBtn.classList.add('bg-blue-600', 'text-white');
+                vendorBtn.classList.remove('bg-blue-600', 'text-white');
+            }
             renderFeatures();
             calculateROI();
-            lucide.createIcons();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setDevOption('vendor');
             
-            document.querySelectorAll('input, select').forEach(el => {
-                el.addEventListener('change', calculateROI);
-                el.addEventListener('keyup', calculateROI);
+            const numberInputs = ['development-time', 'maintenance-cost', 'downtime-hours', 'downtime-cost-per-hour', 'inventory-value', 'labor-hours', 'labor-cost-per-hour'];
+            numberInputs.forEach(id => {
+                const input = document.getElementById(id);
+                formatNumberInput(input);
+                input.addEventListener('blur', () => formatNumberInput(input));
+                input.addEventListener('focus', () => unformatNumberInput(input));
+                input.addEventListener('keyup', calculateROI);
             });
+
+            lucide.createIcons();
         });
     </script>
 </body>
