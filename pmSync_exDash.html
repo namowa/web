@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Executive Summary Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Sarabun', 'Inter', sans-serif;
+        }
+        .popup-enter { animation: popupEnter 0.3s ease-out; }
+        @keyframes popupEnter {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 md:p-8">
+
+    <div class="container mx-auto">
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800">รายงานสรุปสำหรับผู้บริหาร</h1>
+                <p class="text-gray-500">สรุปผลการดำเนินงานฝ่ายซ่อมบำรุง ประจำเดือนสิงหาคม 2568</p>
+            </div>
+        </div>
+
+        <!-- Main Grid Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Left Column -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- High-Level KPIs -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-white p-4 rounded-lg shadow text-center cursor-pointer hover:bg-gray-50" onclick="showKpiPopup('OEE')">
+                        <p class="text-sm text-gray-500">OEE</p>
+                        <p class="text-3xl font-bold text-green-600">82.5%</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow text-center cursor-pointer hover:bg-gray-50" onclick="showKpiPopup('CostRatio')">
+                        <p class="text-sm text-gray-500">PM vs CM Cost Ratio</p>
+                        <p class="text-3xl font-bold text-blue-600">65/35</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow text-center cursor-pointer hover:bg-gray-50" onclick="showKpiPopup('Downtime')">
+                        <p class="text-sm text-gray-500">% Downtime</p>
+                        <p class="text-3xl font-bold text-yellow-600">5.2%</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow text-center">
+                        <p class="text-sm text-gray-500">PM Compliance</p>
+                        <p class="text-3xl font-bold text-green-600">98%</p>
+                    </div>
+                </div>
+
+                <!-- Financial Impact -->
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">ผลกระทบทางการเงิน</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="text-center">
+                            <p class="text-sm text-gray-500">ค่าใช้จ่ายบำรุงรักษา (เดือนนี้)</p>
+                            <p class="text-2xl font-bold">฿1,250,000</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-sm text-gray-500">ค่าเสียโอกาสจาก Downtime</p>
+                            <p class="text-2xl font-bold text-red-600">฿1,260,000</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-sm text-gray-500">ROI ของ PdM (YTD)</p>
+                            <p class="text-2xl font-bold text-green-600">125%</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Main Chart Area -->
+                <div class="bg-white p-6 rounded-lg shadow">
+                     <h2 class="text-xl font-bold text-gray-800 mb-4">ภาพรวมสถานะเครื่องจักร</h2>
+                     <div class="h-64"><canvas id="asset-health-chart"></canvas></div>
+                </div>
+
+                <!-- Future Outlook -->
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">ภาพรวมในอนาคต</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h3 class="font-semibold mb-2">พยากรณ์ความเสี่ยง (ไตรมาสหน้า)</h3>
+                            <div class="h-40"><canvas id="risk-forecast-chart"></canvas></div>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold mb-2">แผนงานใหญ่ที่กำลังจะมาถึง</h3>
+                            <ul class="space-y-2 text-sm">
+                                <li class="p-2 bg-gray-50 rounded-md">Overhaul เครื่อง Press-101 (ก.ย. 68) - งบประมาณ ฿250,000</li>
+                                <li class="p-2 bg-gray-50 rounded-md">เปลี่ยนสายพานหลัก Line 2 (ต.ค. 68) - งบประมาณ ฿180,000</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="lg:col-span-1 space-y-6">
+                <!-- AI Recommendations -->
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-lg shadow">
+                    <h2 class="text-xl font-bold text-blue-800 flex items-center gap-2"><i data-lucide="brain-circuit"></i>ข้อเสนอแนะจาก AI</h2>
+                    <ul class="mt-4 space-y-3 text-sm text-blue-700 list-disc list-inside">
+                        <li><b>Pump-001</b> มีค่าใช้จ่าย CM สูงกว่าค่าเฉลี่ย 50% แนะนำให้พิจารณาทำ Overhaul หรือจัดซื้อใหม่</li>
+                        <li><b>ไลน์การผลิตที่ 2</b> มีแนวโน้มการเสียเพิ่มขึ้น 20% ในไตรมาสหน้า แนะนำให้เพิ่มความถี่ในการตรวจสอบ</li>
+                        <li><b>อะไหล่ Bearing #6204</b> มีความต้องการใช้สูง ควรเพิ่มระดับ Safety Stock</li>
+                    </ul>
+                </div>
+
+                 <!-- Work Order Mix -->
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">สรุปประเภทงาน (เดือนนี้)</h2>
+                    <div class="h-48"><canvas id="work-order-mix-chart"></canvas></div>
+                </div>
+
+                <!-- Top 5 Problem Assets by Cost -->
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">5 เครื่องจักรที่ค่าซ่อมสูงสุด</h2>
+                    <ul class="space-y-3 text-sm">
+                        <li class="flex justify-between"><span>1. Pump-001</span><span class="font-semibold text-red-600">฿150,000</span></li>
+                        <li class="flex justify-between"><span>2. Press-101</span><span class="font-semibold text-red-600">฿125,000</span></li>
+                        <li class="flex justify-between"><span>3. Motor-205</span><span class="font-semibold text-red-600">฿110,000</span></li>
+                        <li class="flex justify-between"><span>4. Conveyor-003</span><span class="font-semibold text-red-600">฿85,000</span></li>
+                        <li class="flex justify-between"><span>5. Robot Arm-112</span><span class="font-semibold text-red-600">฿78,000</span></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI Modal -->
+    <div id="kpi-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden" onclick="closeKpiPopup()">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl m-4 popup-enter" onclick="event.stopPropagation()">
+            <div class="p-6">
+                <div class="flex justify-between items-center">
+                    <h2 id="kpi-modal-title" class="text-2xl font-bold text-gray-800"></h2>
+                    <button onclick="closeKpiPopup()" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="h-6 w-6"></i></button>
+                </div>
+                <div class="mt-4 h-80"><canvas id="kpi-chart"></canvas></div>
+                <div id="kpi-ai-suggestion" class="mt-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let kpiChartInstance = null;
+
+        function showKpiPopup(kpiType) {
+            const modal = document.getElementById('kpi-modal');
+            const titleEl = document.getElementById('kpi-modal-title');
+            const chartCanvas = document.getElementById('kpi-chart');
+            const suggestionEl = document.getElementById('kpi-ai-suggestion');
+
+            if (kpiChartInstance) {
+                kpiChartInstance.destroy();
+            }
+
+            const labels = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+            let datasets, chartTitle, yAxisLabel, aiSuggestionHtml = '';
+
+            if (kpiType === 'OEE') {
+                chartTitle = 'OEE ย้อนหลัง (YTD)';
+                yAxisLabel = 'OEE (%)';
+                datasets = [
+                    { label: 'Actual', data: [78, 80, 81, 79, 83, 82, 84, 82.5, null, null, null, null], borderColor: 'rgb(59, 130, 246)', tension: 0.1 },
+                    { label: 'KPI Target', data: Array(12).fill(85), borderColor: 'rgb(239, 68, 68)', borderDash: [5, 5], fill: false, pointRadius: 0 }
+                ];
+                aiSuggestionHtml = `<div class="mt-4 p-3 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">
+                    <h4 class="font-bold text-blue-800 flex items-center gap-2"><i data-lucide="brain-circuit"></i>AI Suggestion</h4>
+                    <p class="text-sm text-blue-700 mt-1">OEE อยู่ในระดับที่ดี แต่ยังต่ำกว่าเป้าหมาย (85%) เล็กน้อย แนะนำให้วิเคราะห์สาเหตุของ Downtime ที่เกิดขึ้นบ่อยที่สุดเพื่อปรับปรุง Availability Rate</p>
+                </div>`;
+            } else if (kpiType === 'CostRatio') {
+                chartTitle = 'แนวโน้มค่าใช้จ่าย PM vs CM';
+                yAxisLabel = 'ค่าใช้จ่าย (K฿)';
+                datasets = [
+                    { label: 'ค่าใช้จ่าย PM (K฿)', data: [650, 700, 750, 800, 820, 850], borderColor: 'rgb(59, 130, 246)', backgroundColor: 'rgba(59, 130, 246, 0.2)', fill: true, tension: 0.3 },
+                    { label: 'ค่าใช้จ่าย CM (K฿)', data: [900, 850, 700, 600, 500, 400], borderColor: 'rgb(239, 68, 68)', backgroundColor: 'rgba(239, 68, 68, 0.2)', fill: true, tension: 0.3 }
+                ];
+                aiSuggestionHtml = `<div class="mt-4 p-3 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">
+                    <h4 class="font-bold text-blue-800 flex items-center gap-2"><i data-lucide="brain-circuit"></i>AI Suggestion</h4>
+                    <p class="text-sm text-blue-700 mt-1">สัดส่วนค่าใช้จ่าย PM ที่เพิ่มขึ้นและ CM ที่ลดลงอย่างต่อเนื่อง แสดงให้เห็นว่ากลยุทธ์การบำรุงรักษาเชิงป้องกัน (Proactive Maintenance) กำลังดำเนินไปในทิศทางที่ถูกต้อง</p>
+                </div>`;
+            } else { // Downtime
+                chartTitle = '% Downtime ย้อนหลัง (YTD)';
+                yAxisLabel = 'Downtime (%)';
+                datasets = [
+                    { label: 'Actual', data: [7.5, 7.0, 6.8, 7.1, 6.0, 6.2, 5.5, 5.2, null, null, null, null], borderColor: 'rgb(59, 130, 246)', tension: 0.1 },
+                    { label: 'KPI Target', data: Array(12).fill(5), borderColor: 'rgb(239, 68, 68)', borderDash: [5, 5], fill: false, pointRadius: 0 }
+                ];
+                aiSuggestionHtml = `<div class="mt-4 p-3 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">
+                    <h4 class="font-bold text-blue-800 flex items-center gap-2"><i data-lucide="brain-circuit"></i>AI Suggestion</h4>
+                    <p class="text-sm text-blue-700 mt-1">Downtime อยู่สูงกว่าเป้าหมาย (5%) เล็กน้อย แนะนำให้มุ่งเน้นการทำ PM เชิงรุกกับเครื่องจักรในกลุ่ม Top 5 ที่มีค่าใช้จ่าย CM สูงสุด เพื่อลดการหยุดทำงานที่ไม่คาดคิด</p>
+                </div>`;
+            }
+
+            titleEl.textContent = chartTitle;
+            suggestionEl.innerHTML = aiSuggestionHtml;
+            
+            kpiChartInstance = new Chart(chartCanvas.getContext('2d'), {
+                type: 'line',
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { title: { display: true, text: yAxisLabel }, beginAtZero: false } }
+                }
+            });
+
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeKpiPopup() {
+            document.getElementById('kpi-modal').classList.add('hidden');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+
+            // Risk Forecast Chart
+            const riskCtx = document.getElementById('risk-forecast-chart').getContext('2d');
+            new Chart(riskCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['ก.ย.', 'ต.ค.', 'พ.ย.'],
+                    datasets: [{
+                        label: 'จำนวนความเสี่ยงที่คาดการณ์',
+                        data: [12, 18, 15],
+                        backgroundColor: ['rgba(251, 146, 60, 0.6)', 'rgba(239, 68, 68, 0.6)', 'rgba(251, 146, 60, 0.6)'],
+                        borderColor: ['rgb(251, 146, 60)', 'rgb(239, 68, 68)', 'rgb(251, 146, 60)'],
+                        borderWidth: 1
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+
+            // Asset Health Chart
+            const assetHealthCtx = document.getElementById('asset-health-chart').getContext('2d');
+            new Chart(assetHealthCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['ภาวะปกติ', 'แจ้งเตือน', 'วิกฤต'],
+                    datasets: [{
+                        label: 'จำนวนเครื่องจักร',
+                        data: [88, 10, 2],
+                        backgroundColor: ['rgb(34, 197, 94)', 'rgb(245, 158, 11)', 'rgb(239, 68, 68)'],
+                        hoverOffset: 4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            // Work Order Mix Chart
+            const woMixCtx = document.getElementById('work-order-mix-chart').getContext('2d');
+            new Chart(woMixCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['PM (ตามแผน)', 'PdM (AI แจ้งเตือน)', 'CM (งานซ่อม)'],
+                    datasets: [{
+                        label: 'จำนวนใบงาน',
+                        data: [120, 25, 45],
+                        backgroundColor: ['rgb(59, 130, 246)', 'rgb(168, 85, 247)', 'rgb(245, 158, 11)'],
+                        hoverOffset: 4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        });
+    </script>
+</body>
+</html>
