@@ -34,6 +34,17 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        
+        /* Sidebar collapse styles */
+        #sidebar {
+            transition: width 0.3s ease-in-out;
+        }
+        #sidebar.collapsed {
+            width: 0;
+        }
+        #sidebar.collapsed > * {
+            display: none;
+        }
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
@@ -86,7 +97,7 @@
 
     <!-- Dashboard Container (Initially Hidden) -->
     <div id="dashboard-container" class="hidden h-screen w-screen flex">
-        <nav class="w-64 h-full bg-white dark:bg-gray-800 shadow-lg flex flex-col flex-shrink-0">
+        <nav id="sidebar" class="w-64 h-full bg-white dark:bg-gray-800 shadow-lg flex flex-col flex-shrink-0 overflow-hidden">
             <div class="flex items-center justify-center h-16 border-b dark:border-gray-700 flex-shrink-0 px-4">
                 <img class="h-8 w-auto" src="https://img2.pic.in.th/pic/Powered-by-SMG-X-G.3.png" alt="Logo">
                 <span class="ml-2 text-sm font-semibold text-gray-800 dark:text-gray-200">PM Sync-Up</span>
@@ -98,7 +109,12 @@
                 <button id="logout-button" class="w-full bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">ออกจากระบบ</button>
             </div>
         </nav>
-        <main class="flex-1 bg-gray-100 dark:bg-gray-900">
+        <main class="flex-1 bg-gray-100 dark:bg-gray-900 flex flex-col relative">
+            <button id="sidebar-toggle-btn" class="absolute top-4 left-4 z-10 p-2 bg-white dark:bg-gray-800 rounded-md shadow-md text-gray-600 dark:text-gray-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
             <iframe id="content-frame" class="w-full h-full border-none"></iframe>
         </main>
     </div>
@@ -153,6 +169,8 @@
         const modalTitle = document.getElementById('modal-title');
         const modalBody = document.getElementById('modal-body');
         const modalCloseBtn = document.getElementById('modal-close-btn');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
 
         let currentUser = null;
 
@@ -183,7 +201,8 @@
                     const newUser = {
                         username,
                         password,
-                        permissions: [], // New users have no permissions by default
+                        permissions: [],
+                        defaultPageId: null,
                         createdAt: new Date()
                     };
                     await setDoc(userDocRef, newUser);
@@ -199,6 +218,11 @@
         logoutButton.addEventListener('click', () => {
             currentUser = null;
             showLoginPage();
+        });
+
+        // --- Sidebar Toggle Logic ---
+        sidebarToggleBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
         });
 
         // --- Dashboard & UI Setup ---
@@ -224,7 +248,11 @@
             const userPermissions = user.permissions || [];
             let initialUrl = '';
 
-            if (user.username === ADMIN_USERNAME) {
+            // Determine initial page based on defaultPageId first
+            const defaultPage = menuConfig.find(item => item.id === user.defaultPageId && (user.username === ADMIN_USERNAME || userPermissions.includes(item.id)));
+            if (defaultPage) {
+                initialUrl = defaultPage.url;
+            } else if (user.username === ADMIN_USERNAME) {
                 initialUrl = menuConfig[0]?.url;
             } else {
                 const firstPermittedLink = menuConfig.find(item => userPermissions.includes(item.id));
@@ -265,7 +293,7 @@
         
         function createNavLink(text, onClick) {
             const a = document.createElement('a');
-a.href = '#';
+            a.href = '#';
             a.className = 'flex items-center text-gray-500 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-black dark:hover:text-white px-4 py-2 rounded-md text-sm font-medium transition-colors';
             a.textContent = text;
             a.onclick = (e) => { e.preventDefault(); onClick(); };
@@ -390,6 +418,8 @@ a.href = '#';
             const menuConfigDoc = await getDoc(doc(db, "app-config", "menus"));
             const menus = menuConfigDoc.data()?.items || [];
             
+            const menuOptions = `<option value="">-- ไม่มี --</option>` + menus.map(menu => `<option value="${menu.id}">${menu.name}</option>`).join('');
+
             let usersHtml = '';
             usersSnapshot.forEach(userDoc => {
                 const user = userDoc.data();
@@ -402,11 +432,17 @@ a.href = '#';
                     </label>
                 `).join('');
 
+                const userMenuOptions = `<option value="">-- ไม่มี --</option>` + menus.map(menu => `<option value="${menu.id}" ${user.defaultPageId === menu.id ? 'selected' : ''}>${menu.name}</option>`).join('');
+
                 usersHtml += `
                     <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg shadow mb-4">
-                        <div class="flex justify-between items-center">
+                        <div class="flex justify-between items-center flex-wrap gap-2">
                             <h3 class="font-semibold">${user.username}</h3>
-                            <button data-username="${user.username}" data-action="save-perms" class="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 text-sm">บันทึกสิทธิ์</button>
+                            <div class="flex items-center gap-2">
+                                <label class="text-sm">หน้าเริ่มต้น:</label>
+                                <select id="default-page-${user.username}" class="p-1 border rounded text-sm dark:bg-gray-800 dark:border-gray-600">${userMenuOptions}</select>
+                                <button data-username="${user.username}" data-action="save-perms" class="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 text-sm">บันทึก</button>
+                            </div>
                         </div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3" id="perms-for-${user.username}">${permissionsCheckboxes}</div>
                     </div>`;
@@ -415,11 +451,12 @@ a.href = '#';
             const content = `
                 <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg shadow mb-6">
                     <h2 class="text-lg font-semibold mb-2">เพิ่มผู้ใช้ใหม่</h2>
-                    <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-                        <input id="new-user-username" type="text" placeholder="ชื่อผู้ใช้ใหม่" class="flex-grow p-2 border rounded dark:bg-gray-800 dark:border-gray-600">
-                        <input id="new-user-password" type="password" placeholder="รหัสผ่านใหม่" class="flex-grow p-2 border rounded dark:bg-gray-800 dark:border-gray-600">
-                        <button id="add-user-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">เพิ่มผู้ใช้</button>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <input id="new-user-username" type="text" placeholder="ชื่อผู้ใช้ใหม่" class="p-2 border rounded dark:bg-gray-800 dark:border-gray-600">
+                        <input id="new-user-password" type="password" placeholder="รหัสผ่านใหม่" class="p-2 border rounded dark:bg-gray-800 dark:border-gray-600">
+                        <select id="new-user-default-page" class="p-2 border rounded dark:bg-gray-800 dark:border-gray-600">${menuOptions}</select>
                     </div>
+                    <button id="add-user-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 mt-2 w-full sm:w-auto">เพิ่มผู้ใช้</button>
                 </div>
                 <div id="user-list">${usersHtml}</div>`;
 
@@ -428,6 +465,8 @@ a.href = '#';
             modalBody.querySelector('#add-user-btn').onclick = async () => {
                 const newUsername = modalBody.querySelector('#new-user-username').value;
                 const newPassword = modalBody.querySelector('#new-user-password').value;
+                const defaultPageId = modalBody.querySelector('#new-user-default-page').value;
+
                 if (!newUsername || !newPassword) {
                     alert('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน');
                     return;
@@ -443,6 +482,7 @@ a.href = '#';
                         username: newUsername,
                         password: newPassword,
                         permissions: [],
+                        defaultPageId: defaultPageId || null,
                         createdAt: new Date()
                     });
                     alert('เพิ่มผู้ใช้สำเร็จ!');
@@ -456,9 +496,13 @@ a.href = '#';
                     const username = button.dataset.username;
                     const checkboxes = modalBody.querySelectorAll(`#perms-for-${username} input:checked`);
                     const newPermissions = Array.from(checkboxes).map(cb => cb.value);
+                    const defaultPageId = modalBody.querySelector(`#default-page-${username}`).value;
                     
                     const userDocRef = doc(db, "users", username);
-                    await setDoc(userDocRef, { permissions: newPermissions }, { merge: true });
+                    await setDoc(userDocRef, { 
+                        permissions: newPermissions,
+                        defaultPageId: defaultPageId || null
+                    }, { merge: true });
                     alert(`บันทึกสิทธิ์สำหรับ ${username} แล้ว`);
                 }
             });
