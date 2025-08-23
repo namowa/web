@@ -23,6 +23,32 @@
             to { opacity: 1; transform: scale(1); }
         }
         .view-btn.active { background-color: #4f46e5; color: white; }
+        .spinner {
+            border-color: #ffffff;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .toast-enter { animation: toastIn 0.5s ease-out forwards; }
+        @keyframes toastIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .new-card-highlight {
+            animation: highlight 1.5s ease-out;
+        }
+        @keyframes highlight {
+            0% { background-color: #fef9c3; } /* yellow-100 */
+            100% { background-color: #fef9c3; } /* Stay yellow, will be replaced by normal class */
+        }
+        .task-bar {
+            font-size: 12px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
     </style>
 </head>
 <body class="bg-gray-100 p-4 md:p-6 h-screen flex flex-col">
@@ -52,8 +78,14 @@
         <!-- Unassigned Work Orders -->
         <div id="unassigned-panel" class="lg:w-1/5 flex-shrink-0 flex flex-col bg-white rounded-lg shadow-lg">
             <h2 class="text-lg font-bold text-gray-800 p-4 border-b">คลังใบงาน</h2>
-            <div id="unassigned-list" class="p-4 space-y-3 overflow-y-auto">
+            <div id="unassigned-list" class="flex-grow p-4 space-y-3 overflow-y-auto">
                 <!-- Unassigned work orders injected here -->
+            </div>
+            <div class="p-4 border-t">
+                <button id="ai-assist-btn" onclick="runAiAssistant()" class="w-full bg-purple-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2">
+                    <i data-lucide="brain-circuit" class="h-5 w-5"></i>
+                    AI ช่วยวางแผน
+                </button>
             </div>
         </div>
 
@@ -70,35 +102,48 @@
         </div>
     </div>
 
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50"></div>
+
     <script>
         // Mock Data
         const technicians = [
-            { id: 'tech-1', name: 'สมชาย เก่งมาก' },
-            { id: 'tech-2', name: 'วีระ ใจดี' },
-            { id: 'tech-3', name: 'มานะ อดทน' },
-            { id: 'tech-4', name: 'สมศักดิ์ ชำนาญ' },
-            { id: 'tech-5', name: 'ประเสริฐ มีชัย' },
-            { id: 'tech-6', name: 'อำนาจ แข็งขัน' },
-            { id: 'tech-7', name: 'สุชาติ รักงาน' },
-            { id: 'tech-8', name: 'บัญชา การดี' },
-            { id: 'tech-9', name: 'เกรียงไกร สามารถ' },
-            { id: 'tech-10', name: 'อดิศักดิ์ พัฒนา' }
+            { id: 'tech-1', name: 'สมชาย เก่งมาก', skills: ['Mechanical', 'Electrical'], team: 'ทีมเครื่องกล (Mechanical)' },
+            { id: 'tech-2', name: 'วีระ ใจดี', skills: ['Mechanical', 'Welding'], team: 'ทีมเครื่องกล (Mechanical)' },
+            { id: 'tech-5', name: 'ประเสริฐ มีชัย', skills: ['Mechanical'], team: 'ทีมเครื่องกล (Mechanical)' },
+            { id: 'tech-9', name: 'เกรียงไกร สามารถ', skills: ['Mechanical', 'HVAC'], team: 'ทีมเครื่องกล (Mechanical)' },
+            { id: 'tech-3', name: 'มานะ อดทน', skills: ['Electrical', 'PLC'], team: 'ทีมไฟฟ้า (Electrical)' },
+            { id: 'tech-6', name: 'อำนาจ แข็งขัน', skills: ['Electrical'], team: 'ทีมไฟฟ้า (Electrical)' },
+            { id: 'tech-8', name: 'บัญชา การดี', skills: ['PLC'], team: 'ทีมไฟฟ้า (Electrical)' },
+            { id: 'tech-10', name: 'อดิศักดิ์ พัฒนา', skills: ['Electrical'], team: 'ทีมไฟฟ้า (Electrical)' },
+            { id: 'tech-4', name: 'สมศักดิ์ ชำนาญ', skills: ['HVAC', 'Mechanical'], team: 'ทีมซ่อมบำรุงทั่วไป' },
+            { id: 'tech-7', name: 'สุชาติ รักงาน', skills: ['Welding'], team: 'ทีมซ่อมบำรุงทั่วไป' }
         ];
+
+        const sparePartsMasterList = [
+            { id: 'SP-001', name: 'Bearing #6204', onHand: 5, safetyStock: 5 },
+            { id: 'SP-003', name: 'Lubricant G-5', onHand: 2, safetyStock: 5 },
+            { id: 'SP-HVAC-F1', name: 'HVAC Filter X-1', onHand: 10, safetyStock: 4 },
+            { id: 'SP-PLC-B1', name: 'PLC Battery BR-2/3A', onHand: 1, safetyStock: 2 },
+        ];
+
         let workOrders = [
-            { id: 'wo-1', machineName: 'Main Coolant Pump', task: 'PdM: ตรวจสอบ Bearing', type: 'PdM', assignedTo: 'tech-1', date: new Date('2025-08-20') },
-            { id: 'wo-2', machineName: 'CNC Machine #5', task: 'PM: ตรวจสอบระบบหล่อลื่น', type: 'PM', assignedTo: 'tech-2', date: new Date('2025-08-20') },
-            { id: 'wo-3', machineName: 'Air Compressor 7', task: 'PM: เปลี่ยนไส้กรองอากาศ', type: 'PM', assignedTo: null, date: null },
-            { id: 'wo-4', machineName: 'Welding Robot Arm 4', task: 'PdM: ตรวจสอบมอเตอร์แกน Z', type: 'PdM', assignedTo: null, date: null },
-            { id: 'wo-5', machineName: 'Conveyor Belt #2', task: 'ซ่อมสายพานเสียงดัง', type: 'Corrective', assignedTo: null, date: null },
-            { id: 'wo-6', machineName: 'HVAC Unit 2', task: 'Overhaul ประจำปี', type: 'PM', assignedTo: 'tech-1', date: new Date('2025-08-25') },
-            ...Array.from({ length: 14 }, (_, i) => {
-                const types = ['PM', 'PdM', 'Corrective']; const tasks = ['ตรวจสอบ', 'ซ่อมบำรุง', 'เปลี่ยนอะไหล่', 'ทำความสะอาด']; const machines = ['Pump', 'Motor', 'Fan', 'Compressor']; const type = types[i % 3];
-                return { id: `wo-${i + 7}`, machineName: `${machines[i % 4]} #${i+1}`, task: `${type}: ${tasks[i % 4]}`, type: type, assignedTo: null, date: null }
+            { id: 'wo-1', machineName: 'Main Coolant Pump', task: 'PdM: ตรวจสอบ Bearing', type: 'PdM', assignedTo: null, date: null, requiredSkill: 'Mechanical', status: 'New', partsRequired: [{id: 'SP-001', qty: 1}] },
+            { id: 'wo-2', machineName: 'CNC Machine #5', task: 'PM: ตรวจสอบระบบหล่อลื่น', type: 'PM', assignedTo: null, date: null, requiredSkill: 'Mechanical', status: 'New', partsRequired: [] },
+            { id: 'wo-3', machineName: 'Air Compressor 7', task: 'PM: เปลี่ยนไส้กรองอากาศ', type: 'PM', assignedTo: null, date: null, requiredSkill: 'Mechanical', status: 'New', partsRequired: [] },
+            { id: 'wo-4', machineName: 'Welding Robot Arm 4', task: 'PdM: ตรวจสอบมอเตอร์แกน Z', type: 'PdM', assignedTo: null, date: null, requiredSkill: 'Electrical', status: 'New', partsRequired: [] },
+            { id: 'wo-5', machineName: 'Conveyor Belt #2', task: 'ซ่อมสายพานเสียงดัง', type: 'Corrective', assignedTo: null, date: null, requiredSkill: 'Mechanical', status: 'New', partsRequired: [] },
+            { id: 'wo-6', machineName: 'HVAC Unit 2', task: 'Overhaul ประจำปี', type: 'PM', assignedTo: 'tech-1', date: new Date('2025-08-25'), requiredSkill: 'HVAC', status: 'In Progress', partsRequired: [{id: 'SP-HVAC-F1', qty: 2}] },
+            { id: 'wo-7', machineName: 'Control Panel 3', task: 'PM: ตรวจสอบ PLC', type: 'PM', assignedTo: 'tech-3', date: new Date('2025-08-21'), requiredSkill: 'PLC', status: 'Completed', partsRequired: [{id: 'SP-PLC-B1', qty: 1}] },
+            ...Array.from({ length: 43 }, (_, i) => {
+                const types = ['PM', 'PdM', 'Corrective']; const tasks = ['ตรวจสอบ', 'ซ่อมบำรุง', 'เปลี่ยนอะไหล่', 'ทำความสะอาด']; const machines = ['Pump', 'Motor', 'Fan', 'Compressor']; const skills = ['Mechanical', 'Electrical']; const type = types[i % 3];
+                return { id: `wo-${i + 8}`, machineName: `${machines[i % 4]} #${i+1}`, task: `${type}: ${tasks[i % 4]}`, type: type, assignedTo: null, date: null, requiredSkill: skills[i % 2], status: 'New', partsRequired: [] }
             })
         ];
         
-        let currentDate = new Date('2025-08-20');
-        let currentView = 'month'; // 'week', 'month', 'year'
+        let currentDate = new Date();
+        let currentView = 'week';
+        let collapsedTeams = new Set();
 
         function getTypeStyles(type) {
             switch (type) {
@@ -120,15 +165,25 @@
 
         function renderUnassignedList() {
             const unassignedListEl = document.getElementById('unassigned-list');
+            const unassignedCount = workOrders.filter(wo => !wo.assignedTo).length;
+            unassignedListEl.parentElement.querySelector('h2').textContent = `คลังใบงาน (${unassignedCount})`;
             unassignedListEl.innerHTML = '';
             workOrders.filter(wo => !wo.assignedTo).forEach(wo => {
                 const styles = getTypeStyles(wo.type);
                 const card = document.createElement('div');
                 card.id = wo.id;
-                card.className = `work-order-card p-3 rounded-md shadow-sm border-l-4 ${styles.border} ${styles.cardBg}`;
+                const highlightClass = wo.isNew ? 'new-card-highlight' : '';
+                card.className = `work-order-card p-3 rounded-md shadow-sm border-l-4 ${styles.border} ${styles.cardBg} ${highlightClass}`;
                 card.draggable = true;
                 card.innerHTML = `<span class="text-xs font-bold ${styles.text}">${wo.type}</span><p class="font-semibold text-sm text-gray-800">${wo.task}</p><p class="text-xs text-gray-600">${wo.machineName}</p>`;
                 unassignedListEl.appendChild(card);
+                if (wo.isNew) {
+                    setTimeout(() => {
+                        card.classList.remove('new-card-highlight');
+                        card.style.backgroundColor = '';
+                        delete wo.isNew;
+                    }, 1500);
+                }
             });
         }
 
@@ -138,28 +193,58 @@
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const teams = [...new Set(technicians.map(t => t.team))];
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
 
-            let gridHtml = '';
-            gridHtml += `<div class="sticky top-0 left-0 z-30 bg-gray-100 font-semibold text-sm text-gray-600 border-b border-r border-gray-300 flex items-center justify-center">ช่างเทคนิค</div>`;
+            let gridContainer = document.createElement('div');
+            gridContainer.className = 'grid';
+            gridContainer.style.gridTemplateColumns = `150px repeat(${daysInMonth}, minmax(45px, 1fr))`;
+
+            gridContainer.innerHTML += `<div class="sticky top-0 left-0 z-30 bg-gray-100 font-semibold text-sm text-gray-600 border-b border-r border-gray-300 flex items-center justify-center">ทีม / ช่างเทคนิค</div>`;
             for (let day = 1; day <= daysInMonth; day++) {
-                gridHtml += `<div class="sticky top-0 z-20 bg-gray-100 text-center py-2 border-b border-r border-l border-gray-200">${day}</div>`;
+                gridContainer.innerHTML += `<div class="sticky top-0 z-20 bg-gray-100 text-center py-2 border-b border-r border-l border-gray-200">${day}</div>`;
             }
-            technicians.forEach(tech => {
-                gridHtml += `<div class="sticky left-0 bg-white z-10 font-semibold text-sm p-2 border-b border-r border-gray-200 h-16 flex items-center">${tech.name}</div>`;
-                for (let day = 1; day <= daysInMonth; day++) {
-                    gridHtml += `<div class="drop-target h-16 border-b border-r border-gray-200 p-1 flex items-center flex-wrap gap-1" data-tech-id="${tech.id}" data-day="${day}"></div>`;
+
+            teams.forEach(team => {
+                const isCollapsed = collapsedTeams.has(team);
+                const techsInTeam = technicians.filter(t => t.team === team);
+                const tasksInTeamThisMonth = workOrders.filter(wo => {
+                    const tech = technicians.find(t => t.id === wo.assignedTo);
+                    return wo.date && tech && tech.team === team && wo.date.getMonth() === month && wo.date.getFullYear() === year;
+                }).length;
+
+                gridContainer.innerHTML += `<div class="sticky left-0 col-span-full bg-gray-200 z-10 font-bold text-sm p-2 border-b border-r border-gray-300 flex items-center justify-between cursor-pointer" onclick="toggleTeam('${team}')">
+                    <div class="flex items-center">
+                        <i data-lucide="${isCollapsed ? 'chevron-right' : 'chevron-down'}" class="h-4 w-4 mr-2"></i>
+                        ${team}
+                    </div>
+                    ${isCollapsed && tasksInTeamThisMonth > 0 ? `<span class="bg-blue-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full">${tasksInTeamThisMonth} งาน</span>` : ''}
+                </div>`;
+                
+                if (!isCollapsed) {
+                    techsInTeam.forEach(tech => {
+                        gridContainer.innerHTML += `<div class="sticky left-0 bg-white z-10 font-semibold text-sm p-2 border-b border-r border-gray-200 h-16 flex items-center">${tech.name}</div>`;
+                        for (let day = 1; day <= daysInMonth; day++) {
+                            const cellDate = new Date(year, month, day);
+                            const isPast = cellDate < today;
+                            gridContainer.innerHTML += `<div class="drop-target h-16 border-b border-r border-gray-200 p-1 flex items-center flex-wrap gap-1 ${isPast ? 'bg-gray-100' : ''}" data-tech-id="${tech.id}" data-day="${day}"></div>`;
+                        }
+                    });
                 }
             });
             
-            mainView.innerHTML = `<div class="grid" style="grid-template-columns: 150px repeat(${daysInMonth}, minmax(45px, 1fr));">${gridHtml}</div>`;
+            mainView.innerHTML = '';
+            mainView.appendChild(gridContainer);
             
             workOrders.filter(wo => wo.assignedTo && wo.date && wo.date.getMonth() === month && wo.date.getFullYear() === year).forEach(wo => {
                 const targetCell = mainView.querySelector(`.drop-target[data-tech-id="${wo.assignedTo}"][data-day="${wo.date.getDate()}"]`);
                 if (targetCell) {
                     const styles = getTypeStyles(wo.type);
+                    const isCompleted = wo.status === 'Completed';
                     const taskDot = document.createElement('div');
                     taskDot.id = `dot-${wo.id}`;
-                    taskDot.className = `task-dot h-4 w-4 rounded-full ${styles.bg}`;
+                    taskDot.className = `task-dot h-4 w-4 rounded-full ${styles.bg} ${isCompleted ? 'opacity-50' : ''}`;
                     taskDot.title = `${wo.task} (${wo.machineName})`;
                     taskDot.onclick = (e) => { e.stopPropagation(); showDetailsPopup(wo.id); };
                     targetCell.appendChild(taskDot);
@@ -172,26 +257,58 @@
             startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay() + (startOfWeek.getDay() === 0 ? -6 : 1));
             const endOfWeek = new Date(startOfWeek);
             endOfWeek.setDate(endOfWeek.getDate() + 6);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
 
             document.getElementById('current-period').textContent = `${startOfWeek.toLocaleDateString('th-TH', {day: 'numeric', month: 'short'})} - ${endOfWeek.toLocaleDateString('th-TH', {day: 'numeric', month: 'short', year: 'numeric'})}`;
             const mainView = document.getElementById('main-view');
+            const teams = [...new Set(technicians.map(t => t.team))];
 
-            let gridHtml = `<div class="sticky top-0 left-0 z-30 bg-gray-100 font-semibold text-sm text-gray-600 border-b border-r border-gray-300 flex items-center justify-center">ช่างเทคนิค</div>`;
+            let gridContainer = document.createElement('div');
+            gridContainer.className = 'grid';
+            gridContainer.style.gridTemplateColumns = `150px repeat(7, 1fr)`;
+
+            gridContainer.innerHTML += `<div class="sticky top-0 left-0 z-30 bg-gray-100 font-semibold text-sm text-gray-600 border-b border-r border-gray-300 flex items-center justify-center">ทีม / ช่างเทคนิค</div>`;
             for (let i = 0; i < 7; i++) {
                 const day = new Date(startOfWeek);
                 day.setDate(day.getDate() + i);
-                gridHtml += `<div class="sticky top-0 z-20 bg-gray-100 text-center py-2 border-b border-r border-l border-gray-200"><p>${day.toLocaleDateString('th-TH', { weekday: 'short' })}</p><p class="font-bold">${day.getDate()}</p></div>`;
+                gridContainer.innerHTML += `<div class="sticky top-0 z-20 bg-gray-100 text-center py-2 border-b border-r border-l border-gray-200"><p>${day.toLocaleDateString('th-TH', { weekday: 'short' })}</p><p class="font-bold">${day.getDate()}</p></div>`;
             }
-            technicians.forEach(tech => {
-                gridHtml += `<div class="sticky left-0 bg-white z-10 font-semibold text-sm p-2 border-b border-r border-gray-200 h-24 flex items-center">${tech.name}</div>`;
-                for (let i = 0; i < 7; i++) {
-                    const day = new Date(startOfWeek);
-                    day.setDate(day.getDate() + i);
-                    gridHtml += `<div class="drop-target h-24 border-b border-r border-gray-200 p-1 flex flex-col gap-1 overflow-y-auto" data-tech-id="${tech.id}" data-date="${day.toISOString().split('T')[0]}"></div>`;
+
+            teams.forEach(team => {
+                const isCollapsed = collapsedTeams.has(team);
+                const tasksInTeamThisWeek = workOrders.filter(wo => {
+                    if (!wo.assignedTo || !wo.date) return false;
+                    const tech = technicians.find(t => t.id === wo.assignedTo);
+                    if (!tech || tech.team !== team) return false;
+                    const woDate = new Date(wo.date);
+                    return woDate >= startOfWeek && woDate <= endOfWeek;
+                }).length;
+
+                gridContainer.innerHTML += `<div class="sticky left-0 col-span-full bg-gray-200 z-10 font-bold text-sm p-2 border-b border-r border-gray-300 flex items-center justify-between cursor-pointer" onclick="toggleTeam('${team}')">
+                    <div class="flex items-center">
+                        <i data-lucide="${isCollapsed ? 'chevron-right' : 'chevron-down'}" class="h-4 w-4 mr-2"></i>
+                        ${team}
+                    </div>
+                    ${isCollapsed && tasksInTeamThisWeek > 0 ? `<span class="bg-blue-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full">${tasksInTeamThisWeek} งาน</span>` : ''}
+                </div>`;
+
+                if (!isCollapsed) {
+                    const techsInTeam = technicians.filter(t => t.team === team);
+                    techsInTeam.forEach(tech => {
+                        gridContainer.innerHTML += `<div class="sticky left-0 bg-white z-10 font-semibold text-sm p-2 border-b border-r border-gray-200 h-24 flex items-center">${tech.name}</div>`;
+                        for (let i = 0; i < 7; i++) {
+                            const day = new Date(startOfWeek);
+                            day.setDate(day.getDate() + i);
+                            const isPast = day < today;
+                            gridContainer.innerHTML += `<div class="drop-target h-24 border-b border-r border-gray-200 p-1 flex flex-col gap-1 overflow-y-auto ${isPast ? 'bg-gray-100' : ''}" data-tech-id="${tech.id}" data-date="${day.toISOString().split('T')[0]}"></div>`;
+                        }
+                    });
                 }
             });
 
-            mainView.innerHTML = `<div class="grid" style="grid-template-columns: 150px repeat(7, 1fr);">${gridHtml}</div>`;
+            mainView.innerHTML = '';
+            mainView.appendChild(gridContainer);
 
             workOrders.forEach(wo => {
                 if (wo.assignedTo && wo.date) {
@@ -200,10 +317,11 @@
                         const targetCell = mainView.querySelector(`.drop-target[data-tech-id="${wo.assignedTo}"][data-date="${woDate.toISOString().split('T')[0]}"]`);
                         if (targetCell) {
                             const styles = getTypeStyles(wo.type);
+                            const isCompleted = wo.status === 'Completed';
                             const taskBar = document.createElement('div');
                             taskBar.id = wo.id;
                             taskBar.draggable = true;
-                            taskBar.className = `work-order-card task-bar w-full rounded p-1 text-white ${styles.bg} text-xs`;
+                            taskBar.className = `work-order-card task-bar w-full rounded p-1 text-white ${styles.bg} text-xs ${isCompleted ? 'opacity-50' : ''}`;
                             taskBar.innerHTML = `<p class="font-semibold truncate">${wo.task}</p>`;
                             taskBar.onclick = (event) => { event.stopPropagation(); showDetailsPopup(wo.id); };
                             targetCell.appendChild(taskBar);
@@ -239,7 +357,7 @@
                     if (tasksOnDay > 0 && tasksOnDay <= 2) bgColor = 'bg-blue-200';
                     else if (tasksOnDay > 2 && tasksOnDay <= 5) bgColor = 'bg-blue-400';
                     else if (tasksOnDay > 5) bgColor = 'bg-blue-600';
-                    monthGrid += `<div class="${bgColor} w-full aspect-square rounded-sm" title="${tasksOnDay} งานในวันที่ ${day} ${monthName}"></div>`;
+                    monthGrid += `<div class="${bgColor} w-full aspect-square rounded-sm cursor-pointer hover:ring-2 hover:ring-blue-500" title="${tasksOnDay} งานในวันที่ ${day} ${monthName}" onclick="goToWeekViewFromYear(${year}, ${month}, ${day})"></div>`;
                 }
                 monthGrid += '</div></div>';
                 yearHtml += monthGrid;
@@ -268,11 +386,13 @@
                     const wo = workOrders.find(w => w.id === id);
                     if (wo) {
                         wo.assignedTo = target.dataset.techId;
+                        let date;
                         if (currentView === 'week') {
-                            wo.date = new Date(target.dataset.date + 'T09:00:00');
+                            date = new Date(target.dataset.date + 'T09:00:00');
                         } else {
-                            wo.date = new Date(currentDate.getFullYear(), currentDate.getMonth(), target.dataset.day);
+                            date = new Date(currentDate.getFullYear(), currentDate.getMonth(), target.dataset.day);
                         }
+                        wo.date = date;
                         renderPlanner();
                     }
                 });
@@ -287,6 +407,21 @@
             const styles = getTypeStyles(wo.type);
             const tech = technicians.find(t => t.id === wo.assignedTo);
 
+            let partsHtml = '<p class="text-gray-500">ไม่ต้องใช้อะไหล่</p>';
+            if (wo.partsRequired && wo.partsRequired.length > 0) {
+                partsHtml = '<ul class="list-disc list-inside space-y-1">';
+                wo.partsRequired.forEach(partInfo => {
+                    const partDetail = sparePartsMasterList.find(p => p.id === partInfo.id);
+                    if (partDetail) {
+                        const isAvailable = partDetail.onHand >= partInfo.qty;
+                        const statusColor = isAvailable ? 'text-green-600' : 'text-red-600';
+                        const statusText = isAvailable ? 'มีของ' : 'ของไม่พอ';
+                        partsHtml += `<li>${partDetail.name} (ต้องการ: ${partInfo.qty}, มี: ${partDetail.onHand}) <span class="font-semibold ${statusColor}">${statusText}</span></li>`;
+                    }
+                });
+                partsHtml += '</ul>';
+            }
+
             modalContent.innerHTML = `
                 <div class="p-5 border-t-4 ${styles.border} rounded-t-lg">
                     <div class="flex justify-between items-start">
@@ -297,9 +432,13 @@
                         </div>
                         <button onclick="closeDetailsPopup()" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="h-5 w-5"></i></button>
                     </div>
-                    <div class="mt-4 border-t pt-4 text-sm">
+                    <div class="mt-4 border-t pt-4 text-sm space-y-2">
                         <p><span class="font-semibold text-gray-600">มอบหมายให้:</span> ${tech ? tech.name : 'ยังไม่มอบหมาย'}</p>
                         <p><span class="font-semibold text-gray-600">วันที่:</span> ${wo.date ? wo.date.toLocaleDateString('th-TH') : 'ยังไม่กำหนด'}</p>
+                        <div>
+                            <p class="font-semibold text-gray-600 mb-1">อะไหล่ที่ต้องใช้:</p>
+                            ${partsHtml}
+                        </div>
                     </div>
                 </div>`;
             
@@ -329,8 +468,102 @@
              document.getElementById(`view-${currentView}-btn`).classList.add('active');
         }
 
+        window.toggleTeam = (teamName) => {
+            if (collapsedTeams.has(teamName)) {
+                collapsedTeams.delete(teamName);
+            } else {
+                collapsedTeams.add(teamName);
+            }
+            renderPlanner();
+        }
+        
+        window.goToWeekViewFromYear = (year, month, day) => {
+            currentDate = new Date(year, month, day);
+            changeView('week');
+        }
+
+        function runAiAssistant() {
+            const btn = document.getElementById('ai-assist-btn');
+            btn.disabled = true;
+            btn.innerHTML = `<div class="spinner w-5 h-5 rounded-full border-2"></div> กำลังประมวลผล...`;
+
+            setTimeout(() => {
+                const unassigned = workOrders.filter(wo => !wo.assignedTo);
+                const priorityOrder = { 'PdM': 0, 'Corrective': 1, 'PM': 2 };
+                unassigned.sort((a,b) => priorityOrder[a.type] - priorityOrder[b.type]);
+
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                unassigned.forEach(wo => {
+                    let bestFit = null;
+                    let minWorkload = Infinity;
+
+                    for (let i = 0; i < 90; i++) {
+                        let dayToSchedule = new Date();
+                        dayToSchedule.setDate(today.getDate() + i);
+
+                        const availableTechs = technicians.filter(t => t.skills.includes(wo.requiredSkill));
+                        
+                        for (const tech of availableTechs) {
+                            const workload = workOrders.filter(w => w.assignedTo === tech.id && w.date && new Date(w.date).toDateString() === dayToSchedule.toDateString()).length;
+                            
+                            if (workload < minWorkload) {
+                                minWorkload = workload;
+                                bestFit = { techId: tech.id, date: dayToSchedule };
+                            }
+                            if (workload === 0) {
+                                bestFit = { techId: tech.id, date: dayToSchedule };
+                                break; 
+                            }
+                        }
+                        if (bestFit && minWorkload === 0) {
+                            break; 
+                        }
+                    }
+
+                    if (bestFit) {
+                        wo.assignedTo = bestFit.techId;
+                        wo.date = bestFit.date;
+                    }
+                });
+
+                renderPlanner();
+                btn.disabled = false;
+                btn.innerHTML = `<i data-lucide="brain-circuit" class="h-5 w-5"></i> AI ช่วยวางแผน`;
+                lucide.createIcons();
+
+            }, 2500);
+        }
+        
+        function showToast(message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast-enter bg-red-500 text-white font-bold p-4 rounded-lg shadow-lg flex items-center gap-3';
+            toast.innerHTML = `
+                <i data-lucide="alert-triangle" class="h-6 w-6"></i>
+                <div>
+                    <p class="font-bold">มีใบงานด่วนใหม่!</p>
+                    <p class="text-sm">${message}</p>
+                </div>
+            `;
+            container.appendChild(toast);
+            lucide.createIcons();
+            setTimeout(() => {
+                toast.remove();
+            }, 5000);
+        }
+
+        function simulateNewWorkOrder() {
+            showToast('เครื่อง Main Press Machine มีแรงดันไฮดรอลิกรั่ว');
+            const newWo = { id: 'wo-99', machineName: 'Main Press Machine', task: 'Corrective: Hydraulic leak', type: 'Corrective', assignedTo: null, date: null, requiredSkill: 'Mechanical', isNew: true };
+            workOrders.unshift(newWo);
+            renderUnassignedList();
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             renderPlanner();
+            setTimeout(simulateNewWorkOrder, 5000);
         });
     </script>
 </body>
