@@ -267,7 +267,7 @@
             }
 
             if (initialUrl) {
-                contentFrame.src = initialUrl;
+                navigateTo(initialUrl);
             } else {
                 contentFrame.srcdoc = `<div class='p-8 text-center'><h1>ยินดีต้อนรับ, ${user.username}</h1><p>คุณยังไม่ได้รับสิทธิ์ให้เข้าถึงเมนูใดๆ หรือยังไม่มีการตั้งค่าเมนูในระบบ</p></div>`;
             }
@@ -282,7 +282,7 @@
 
             menuConfig.forEach(item => {
                 if (isAdmin || userPermissions.includes(item.id)) {
-                    const link = createNavLink(item.name, () => contentFrame.src = item.url);
+                    const link = createNavLink(item.name, () => navigateTo(item.url));
                     navLinksContainer.appendChild(link);
                 }
             });
@@ -303,6 +303,16 @@
             a.textContent = text;
             a.onclick = (e) => { e.preventDefault(); onClick(); };
             return a;
+        }
+
+        function navigateTo(url) {
+            if (url) {
+                contentFrame.src = url;
+            }
+            // Hide sidebar on navigation on mobile
+            if (window.innerWidth < 768) { 
+                sidebar.classList.add('collapsed');
+            }
         }
 
         function showDashboard() {
