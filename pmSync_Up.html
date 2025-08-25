@@ -243,6 +243,11 @@
             
             await renderSidebar(user);
             showDashboard();
+
+            // Hide sidebar by default on mobile devices
+            if (window.innerWidth < 768) { 
+                sidebar.classList.add('collapsed');
+            }
             
             const menuConfig = (await getDoc(doc(db, "app-config", "menus"))).data()?.items || [];
             const userPermissions = user.permissions || [];
