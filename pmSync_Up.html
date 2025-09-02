@@ -21,19 +21,6 @@
             padding: 0;
             overflow: hidden;
         }
-        /* Simple spinner for loading states */
-        .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #4f46e5;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
         
         /* Sidebar collapse styles */
         #sidebar {
@@ -97,7 +84,7 @@
 
     <!-- Dashboard Container (Initially Hidden) -->
     <div id="dashboard-container" class="hidden h-screen w-screen flex">
-        <nav id="sidebar" class="w-64 h-full bg-white dark:bg-gray-800 shadow-lg flex flex-col flex-shrink-0 overflow-hidden">
+        <nav id="sidebar" class="w-64 h-full bg-white dark:bg-gray-800 shadow-lg flex flex-col flex-shrink-0 overflow-y-auto">
             <div class="flex items-center justify-center h-16 border-b dark:border-gray-700 flex-shrink-0 px-4">
                 <img class="h-8 w-auto" src="https://img2.pic.in.th/pic/Powered-by-SMG-X-G.3.png" alt="Logo">
                 <span class="ml-2 text-sm font-semibold text-gray-800 dark:text-gray-200">PM Sync-Up</span>
@@ -105,7 +92,7 @@
             <!-- Navigation Links (will be populated dynamically) -->
             <div id="nav-links" class="flex-grow p-4 space-y-2"></div>
             <!-- Logout Button -->
-            <div class="p-4 border-t dark:border-gray-700">
+            <div class="p-4 border-t dark:border-gray-700 mt-auto">
                 <button id="logout-button" class="w-full bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">ออกจากระบบ</button>
             </div>
         </nav>
@@ -119,41 +106,7 @@
         </main>
     </div>
 
-    <!-- Modal Container -->
-    <div id="modal-container" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div id="modal-content" class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-            <div class="flex justify-between items-center p-4 border-b dark:border-gray-700">
-                <h2 id="modal-title" class="text-xl font-bold text-gray-900 dark:text-white"></h2>
-                <button id="modal-close-btn" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">&times;</button>
-            </div>
-            <div id="modal-body" class="p-6 overflow-y-auto">
-                <!-- Modal content will be injected here -->
-            </div>
-        </div>
-    </div>
-
-
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-        // --- Configuration ---
-        const firebaseConfig = {
-          apiKey: "AIzaSyChgMw8w5odImWedAartGwzU-SI8zg0TEI",
-          authDomain: "pmsyncup.firebaseapp.com",
-          databaseURL: "https://pmsyncup-default-rtdb.firebaseio.com",
-          projectId: "pmsyncup",
-          storageBucket: "pmsyncup.appspot.com",
-          messagingSenderId: "1068306597297",
-          appId: "1:1068306597297:web:bebe594daf267bc5e96990"
-        };
-        const ADMIN_USERNAME = 'admin'; // Define the admin username here
-
-        // --- Initialize Firebase ---
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
+    <script>
         // --- DOM Elements ---
         const loginContainer = document.getElementById('login-container');
         const dashboardContainer = document.getElementById('dashboard-container');
@@ -164,59 +117,25 @@
         const errorMessageDiv = document.getElementById('error-message');
         const navLinksContainer = document.getElementById('nav-links');
         const contentFrame = document.getElementById('content-frame');
-        const modalContainer = document.getElementById('modal-container');
-        const modalContent = document.getElementById('modal-content');
-        const modalTitle = document.getElementById('modal-title');
-        const modalBody = document.getElementById('modal-body');
-        const modalCloseBtn = document.getElementById('modal-close-btn');
         const sidebar = document.getElementById('sidebar');
         const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
 
-        let currentUser = null;
-
         // --- Login/Logout Logic ---
-        loginForm.addEventListener('submit', async (event) => {
+        loginForm.addEventListener('submit', (event) => {
             event.preventDefault();
             errorMessageDiv.textContent = '';
             const username = usernameInput.value;
             const password = passwordInput.value;
 
-            if (!username || !password) {
-                errorMessageDiv.textContent = 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน';
-                return;
-            }
-
-            try {
-                const userDocRef = doc(db, "users", username);
-                const docSnap = await getDoc(userDocRef);
-
-                if (docSnap.exists()) {
-                    if (docSnap.data().password === password) {
-                        currentUser = { username, ...docSnap.data() };
-                        await setupDashboard(currentUser);
-                    } else {
-                        errorMessageDiv.textContent = 'รหัสผ่านไม่ถูกต้อง';
-                    }
-                } else {
-                    const newUser = {
-                        username,
-                        password,
-                        permissions: [],
-                        defaultPageId: null,
-                        createdAt: new Date()
-                    };
-                    await setDoc(userDocRef, newUser);
-                    currentUser = newUser;
-                    await setupDashboard(currentUser);
-                }
-            } catch (error) {
-                console.error('Error during login:', error);
-                errorMessageDiv.textContent = 'เกิดข้อผิดพลาดในการเชื่อมต่อ';
+            // Hardcoded user credentials
+            if (username === 'smg' && password === 'x') {
+                setupDashboard();
+            } else {
+                errorMessageDiv.textContent = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
             }
         });
 
         logoutButton.addEventListener('click', () => {
-            currentUser = null;
             showLoginPage();
         });
 
@@ -226,22 +145,8 @@
         });
 
         // --- Dashboard & UI Setup ---
-        async function setupDashboard(user) {
-            if (user.username === ADMIN_USERNAME) {
-                const menuConfigRef = doc(db, "app-config", "menus");
-                const menuConfigDoc = await getDoc(menuConfigRef);
-                if (!menuConfigDoc.exists() || !menuConfigDoc.data().items || menuConfigDoc.data().items.length === 0) {
-                    await setDoc(menuConfigRef, {
-                        items: [{
-                            id: Date.now().toString(),
-                            name: "Dashboard Example",
-                            url: "https://namowa.github.io/web/pmSync_exDash.html"
-                        }]
-                    });
-                }
-            }
-            
-            await renderSidebar(user);
+        function setupDashboard() {
+            renderSidebar();
             showDashboard();
 
             // Hide sidebar by default on mobile devices
@@ -249,51 +154,38 @@
                 sidebar.classList.add('collapsed');
             }
             
-            const menuConfig = (await getDoc(doc(db, "app-config", "menus"))).data()?.items || [];
-            const userPermissions = user.permissions || [];
-            let initialUrl = '';
-
-            // Determine initial page based on defaultPageId first
-            const defaultPage = menuConfig.find(item => item.id === user.defaultPageId && (user.username === ADMIN_USERNAME || userPermissions.includes(item.id)));
-            if (defaultPage) {
-                initialUrl = defaultPage.url;
-            } else if (user.username === ADMIN_USERNAME) {
-                initialUrl = menuConfig[0]?.url;
-            } else {
-                const firstPermittedLink = menuConfig.find(item => userPermissions.includes(item.id));
-                if (firstPermittedLink) {
-                    initialUrl = firstPermittedLink.url;
-                }
-            }
-
-            if (initialUrl) {
-                navigateTo(initialUrl);
-            } else {
-                contentFrame.srcdoc = `<div class='p-8 text-center'><h1>ยินดีต้อนรับ, ${user.username}</h1><p>คุณยังไม่ได้รับสิทธิ์ให้เข้าถึงเมนูใดๆ หรือยังไม่มีการตั้งค่าเมนูในระบบ</p></div>`;
+            // Set initial page from the first menu item
+            const menuConfig = getMenuConfig();
+            if (menuConfig.length > 0) {
+                navigateTo(menuConfig[0].url);
             }
         }
         
-        async function renderSidebar(user) {
+        function getMenuConfig() {
+            // Hardcoded menu items
+            return [
+                { name: "Ex-Dashboard", url: "https://namowa.github.io/web/pmSync_exDash.html" },
+                { name: "Machine register", url: "https://namowa.github.io/web/pmSync_ManualParser.html" },
+                { name: "Machine Management+", url: "https://namowa.github.io/web/pmSync_AssetOverview.html" },
+                { name: "AI-Powered Triage", url: "https://namowa.github.io/web/pmSync_jobTriage.html" },
+                { name: "MT Planner with AI", url: "https://namowa.github.io/web/pmSync_MtPlanner.html" },
+                { name: "Intelligent Spare Part", url: "https://namowa.github.io/web/pmSync_store.html" },
+                { name: "AI PdM Dashboard", url: "https://namowa.github.io/web/pmSync_PdM.html" },
+                { name: "Mobile Tech Asistance", url: "https://namowa.github.io/web/pmSync_techAsist.html" },
+                { name: "Mobile PD", url: "https://namowa.github.io/web/pmSync_pdLine.html" },
+                { name: "Mobile QA", url: "https://namowa.github.io/web/pmSync_quality.html" },
+                { name: "ROI Calculator", url: "https://namowa.github.io/web/pmSync_Roi.html" }
+            ];
+        }
+
+        function renderSidebar() {
             navLinksContainer.innerHTML = '';
-            const menuConfigDoc = await getDoc(doc(db, "app-config", "menus"));
-            const menuConfig = menuConfigDoc.data()?.items || [];
-            const userPermissions = user.permissions || [];
-            const isAdmin = user.username === ADMIN_USERNAME;
+            const menuConfig = getMenuConfig();
 
             menuConfig.forEach(item => {
-                if (isAdmin || userPermissions.includes(item.id)) {
-                    const link = createNavLink(item.name, () => navigateTo(item.url));
-                    navLinksContainer.appendChild(link);
-                }
+                const link = createNavLink(item.name, () => navigateTo(item.url));
+                navLinksContainer.appendChild(link);
             });
-
-            if (isAdmin) {
-                const divider = document.createElement('hr');
-                divider.className = 'my-4 border-gray-200 dark:border-gray-600';
-                navLinksContainer.appendChild(divider);
-                navLinksContainer.appendChild(createNavLink('จัดการเมนู', loadMenuManagement));
-                navLinksContainer.appendChild(createNavLink('จัดการผู้ใช้', loadUserManagement));
-            }
         }
         
         function createNavLink(text, onClick) {
@@ -325,205 +217,8 @@
             loginContainer.style.display = 'flex';
             passwordInput.value = '';
         }
-
-        // --- Modal Logic ---
-        function openModal(title, content) {
-            modalTitle.textContent = title;
-            modalBody.innerHTML = content;
-            modalContainer.classList.remove('hidden');
-        }
-
-        function closeModal() {
-            modalContainer.classList.add('hidden');
-            modalBody.innerHTML = '';
-        }
-
-        modalCloseBtn.addEventListener('click', closeModal);
-        modalContainer.addEventListener('click', (e) => {
-            if (e.target === modalContainer) {
-                closeModal();
-            }
-        });
-
-        // --- Admin Management Pages (Now in Modals) ---
-        async function loadMenuManagement() {
-            openModal('จัดการเมนู', '<div class="loader mx-auto"></div>');
-            const menuConfigDoc = await getDoc(doc(db, "app-config", "menus"));
-            const menus = menuConfigDoc.data()?.items || [];
-
-            const menuListHtml = menus.map((menu, index) => `
-                <div class="flex items-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg shadow mb-2">
-                    <div class="flex flex-col mr-3">
-                        <button data-index="${index}" data-action="move-up" class="text-gray-400 hover:text-gray-600 disabled:opacity-25" ${index === 0 ? 'disabled' : ''}>▲</button>
-                        <button data-index="${index}" data-action="move-down" class="text-gray-400 hover:text-gray-600 disabled:opacity-25" ${index === menus.length - 1 ? 'disabled' : ''}>▼</button>
-                    </div>
-                    <div class="flex-grow mr-4">
-                        <input type="text" value="${menu.name}" class="bg-transparent font-semibold w-full block mb-1 p-1 rounded border border-transparent focus:border-indigo-500" id="name-${menu.id}">
-                        <input type="text" value="${menu.url}" class="bg-transparent text-sm text-gray-500 w-full block p-1 rounded border border-transparent focus:border-indigo-500" id="url-${menu.id}">
-                    </div>
-                    <div class="flex-shrink-0">
-                        <button class="text-indigo-500 hover:text-indigo-700 mr-2" data-id="${menu.id}" data-action="save">บันทึก</button>
-                        <button class="text-red-500 hover:text-red-700" data-id="${menu.id}" data-action="delete">ลบ</button>
-                    </div>
-                </div>
-            `).join('');
-
-            const content = `
-                <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg shadow mb-6">
-                    <h2 class="text-lg font-semibold mb-2">เพิ่มเมนูใหม่</h2>
-                    <div class="flex space-x-2">
-                        <input id="new-menu-name" type="text" placeholder="ชื่อเมนู" class="w-1/3 p-2 border rounded dark:bg-gray-800 dark:border-gray-600">
-                        <input id="new-menu-url" type="text" placeholder="URL" class="flex-grow p-2 border rounded dark:bg-gray-800 dark:border-gray-600">
-                        <button id="add-menu-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">เพิ่ม</button>
-                    </div>
-                </div>
-                <div id="menu-list">${menuListHtml}</div>`;
-            
-            modalBody.innerHTML = content;
-            
-            modalBody.querySelector('#add-menu-btn').onclick = async () => {
-                const name = modalBody.querySelector('#new-menu-name').value;
-                const url = modalBody.querySelector('#new-menu-url').value;
-                if (name && url) {
-                    const newId = Date.now().toString();
-                    const newMenus = [...menus, { id: newId, name, url }];
-                    await setDoc(doc(db, "app-config", "menus"), { items: newMenus });
-                    await loadMenuManagement();
-                    await renderSidebar(currentUser);
-                }
-            };
-
-            modalBody.querySelector('#menu-list').addEventListener('click', async (e) => {
-                const button = e.target.closest('button');
-                if (!button) return;
-
-                const action = button.dataset.action;
-                const id = button.dataset.id;
-                const index = parseInt(button.dataset.index, 10);
-
-                if (action === 'delete') {
-                    const newMenus = menus.filter(m => m.id !== id);
-                    await setDoc(doc(db, "app-config", "menus"), { items: newMenus });
-                } else if (action === 'save') {
-                    const newName = modalBody.querySelector(`#name-${id}`).value;
-                    const newUrl = modalBody.querySelector(`#url-${id}`).value;
-                    const newMenus = menus.map(m => m.id === id ? { ...m, name: newName, url: newUrl } : m);
-                    await setDoc(doc(db, "app-config", "menus"), { items: newMenus });
-                    alert('บันทึกแล้ว!');
-                } else if (action === 'move-up' && index > 0) {
-                    const newMenus = [...menus];
-                    [newMenus[index - 1], newMenus[index]] = [newMenus[index], newMenus[index - 1]];
-                    await setDoc(doc(db, "app-config", "menus"), { items: newMenus });
-                } else if (action === 'move-down' && index < menus.length - 1) {
-                    const newMenus = [...menus];
-                    [newMenus[index], newMenus[index + 1]] = [newMenus[index + 1], newMenus[index]];
-                    await setDoc(doc(db, "app-config", "menus"), { items: newMenus });
-                } else {
-                    return;
-                }
-                
-                await loadMenuManagement();
-                await renderSidebar(currentUser);
-            });
-        }
-
-        async function loadUserManagement() {
-            openModal('จัดการสิทธิ์ผู้ใช้', '<div class="loader mx-auto"></div>');
-            const usersSnapshot = await getDocs(collection(db, "users"));
-            const menuConfigDoc = await getDoc(doc(db, "app-config", "menus"));
-            const menus = menuConfigDoc.data()?.items || [];
-            
-            const menuOptions = `<option value="">-- ไม่มี --</option>` + menus.map(menu => `<option value="${menu.id}">${menu.name}</option>`).join('');
-
-            let usersHtml = '';
-            usersSnapshot.forEach(userDoc => {
-                const user = userDoc.data();
-                if (user.username === ADMIN_USERNAME) return;
-                
-                const permissionsCheckboxes = menus.map(menu => `
-                    <label class="flex items-center space-x-2">
-                        <input type="checkbox" value="${menu.id}" class="form-checkbox h-5 w-5 text-indigo-600" ${user.permissions?.includes(menu.id) ? 'checked' : ''}>
-                        <span>${menu.name}</span>
-                    </label>
-                `).join('');
-
-                const userMenuOptions = `<option value="">-- ไม่มี --</option>` + menus.map(menu => `<option value="${menu.id}" ${user.defaultPageId === menu.id ? 'selected' : ''}>${menu.name}</option>`).join('');
-
-                usersHtml += `
-                    <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg shadow mb-4">
-                        <div class="flex justify-between items-center flex-wrap gap-2">
-                            <h3 class="font-semibold">${user.username}</h3>
-                            <div class="flex items-center gap-2">
-                                <label class="text-sm">หน้าเริ่มต้น:</label>
-                                <select id="default-page-${user.username}" class="p-1 border rounded text-sm dark:bg-gray-800 dark:border-gray-600">${userMenuOptions}</select>
-                                <button data-username="${user.username}" data-action="save-perms" class="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 text-sm">บันทึก</button>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3" id="perms-for-${user.username}">${permissionsCheckboxes}</div>
-                    </div>`;
-            });
-            
-            const content = `
-                <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg shadow mb-6">
-                    <h2 class="text-lg font-semibold mb-2">เพิ่มผู้ใช้ใหม่</h2>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        <input id="new-user-username" type="text" placeholder="ชื่อผู้ใช้ใหม่" class="p-2 border rounded dark:bg-gray-800 dark:border-gray-600">
-                        <input id="new-user-password" type="password" placeholder="รหัสผ่านใหม่" class="p-2 border rounded dark:bg-gray-800 dark:border-gray-600">
-                        <select id="new-user-default-page" class="p-2 border rounded dark:bg-gray-800 dark:border-gray-600">${menuOptions}</select>
-                    </div>
-                    <button id="add-user-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 mt-2 w-full sm:w-auto">เพิ่มผู้ใช้</button>
-                </div>
-                <div id="user-list">${usersHtml}</div>`;
-
-            modalBody.innerHTML = content;
-
-            modalBody.querySelector('#add-user-btn').onclick = async () => {
-                const newUsername = modalBody.querySelector('#new-user-username').value;
-                const newPassword = modalBody.querySelector('#new-user-password').value;
-                const defaultPageId = modalBody.querySelector('#new-user-default-page').value;
-
-                if (!newUsername || !newPassword) {
-                    alert('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน');
-                    return;
-                }
-                
-                const userDocRef = doc(db, "users", newUsername);
-                const docSnap = await getDoc(userDocRef);
-
-                if (docSnap.exists()) {
-                    alert('มีชื่อผู้ใช้นี้อยู่แล้ว');
-                } else {
-                    await setDoc(userDocRef, {
-                        username: newUsername,
-                        password: newPassword,
-                        permissions: [],
-                        defaultPageId: defaultPageId || null,
-                        createdAt: new Date()
-                    });
-                    alert('เพิ่มผู้ใช้สำเร็จ!');
-                    await loadUserManagement();
-                }
-            };
-
-            modalBody.querySelector('#user-list').addEventListener('click', async (e) => {
-                const button = e.target.closest('button');
-                if (button && button.dataset.username && button.dataset.action === 'save-perms') {
-                    const username = button.dataset.username;
-                    const checkboxes = modalBody.querySelectorAll(`#perms-for-${username} input:checked`);
-                    const newPermissions = Array.from(checkboxes).map(cb => cb.value);
-                    const defaultPageId = modalBody.querySelector(`#default-page-${username}`).value;
-                    
-                    const userDocRef = doc(db, "users", username);
-                    await setDoc(userDocRef, { 
-                        permissions: newPermissions,
-                        defaultPageId: defaultPageId || null
-                    }, { merge: true });
-                    alert(`บันทึกสิทธิ์สำหรับ ${username} แล้ว`);
-                }
-            });
-        }
-
     </script>
 
 </body>
 </html>
+
