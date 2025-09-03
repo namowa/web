@@ -3,40 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LIFF & Firebase Test</title>
+    <title>SHE&E Activity - สะสมแต้ม</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- LIFF SDK -->
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
-        .status-box { padding: 10px; border-radius: 5px; margin-bottom: 10px; font-weight: bold; }
-        .success { background-color: #e0ffe0; border: 1px solid #008000; color: #008000; }
-        .error { background-color: #ffe0e0; border: 1px solid #ff0000; color: #ff0000; }
-        .info { background-color: #e0f0ff; border: 1px solid #0066cc; color: #0066cc; }
-        .profile-info { border: 1px solid #ccc; padding: 10px; border-radius: 5px; display: none; margin-top: 10px; }
-        img { border-radius: 50%; }
+        body {
+            font-family: 'Kanit', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .hidden { display: none; }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Custom modal for confirm dialog */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 90%;
+            width: 350px;
+        }
     </style>
 </head>
-<body>
-    <h1>LIFF & Firebase Connection Test</h1>
-    <p>หน้านี้ใช้เพื่อทดสอบการเชื่อมต่อ LIFF และ Firebase</p>
-    <div id="liff-status" class="status-box info">กำลังเริ่มต้น LIFF...</div>
-    <div id="firebase-status" class="status-box info" style="display: none;"></div>
+<body class="bg-gray-100">
 
-    <div id="profile" class="profile-info">
-        <h2>Profile Information</h2>
-        <p><strong>User ID:</strong> <span id="userId"></span></p>
-        <p><strong>Display Name:</strong> <span id="displayName"></span></p>
-        <img id="pictureUrl" src="" alt="Profile Picture" width="100">
+    <!-- หน้าจอ Loading -->
+    <div id="loading-screen" class="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
+        <div class="loader"></div>
+        <p class="text-gray-600 mt-4">กำลังโหลดข้อมูล...</p>
     </div>
+
+    <!-- หน้าจอลงทะเบียน -->
+    <div id="registration-screen" class="hidden min-h-screen flex items-center justify-center bg-gray-100 p-4">
+        <div class="bg-white p-8 rounded-xl shadow-lg text-center w-full max-w-sm">
+            <h1 class="text-3xl font-bold mb-2 text-gray-800">ลงทะเบียน</h1>
+            <p id="register-welcome-text" class="text-gray-500 mb-6">กรุณากรอกข้อมูลเพื่อลงทะเบียน</p>
+            <input id="register-firstname-input" type="text" placeholder="ชื่อ" class="w-full px-4 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input id="register-lastname-input" type="text" placeholder="นามสกุล" class="w-full px-4 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input id="register-employee-id-input" type="text" placeholder="รหัสพนักงาน" class="w-full px-4 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <button id="register-button" class="w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 transition-colors">
+                ยืนยันการลงทะเบียน
+            </button>
+        </div>
+    </div>
+
+    <!-- ส่วนหลักของแอป (ซ่อนไว้ตอนแรก) -->
+    <div id="app-container" class="hidden">
+        <header class="bg-white shadow-md sticky top-0 z-40">
+            <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+                <div>
+                    <h1 class="text-xl md:text-2xl font-bold text-gray-800">SHE&E Activity</h1>
+                    <p id="welcome-message" class="text-gray-500 text-sm md:text-base truncate max-w-[150px] md:max-w-full">ยินดีต้อนรับ, </p>
+                </div>
+                <div class="flex items-center">
+                    <div id="points-display" class="bg-yellow-100 border border-yellow-300 text-yellow-800 font-bold px-3 py-2 rounded-full flex items-center mr-2 md:mr-4 text-sm md:text-base">
+                        <!-- Points will be rendered here -->
+                    </div>
+                </div>
+            </div>
+            <nav class="container mx-auto px-4">
+                <div id="nav-buttons-container" class="flex border-b overflow-x-auto">
+                    <!-- Nav buttons will be inserted here by JS -->
+                </div>
+            </nav>
+        </header>
+
+        <main id="main-content" class="container mx-auto p-4 md:p-6">
+            <div class="loader"></div>
+        </main>
+    </div>
+
+    <!-- ส่วนแสดงข้อความแจ้งเตือน -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50"></div>
+    
+    <!-- Modal container -->
+    <div id="modal-container"></div>
 
     <script type="module">
         // Import Firebase SDKs
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, runTransaction, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- LIFF Configuration ---
-        const LIFF_ID = "1654435774-E1myB7b4";
-        
-        // --- Firebase Configuration ---
+        // --- Configuration ---
         const firebaseConfig = {
          apiKey: "AIzaSyDATchWwmazw3wPnuNk4i-d79rnyBpSDM0",
          authDomain: "line-liff-a543c.firebaseapp.com",
@@ -46,68 +122,717 @@
          appId: "1:617440448369:web:182dc1785335950c6c30d0"
         };
         
-        // --- DOM Elements ---
-        const liffStatusDiv = document.getElementById('liff-status');
-        const firebaseStatusDiv = document.getElementById('firebase-status');
-        const profileDiv = document.getElementById('profile');
+        // --- Initialize Firebase ---
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
 
+        // --- Global State ---
+        let state = {
+            currentPage: 'dashboard',
+            userId: null,
+            userName: null,
+            isAdmin: false,
+            userData: null,
+            activities: [],
+            rewards: [],
+            lotterySettings: { cost: 20, limit: 5 },
+            numberedLotteryData: {},
+            pendingRequests: [], 
+            unsubscribers: []
+        };
+
+        // --- DOM Elements ---
+        const loadingScreen = document.getElementById('loading-screen');
+        const registrationScreen = document.getElementById('registration-screen');
+        const appContainer = document.getElementById('app-container');
+        const mainContent = document.getElementById('main-content');
+        const navButtonsContainer = document.getElementById('nav-buttons-container');
+        const modalContainer = document.getElementById('modal-container');
+        
+        const registerButton = document.getElementById('register-button');
+        const registerFirstnameInput = document.getElementById('register-firstname-input');
+        const registerLastnameInput = document.getElementById('register-lastname-input');
+        const registerEmployeeIdInput = document.getElementById('register-employee-id-input');
+
+        // --- UI Functions ---
+        function showToast(message, isError = false) {
+            const toastContainer = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `text-white py-2 px-4 rounded-lg shadow-lg mb-2 transform transition-all duration-300 ease-out ${isError ? 'bg-red-500' : 'bg-green-500'}`;
+            toast.textContent = message;
+            
+            requestAnimationFrame(() => {
+                toast.style.transform = 'translateY(20px)';
+                toast.style.opacity = '0';
+                requestAnimationFrame(() => {
+                    toast.style.transform = 'translateY(0)';
+                    toast.style.opacity = '1';
+                });
+            });
+
+            toastContainer.appendChild(toast);
+            setTimeout(() => {
+                toast.style.transform = 'translateY(20px)';
+                toast.style.opacity = '0';
+                toast.addEventListener('transitionend', () => toast.remove());
+            }, 3000);
+        }
+
+        function showConfirmModal(message, onConfirm) {
+            const modalBackdrop = document.createElement('div');
+            modalBackdrop.className = 'modal-backdrop';
+            
+            modalBackdrop.innerHTML = `
+                <div class="modal-content">
+                    <p class="mb-4 text-gray-700">${message}</p>
+                    <div class="flex justify-center gap-4">
+                        <button id="modal-confirm-btn" class="bg-red-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-700">ยืนยัน</button>
+                        <button id="modal-cancel-btn" class="bg-gray-300 text-gray-800 px-6 py-2 rounded-lg font-semibold hover:bg-gray-400">ยกเลิก</button>
+                    </div>
+                </div>
+            `;
+            
+            modalContainer.appendChild(modalBackdrop);
+            
+            document.getElementById('modal-confirm-btn').onclick = () => {
+                onConfirm();
+                modalBackdrop.remove();
+            };
+            document.getElementById('modal-cancel-btn').onclick = () => {
+                modalBackdrop.remove();
+            };
+             modalBackdrop.onclick = (e) => {
+                if (e.target === modalBackdrop) {
+                    modalBackdrop.remove();
+                }
+            };
+        }
+        
+        function showAdminCodeModal(onConfirm) {
+            const modalBackdrop = document.createElement('div');
+            modalBackdrop.className = 'modal-backdrop';
+            
+            modalBackdrop.innerHTML = `
+                <div class="modal-content">
+                    <p class="mb-2 font-semibold text-gray-700">สำหรับเจ้าหน้าที่เท่านั้น</p>
+                    <p class="mb-4 text-sm text-gray-500">กรุณากรอกรหัส 4 หลักเพื่อยืนยันการรับของ</p>
+                    <input id="admin-code-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" class="w-full text-center text-2xl tracking-[.5em] p-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <div class="flex justify-center gap-4">
+                        <button id="modal-confirm-code-btn" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700">ยืนยัน</button>
+                        <button id="modal-cancel-btn" class="bg-gray-300 text-gray-800 px-6 py-2 rounded-lg font-semibold hover:bg-gray-400">ยกเลิก</button>
+                    </div>
+                </div>
+            `;
+            
+            modalContainer.appendChild(modalBackdrop);
+            const input = document.getElementById('admin-code-input');
+            input.focus();
+            
+            document.getElementById('modal-confirm-code-btn').onclick = () => {
+                onConfirm(input.value);
+                modalBackdrop.remove();
+            };
+            document.getElementById('modal-cancel-btn').onclick = () => {
+                modalBackdrop.remove();
+            };
+             modalBackdrop.onclick = (e) => {
+                if (e.target === modalBackdrop) {
+                    modalBackdrop.remove();
+                }
+            };
+        }
+
+        function showActivityInfoModal(activity, onConfirm) {
+            const modalBackdrop = document.createElement('div');
+            modalBackdrop.className = 'modal-backdrop';
+            
+            modalBackdrop.innerHTML = `
+                <div class="modal-content text-left">
+                    <h3 class="text-xl font-bold mb-2 text-gray-800">${activity.name}</h3>
+                    <p class="mb-4 text-gray-700 whitespace-pre-wrap">${activity.message}</p>
+                    <div class="flex justify-center gap-4">
+                        <button id="modal-confirm-join-btn" class="bg-green-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-700">ยืนยันการเข้าร่วม</button>
+                        <button id="modal-cancel-btn" class="bg-gray-300 text-gray-800 px-6 py-2 rounded-lg font-semibold hover:bg-gray-400">ยกเลิก</button>
+                    </div>
+                </div>
+            `;
+            
+            modalContainer.appendChild(modalBackdrop);
+            
+            document.getElementById('modal-confirm-join-btn').onclick = () => {
+                onConfirm();
+                modalBackdrop.remove();
+            };
+            document.getElementById('modal-cancel-btn').onclick = () => {
+                modalBackdrop.remove();
+            };
+             modalBackdrop.onclick = (e) => {
+                if (e.target === modalBackdrop) {
+                    modalBackdrop.remove();
+                }
+            };
+        }
+
+        function renderHeader() {
+            const welcomeMessage = document.getElementById('welcome-message');
+            const pointsDisplay = document.getElementById('points-display');
+            if (state.isAdmin) {
+                welcomeMessage.textContent = `ยินดีต้อนรับ, ผู้ดูแลระบบ`;
+                pointsDisplay.classList.add('hidden');
+            } else if (state.userData) {
+                pointsDisplay.classList.remove('hidden');
+                welcomeMessage.textContent = `ยินดีต้อนรับ, ${state.userData.name || state.userId}`;
+                pointsDisplay.innerHTML = `
+                    <svg class="w-5 h-5 md:w-6 md:h-6 inline-block mr-1 md:mr-2 text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                    <span>${state.userData.points} คะแนน</span>`;
+            }
+        }
+        
+        function render() {
+            mainContent.innerHTML = `<div class="loader"></div>`;
+            if (!state.isAdmin && !state.userData) {
+                return;
+            }
+            renderHeader();
+            switch (state.currentPage) {
+                case 'dashboard': renderDashboard(); break;
+                case 'rewards': renderRewards(); break;
+                case 'numberedLottery': renderNumberedLottery(); break;
+            }
+        }
+        
+        // --- User Pages Rendering ---
+        function renderDashboard() {
+            const userActivityStatus = state.userData.activityStatus || {};
+            const userPendingRequests = state.pendingRequests || [];
+            const completedCount = Object.values(userActivityStatus).filter(s => s === 'completed').length;
+            const visibleActivities = state.activities.filter(act => act.isVisible !== false);
+
+            const stampCardHTML = `
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h2 class="text-2xl font-bold mb-4 text-gray-800">บัตรสะสมแสตมป์</h2>
+                    <div class="grid grid-cols-4 sm:grid-cols-8 gap-4">
+                        ${state.activities.map(act => {
+                            const completed = userActivityStatus[act.id] === 'completed';
+                            return `
+                                <div class="flex flex-col items-center text-center">
+                                    <div class="relative w-16 h-16">
+                                        <svg class="w-16 h-16 transition-all duration-300 ${completed ? 'text-green-500' : 'text-gray-300'}" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,16.5L6.5,12L7.91,10.59L11,13.67L16.59,8.09L18,9.5L11,16.5Z" />
+                                        </svg>
+                                        ${completed ? `<div class="absolute inset-0 flex items-center justify-center text-white text-2xl font-bold transform transition-transform duration-500 scale-100">${act.stampIcon}</div>` : `<div class="absolute inset-0 flex items-center justify-center text-gray-400 text-2xl">${act.stampIcon}</div>`}
+                                    </div>
+                                    <span class="mt-2 text-xs sm:text-sm font-medium ${completed ? 'text-gray-700' : 'text-gray-400'}">${act.name}</span>
+                                </div>`;
+                        }).join('')}
+                    </div>
+                    ${completedCount === state.activities.length && state.activities.length > 0 ? `<div class="mt-4 text-center p-3 bg-yellow-100 border-l-4 border-yellow-400 text-yellow-700 rounded-r-lg"><p class="font-bold">ยินดีด้วย! คุณสะสมแสตมป์ครบทุกดวงแล้ว!</p></div>` : ''}
+                </div>`;
+
+            const activityListHTML = `
+                <div class="mt-6">
+                    <h2 class="text-2xl font-bold mb-4 text-gray-800">กิจกรรมประจำเดือน</h2>
+                    <div class="space-y-4">
+                        ${visibleActivities.map(act => {
+                            const isCompleted = userActivityStatus[act.id] === 'completed';
+                            const isPending = userPendingRequests.includes(act.id);
+                            let buttonHTML;
+
+                            if (isCompleted) {
+                                buttonHTML = `<button class="px-4 py-2 rounded-lg font-semibold text-white bg-gray-400 cursor-not-allowed" disabled>เข้าร่วมแล้ว</button>`;
+                            } else if (isPending) {
+                                buttonHTML = `<button class="px-4 py-2 rounded-lg font-semibold text-white bg-yellow-500 cursor-not-allowed" disabled>รอยืนยัน</button>`;
+                            } else {
+                                buttonHTML = `<button data-activity-id="${act.id}" class="join-activity-btn px-4 py-2 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors">เข้าร่วม</button>`;
+                            }
+                            
+                            let extraInfoHTML = '';
+                            if (act.type === 'online' && isPending && act.message && act.link) {
+                                extraInfoHTML = `
+                                    <div class="mt-3 pt-3 border-t border-gray-200">
+                                        <p class="text-sm text-gray-800 whitespace-pre-wrap mb-2">${act.message}</p>
+                                        <a href="${act.link}" target="_blank" rel="noopener noreferrer" class="inline-block bg-blue-100 text-blue-700 text-sm font-semibold px-3 py-1 rounded-full hover:bg-blue-200">
+                                            ไปที่ลิ้งกิจกรรม
+                                        </a>
+                                    </div>
+                                `;
+                            }
+
+                            return `
+                                <div class="bg-white p-4 rounded-xl shadow-md flex items-start justify-between">
+                                    <div class="flex-grow mr-4">
+                                        <p class="text-lg font-semibold text-gray-800">${act.stampIcon} ${act.name}</p>
+                                        <p class="text-sm text-gray-500">${act.description}</p>
+                                        <p class="text-sm font-bold text-green-600">+${act.points} คะแนน</p>
+                                        ${extraInfoHTML}
+                                    </div>
+                                    <div class="flex-shrink-0">
+                                        ${buttonHTML}
+                                    </div>
+                                </div>`;
+                        }).join('')}
+                    </div>
+                </div>`;
+            mainContent.innerHTML = stampCardHTML + activityListHTML;
+        }
+        
+        function renderRewards() {
+            const rewardsGridHTML = `
+                <div>
+                    <h2 class="text-2xl font-bold mb-4 text-gray-800">ร้านค้าแลกรางวัล</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        ${state.rewards.map(reward => {
+                            const redeemedCount = (state.userData.redeemedRewards || []).filter(r => r.name === reward.name).length;
+                            const limit = reward.limit || 0;
+                            const isLimitReached = limit > 0 && redeemedCount >= limit;
+
+                            let buttonHTML;
+                            if (isLimitReached) {
+                                buttonHTML = `<button class="bg-gray-400 text-white px-4 py-2 rounded-lg font-semibold cursor-not-allowed" disabled>แลกครบแล้ว</button>`;
+                            } else {
+                                buttonHTML = `<button data-reward-id="${reward.id}" class="redeem-reward-btn bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors" ${state.userData.points < reward.cost || reward.stock <= 0 ? 'disabled' : ''}>
+                                            แลกรางวัล
+                                        </button>`;
+                            }
+                            
+                            return `
+                            <div class="bg-white rounded-xl shadow-md overflow-hidden flex flex-col">
+                                <img src="${reward.img}" alt="${reward.name}" class="w-full h-40 object-cover" onerror="this.onerror=null;this.src='https://placehold.co/400x250/e2e8f0/64748b?text=Image';">
+                                <div class="p-4 flex flex-col flex-grow">
+                                    <h3 class="text-lg font-semibold text-gray-800">${reward.name}</h3>
+                                    <p class="text-sm text-gray-500 mb-2">คงเหลือ: ${reward.stock} ชิ้น</p>
+                                    ${limit > 0 ? `<p class="text-xs text-blue-500 font-semibold mb-2">จำกัด ${limit} ชิ้น/คน (แลกไปแล้ว ${redeemedCount})</p>` : ''}
+                                    <div class="flex-grow"></div>
+                                    <div class="flex items-center justify-between mt-4">
+                                        <span class="text-xl font-bold text-yellow-500">${reward.cost} คะแนน</span>
+                                        ${buttonHTML}
+                                    </div>
+                                </div>
+                            </div>`
+                        }).join('')}
+                    </div>
+                </div>`;
+
+            const redeemedHistory = state.userData.redeemedRewards || [];
+            redeemedHistory.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            const historyHTML = `
+                <div class="mt-8">
+                    <h3 class="text-xl font-bold mb-4 text-gray-700 border-t pt-6">ประวัติการแลกรางวัล</h3>
+                    ${redeemedHistory.length > 0 ? `
+                        <div class="space-y-3 bg-white p-4 rounded-xl shadow-md">
+                            ${redeemedHistory.map(item => {
+                                let statusHTML = '';
+                                if (item.status === 'received') {
+                                    statusHTML = `<button class="bg-gray-400 text-white px-3 py-1 rounded-lg text-sm font-semibold cursor-not-allowed" disabled>รับแล้ว</button>`;
+                                } else {
+                                    statusHTML = `<button data-redeem-id="${item.redeemId}" class="receive-reward-btn bg-blue-600 text-white px-3 py-1 rounded-lg text-sm font-semibold hover:bg-blue-700">รับของรางวัล</button>`;
+                                }
+
+                                return `
+                                <div class="flex justify-between items-center border-b pb-2 last:border-b-0">
+                                    <div>
+                                        <p class="font-semibold text-gray-800">${item.name}</p>
+                                        <p class="text-sm text-gray-500">วันที่: ${new Date(item.date).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} น.</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="font-bold text-yellow-600 block mb-1">-${item.cost} คะแนน</span>
+                                        ${statusHTML}
+                                    </div>
+                                </div>
+                            `}).join('')}
+                        </div>
+                    ` : `
+                        <p class="text-gray-500 text-center mt-4 bg-white p-4 rounded-xl shadow-md">ยังไม่มีประวัติการแลกรางวัล</p>
+                    `}
+                </div>
+            `;
+            mainContent.innerHTML = rewardsGridHTML + historyHTML;
+        }
+
+        function renderNumberedLottery() {
+            const lotteryCost = state.lotterySettings.cost;
+            const lotteryLimit = state.lotterySettings.limit;
+            const ticketsOwned = Object.values(state.numberedLotteryData).filter(ticket => ticket.ownerId === state.userId).length;
+            const canBuyMore = ticketsOwned < lotteryLimit;
+            const hasEnoughPoints = state.userData.points >= lotteryCost;
+
+            let numbersHTML = '';
+            for (let i = 0; i < 1000; i++) {
+                const numberStr = String(i).padStart(3, '0');
+                const ticketData = state.numberedLotteryData[numberStr];
+                
+                if (ticketData && ticketData.isSold) {
+                    const isOwner = ticketData.ownerId === state.userId;
+                    numbersHTML += `
+                        <div class="p-2 text-center rounded-lg ${isOwner ? 'bg-blue-200 text-blue-800 ring-2 ring-blue-400' : 'bg-gray-200 text-gray-500'}">
+                            <p class="font-bold text-lg">${numberStr}</p>
+                            <p class="text-xs font-mono">${isOwner ? 'ของคุณ' : 'SOLD'}</p>
+                            <p class="text-xs font-mono truncate" title="${ticketData.ownerId}">${isOwner ? '' : ticketData.ownerId.slice(0,6)}</p>
+                        </div>
+                    `;
+                } else {
+                    const isDisabled = !canBuyMore || !hasEnoughPoints;
+                    numbersHTML += `
+                        <button data-number="${numberStr}" class="buy-numbered-ticket-btn p-2 text-center rounded-lg bg-green-100 text-green-800 hover:bg-green-200 transition-colors ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}" ${isDisabled ? 'disabled' : ''}>
+                            <p class="font-bold text-lg">${numberStr}</p>
+                            <p class="text-xs">ว่าง</p>
+                        </button>
+                    `;
+                }
+            }
+
+            mainContent.innerHTML = `
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="text-center mb-4">
+                        <h2 class="text-2xl font-bold mb-2 text-gray-800">สลาก SHE&E</h2>
+                        <p class="text-gray-600">เลือกซื้อเบอร์ที่คุณต้องการ (ใช้ ${lotteryCost} คะแนนต่อใบ, ซื้อได้สูงสุด ${lotteryLimit} ใบ)</p>
+                        <p class="mt-2 font-semibold text-blue-600">คุณซื้อไปแล้ว: ${ticketsOwned} / ${lotteryLimit} ใบ</p>
+                    </div>
+                    <div class="grid grid-cols-5 sm:grid-cols-10 gap-2 max-h-96 overflow-y-auto p-2 bg-gray-50 rounded-lg border">
+                        ${numbersHTML}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // --- Auth & Firestore Functions ---
+        async function handleRegistration() {
+            const firstname = registerFirstnameInput.value.trim();
+            const lastname = registerLastnameInput.value.trim();
+            const employeeId = registerEmployeeIdInput.value.trim();
+
+            if (!firstname || !lastname || !employeeId) {
+                showToast("กรุณากรอกข้อมูลให้ครบทุกช่อง", true);
+                return;
+            }
+
+            const userRef = doc(db, 'users', state.userId);
+            const newUser = {
+                id: state.userId,
+                employeeId: employeeId,
+                name: `${firstname} ${lastname}`,
+                points: 0,
+                activityStatus: {},
+                redeemedRewards: []
+            };
+
+            await setDoc(userRef, newUser);
+            showToast("ลงทะเบียนสำเร็จ!");
+            loginSuccess(state.userId, false);
+        }
+
+        function loginSuccess(userId, isAdmin = false) {
+            state.userId = userId;
+            state.isAdmin = isAdmin;
+            
+            loadingScreen.classList.add('hidden');
+            registrationScreen.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+
+            setupNav();
+            attachListeners();
+            render(); 
+        }
+
+        async function handleJoinActivity(activityId) {
+            const activity = state.activities.find(a => a.id === activityId);
+            if (!activity) return;
+
+            if (state.userData.activityStatus && state.userData.activityStatus[activityId] === 'completed') {
+                showToast("คุณเข้าร่วมกิจกรรมนี้แล้ว", true);
+                return;
+            }
+
+            const createPendingRequest = async () => {
+                const requestId = `${state.userId}_${activityId}`;
+                const requestRef = doc(db, "pendingRequests", requestId);
+                try {
+                    const requestSnap = await getDoc(requestRef);
+                    if (requestSnap.exists()) {
+                        showToast("คำขอของคุณอยู่ระหว่างการยืนยัน", true);
+                        return;
+                    }
+                    await setDoc(requestRef, {
+                        userId: state.userId,
+                        userName: state.userData.name,
+                        activityId: activityId,
+                        activityName: activity.name,
+                        requestDate: new Date().toISOString()
+                    });
+                    showToast(`ส่งคำขอเข้าร่วม "${activity.name}" แล้ว`);
+                } catch (e) {
+                    console.error("Create Pending Request failed: ", e);
+                    showToast("เกิดข้อผิดพลาด กรุณาลองใหม่", true);
+                }
+            };
+
+            if (activity.type === 'online' && activity.message) {
+                showActivityInfoModal(activity, createPendingRequest);
+            } else {
+                createPendingRequest();
+            }
+        }
+
+        async function handleRedeemReward(rewardId) {
+            const reward = state.rewards.find(r => r.id === rewardId);
+            if (!reward) return;
+
+            showConfirmModal(`คุณต้องการใช้ ${reward.cost} คะแนน เพื่อแลก "${reward.name}" ใช่หรือไม่?`, async () => {
+                const userRef = doc(db, 'users', state.userId);
+                const rewardRef = doc(db, 'rewards', rewardId);
+                try {
+                    await runTransaction(db, async (transaction) => {
+                        const userDoc = await transaction.get(userRef);
+                        const rewardDoc = await transaction.get(rewardRef);
+                        if (!userDoc.exists() || !rewardDoc.exists()) throw "Document does not exist!";
+                        
+                        if (userDoc.data().points < reward.cost) throw "คะแนนไม่เพียงพอ";
+                        if (rewardDoc.data().stock <= 0) throw "ของรางวัลหมดแล้ว";
+                        
+                        const newRedeemedList = [
+                            ...(userDoc.data().redeemedRewards || []),
+                            {
+                                redeemId: `${Date.now()}_${rewardId}`,
+                                name: reward.name,
+                                cost: reward.cost,
+                                date: new Date().toISOString(),
+                                status: 'redeemed'
+                            }
+                        ];
+
+                        transaction.update(userRef, { 
+                            points: userDoc.data().points - reward.cost,
+                            redeemedRewards: newRedeemedList
+                        });
+                        transaction.update(rewardRef, { stock: rewardDoc.data().stock - 1 });
+                    });
+                    showToast(`แลก "${reward.name}" สำเร็จ!`);
+                } catch (e) {
+                    showToast(typeof e === 'string' ? e : "เกิดข้อผิดพลาดในการแลก", true);
+                    console.error("Redeem Reward Transaction failed: ", e);
+                }
+            });
+        }
+        
+        async function handleReceiveReward(redeemId) {
+            showAdminCodeModal(async (code) => {
+                const today = new Date();
+                const day = String(today.getDate()).padStart(2, '0');
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const correctCode = `${day}${month}`;
+
+                if (code === correctCode) {
+                    try {
+                        const userRef = doc(db, "users", state.userId);
+                        const userDoc = await getDoc(userRef);
+                        if (userDoc.exists()) {
+                            const redeemedRewards = userDoc.data().redeemedRewards || [];
+                            const updatedRewards = redeemedRewards.map(r => 
+                                r.redeemId === redeemId ? { ...r, status: 'received' } : r
+                            );
+                            await updateDoc(userRef, { redeemedRewards: updatedRewards });
+                            showToast("ยืนยันการรับของรางวัลสำเร็จ!");
+                        }
+                    } catch (error) {
+                        console.error("Error updating reward status:", error);
+                        showToast("เกิดข้อผิดพลาด", true);
+                    }
+                } else {
+                    showToast("รหัสไม่ถูกต้อง", true);
+                }
+            });
+        }
+        
+        async function handleBuyNumberedTicket(numberStr) {
+            const lotteryCost = state.lotterySettings.cost;
+            const lotteryLimit = state.lotterySettings.limit;
+
+            if (state.userData.points < lotteryCost) {
+                showToast(`คุณต้องมี ${lotteryCost} คะแนนเพื่อซื้อสลาก`, true);
+                return;
+            }
+
+            const ticketsOwned = Object.values(state.numberedLotteryData).filter(ticket => ticket.ownerId === state.userId).length;
+            if (ticketsOwned >= lotteryLimit) {
+                showToast(`คุณซื้อสลากครบ ${lotteryLimit} ใบแล้ว`, true);
+                return;
+            }
+            
+            showConfirmModal(`คุณต้องการใช้ ${lotteryCost} คะแนน เพื่อซื้อสลากเบอร์ ${numberStr} ใช่หรือไม่?`, async () => {
+                const ticketRef = doc(db, 'numberedLottery', numberStr);
+                const userRef = doc(db, 'users', state.userId);
+
+                try {
+                    await runTransaction(db, async (transaction) => {
+                        const ticketDoc = await transaction.get(ticketRef);
+                        const userDoc = await transaction.get(userRef);
+
+                        if (!userDoc.exists()) throw "ไม่พบข้อมูลผู้ใช้";
+                        if (ticketDoc.exists() && ticketDoc.data().isSold) throw "เบอร์นี้ถูกซื้อไปแล้ว";
+                        if (userDoc.data().points < lotteryCost) throw "คะแนนไม่เพียงพอ";
+
+                        const newPoints = userDoc.data().points - lotteryCost;
+                        transaction.update(userRef, { points: newPoints });
+
+                        transaction.set(ticketRef, {
+                            isSold: true,
+                            ownerId: state.userId,
+                            ownerName: state.userData.name,
+                            purchaseDate: new Date().toISOString()
+                        });
+                    });
+                    showToast(`ซื้อเบอร์ ${numberStr} สำเร็จ!`);
+                } catch (e) {
+                    showToast(typeof e === 'string' ? e : "เกิดข้อผิดพลาด กรุณาลองใหม่", true);
+                    console.error("Buy Numbered Ticket Transaction failed: ", e);
+                }
+            });
+        }
+
+        // --- Event Listeners Setup ---
+        function attachListeners() {
+            state.unsubscribers.forEach(unsub => unsub());
+            state.unsubscribers = [];
+
+            const unsubUser = onSnapshot(doc(db, "users", state.userId), (doc) => {
+                state.userData = doc.data();
+                render();
+            }, (error) => {
+                console.error("Error listening to user data:", error);
+                showToast("ไม่สามารถโหลดข้อมูลผู้ใช้ได้", true);
+            });
+
+            const q = query(collection(db, "pendingRequests"), where("userId", "==", state.userId));
+            const unsubPending = onSnapshot(q, (snapshot) => {
+                state.pendingRequests = snapshot.docs.map(doc => doc.data().activityId);
+                if (state.userId) render();
+            });
+
+            const unsubActivities = onSnapshot(collection(db, "activities"), (snapshot) => {
+                state.activities = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => a.id.localeCompare(b.id));
+                if(state.userId) render();
+            });
+            const unsubRewards = onSnapshot(collection(db, "rewards"), (snapshot) => {
+                state.rewards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => a.id.localeCompare(b.id));
+                if(state.userId) render();
+            });
+            const unsubNumberedLottery = onSnapshot(collection(db, "numberedLottery"), (snapshot) => {
+                state.numberedLotteryData = {};
+                snapshot.forEach(doc => {
+                    state.numberedLotteryData[doc.id] = doc.data();
+                });
+                if(state.userId) render();
+            });
+            const unsubLotterySettings = onSnapshot(doc(db, "settings", "lottery"), (doc) => {
+                if (doc.exists()) {
+                    state.lotterySettings = doc.data();
+                }
+                if(state.userId) render();
+            });
+            
+            state.unsubscribers.push(unsubUser, unsubPending, unsubActivities, unsubRewards, unsubNumberedLottery, unsubLotterySettings);
+        }
+
+        function setupNav() {
+            navButtonsContainer.innerHTML = '';
+            let navs = [
+                { page: 'dashboard', icon: '📊', text: 'แดชบอร์ด' },
+                { page: 'rewards', icon: '🎁', text: 'แลกรางวัล' },
+                { page: 'numberedLottery', icon: '🔢', text: 'สลาก SHE&E' }
+            ];
+
+            if (state.isAdmin) {
+                // This case won't be hit with the current logic, but kept for robustness
+                state.currentPage = 'admin';
+                navs = [{ page: 'admin', icon: '⚙️', text: 'ผู้ดูแลระบบ' }];
+            } else {
+                state.currentPage = 'dashboard';
+            }
+
+            navs.forEach(nav => {
+                const btn = document.createElement('button');
+                btn.dataset.page = nav.page;
+                btn.className = 'nav-button py-3 px-4 font-semibold text-gray-500 whitespace-nowrap border-b-2 border-transparent';
+                btn.innerHTML = `<span class="inline-block align-middle mr-1">${nav.icon}</span> ${nav.text}`;
+                navButtonsContainer.appendChild(btn);
+            });
+            
+            updateNavStyling();
+        }
+
+        function updateNavStyling() {
+            document.querySelectorAll('.nav-button').forEach(btn => {
+                btn.classList.remove('border-blue-600', 'text-blue-600');
+                btn.classList.add('text-gray-500', 'border-transparent');
+            });
+            const activeBtn = document.querySelector(`.nav-button[data-page="${state.currentPage}"]`);
+            if (activeBtn) {
+                activeBtn.classList.add('border-blue-600', 'text-blue-600');
+                activeBtn.classList.remove('text-gray-500', 'border-transparent');
+            }
+        }
+
+        // --- Main App Initialization ---
         async function main() {
             try {
-                // --- LIFF Test ---
-                liffStatusDiv.textContent = `กำลังเชื่อมต่อกับ LIFF ID: ${LIFF_ID}...`;
-                await liff.init({ liffId: LIFF_ID });
-                liffStatusDiv.textContent = 'liff.init() สำเร็จ!';
+                await liff.init({ liffId: "1654435774-E1myB7b4" }); 
                 
                 if (!liff.isLoggedIn()) {
-                    liffStatusDiv.textContent = 'ยังไม่ได้ Login, กำลังสั่งให้ Login...';
                     liff.login();
                     return;
                 }
 
-                liffStatusDiv.textContent = 'Login สำเร็จ! กำลังดึงข้อมูลโปรไฟล์...';
                 const profile = await liff.getProfile();
-                liffStatusDiv.textContent = 'ดึงข้อมูลโปรไฟล์ LIFF สำเร็จ!';
-                liffStatusDiv.className = 'status-box success';
+                state.userId = profile.userId;
+                state.userName = profile.displayName;
 
-                profileDiv.style.display = 'block';
-                document.getElementById('userId').textContent = profile.userId;
-                document.getElementById('displayName').textContent = profile.displayName;
-                document.getElementById('pictureUrl').src = profile.pictureUrl;
-                
-                // --- Firebase Test ---
-                firebaseStatusDiv.style.display = 'block';
-                firebaseStatusDiv.textContent = 'กำลังเชื่อมต่อกับ Firebase...';
-                const app = initializeApp(firebaseConfig);
-                const db = getFirestore(app);
-                firebaseStatusDiv.textContent = 'เชื่อมต่อ Firebase สำเร็จ! กำลังทดลองอ่านข้อมูล...';
+                // --- Hardcoded Admin Check ---
+                const ADMIN_USER_ID = "U722ca367a6a72d0b0a9b4c26fa2c7c5c";
+                if (state.userId === ADMIN_USER_ID) {
+                    // Admins should use the admin panel, not the main app.
+                    loadingScreen.innerHTML = `<p class="text-blue-600 font-semibold">กรุณาเข้าสู่ระบบผ่านหน้า Admin Panel</p>`;
+                    return;
+                }
 
-                const userRef = doc(db, "users", profile.userId);
+                const userRef = doc(db, "users", state.userId);
                 const userSnap = await getDoc(userRef);
 
                 if (userSnap.exists()) {
-                    firebaseStatusDiv.textContent = `อ่านข้อมูลสำเร็จ! พบข้อมูลผู้ใช้: ${userSnap.data().name}`;
-                    firebaseStatusDiv.className = 'status-box success';
+                    loginSuccess(state.userId, false);
                 } else {
-                    firebaseStatusDiv.textContent = 'อ่านข้อมูลสำเร็จ! แต่ไม่พบข้อมูลผู้ใช้นี้ในระบบ (ซึ่งเป็นปกติสำหรับผู้ใช้ใหม่)';
-                    firebaseStatusDiv.className = 'status-box info';
+                    loadingScreen.classList.add('hidden');
+                    registrationScreen.classList.remove('hidden');
                 }
-
             } catch (error) {
-                console.error("Test Failed", error);
-                const errorMessage = `เกิดข้อผิดพลาด: ${error.message}`;
-                // Check if the error is from LIFF or Firebase and update the correct status box
-                if (error.code && error.code.startsWith('liff')) {
-                    liffStatusDiv.textContent = errorMessage;
-                    liffStatusDiv.className = 'status-box error';
-                } else {
-                    firebaseStatusDiv.textContent = errorMessage;
-                    firebaseStatusDiv.className = 'status-box error';
-                }
+                console.error("LIFF Initialization failed", error);
+                loadingScreen.innerHTML = `<p class="text-red-500">เกิดข้อผิดพลาดในการเชื่อมต่อกับ LINE</p>`;
             }
         }
 
-        // Run the test
-        main();
+        document.addEventListener('DOMContentLoaded', () => {
+            main(); // Start the LIFF initialization process
+            
+            registerButton.addEventListener('click', handleRegistration);
+            
+            navButtonsContainer.addEventListener('click', (e) => {
+                const navButton = e.target.closest('.nav-button');
+                if (navButton) {
+                    state.currentPage = navButton.dataset.page;
+                    updateNavStyling();
+                    render();
+                }
+            });
+
+            mainContent.addEventListener('click', (e) => {
+                const target = e.target;
+                // User actions
+                if (target.closest('.join-activity-btn')) handleJoinActivity(target.closest('.join-activity-btn').dataset.activityId);
+                if (target.closest('.redeem-reward-btn')) handleRedeemReward(target.closest('.redeem-reward-btn').dataset.rewardId);
+                if (target.closest('.receive-reward-btn')) handleReceiveReward(target.closest('.receive-reward-btn').dataset.redeemId);
+                if (target.closest('.buy-numbered-ticket-btn')) handleBuyNumberedTicket(target.closest('.buy-numbered-ticket-btn').dataset.number);
+            });
+        });
     </script>
 </body>
 </html>
