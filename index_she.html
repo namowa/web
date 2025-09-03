@@ -3,68 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LIFF Initialization Test</title>
+    <title>LIFF & Firebase Test</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
-        #status { padding: 10px; border-radius: 5px; margin-bottom: 10px; font-weight: bold; }
+        .status-box { padding: 10px; border-radius: 5px; margin-bottom: 10px; font-weight: bold; }
         .success { background-color: #e0ffe0; border: 1px solid #008000; color: #008000; }
         .error { background-color: #ffe0e0; border: 1px solid #ff0000; color: #ff0000; }
-        #profile { border: 1px solid #ccc; padding: 10px; border-radius: 5px; display: none; }
+        .info { background-color: #e0f0ff; border: 1px solid #0066cc; color: #0066cc; }
+        .profile-info { border: 1px solid #ccc; padding: 10px; border-radius: 5px; display: none; margin-top: 10px; }
         img { border-radius: 50%; }
     </style>
 </head>
 <body>
-    <h1>LIFF Initialization Test</h1>
-    <p>หน้านี้ใช้เพื่อทดสอบการเชื่อมต่อ LIFF ขั้นพื้นฐาน</p>
-    <div id="status">กำลังเริ่มต้น...</div>
-    <div id="profile">
+    <h1>LIFF & Firebase Connection Test</h1>
+    <p>หน้านี้ใช้เพื่อทดสอบการเชื่อมต่อ LIFF และ Firebase</p>
+    <div id="liff-status" class="status-box info">กำลังเริ่มต้น LIFF...</div>
+    <div id="firebase-status" class="status-box info" style="display: none;"></div>
+
+    <div id="profile" class="profile-info">
         <h2>Profile Information</h2>
         <p><strong>User ID:</strong> <span id="userId"></span></p>
         <p><strong>Display Name:</strong> <span id="displayName"></span></p>
         <img id="pictureUrl" src="" alt="Profile Picture" width="100">
     </div>
 
-    <script>
-        // LIFF ID has been set to your app's ID
-        const LIFF_ID = "1654435774-E1myB7b4"; 
+    <script type="module">
+        // Import Firebase SDKs
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- LIFF Configuration ---
+        const LIFF_ID = "1654435774-E1myB7b4";
         
-        const statusDiv = document.getElementById('status');
+        // --- Firebase Configuration ---
+        const firebaseConfig = {
+         apiKey: "AIzaSyDATchWwmazw3wPnuNk4i-d79rnyBpSDM0",
+         authDomain: "line-liff-a543c.firebaseapp.com",
+         projectId: "line-liff-a543c",
+         storageBucket: "line-liff-a543c.appspot.com",
+         messagingSenderId: "617440448369",
+         appId: "1:617440448369:web:182dc1785335950c6c30d0"
+        };
+        
+        // --- DOM Elements ---
+        const liffStatusDiv = document.getElementById('liff-status');
+        const firebaseStatusDiv = document.getElementById('firebase-status');
         const profileDiv = document.getElementById('profile');
 
         async function main() {
             try {
-                statusDiv.textContent = `กำลังเชื่อมต่อกับ LIFF ID: ${LIFF_ID}...`;
+                // --- LIFF Test ---
+                liffStatusDiv.textContent = `กำลังเชื่อมต่อกับ LIFF ID: ${LIFF_ID}...`;
                 await liff.init({ liffId: LIFF_ID });
-                
-                statusDiv.textContent = 'liff.init() สำเร็จ! กำลังตรวจสอบสถานะ Login...';
+                liffStatusDiv.textContent = 'liff.init() สำเร็จ!';
                 
                 if (!liff.isLoggedIn()) {
-                    statusDiv.textContent = 'ยังไม่ได้ Login, กำลังสั่งให้ Login...';
+                    liffStatusDiv.textContent = 'ยังไม่ได้ Login, กำลังสั่งให้ Login...';
                     liff.login();
-                    return; // หยุดการทำงานหลังจากสั่ง login
+                    return;
                 }
 
-                statusDiv.textContent = 'Login สำเร็จ! กำลังดึงข้อมูลโปรไฟล์...';
+                liffStatusDiv.textContent = 'Login สำเร็จ! กำลังดึงข้อมูลโปรไฟล์...';
                 const profile = await liff.getProfile();
+                liffStatusDiv.textContent = 'ดึงข้อมูลโปรไฟล์ LIFF สำเร็จ!';
+                liffStatusDiv.className = 'status-box success';
 
-                statusDiv.textContent = 'ดึงข้อมูลโปรไฟล์สำเร็จ!';
-                statusDiv.className = 'success';
-
-                // แสดงข้อมูล
                 profileDiv.style.display = 'block';
                 document.getElementById('userId').textContent = profile.userId;
                 document.getElementById('displayName').textContent = profile.displayName;
                 document.getElementById('pictureUrl').src = profile.pictureUrl;
+                
+                // --- Firebase Test ---
+                firebaseStatusDiv.style.display = 'block';
+                firebaseStatusDiv.textContent = 'กำลังเชื่อมต่อกับ Firebase...';
+                const app = initializeApp(firebaseConfig);
+                const db = getFirestore(app);
+                firebaseStatusDiv.textContent = 'เชื่อมต่อ Firebase สำเร็จ! กำลังทดลองอ่านข้อมูล...';
+
+                const userRef = doc(db, "users", profile.userId);
+                const userSnap = await getDoc(userRef);
+
+                if (userSnap.exists()) {
+                    firebaseStatusDiv.textContent = `อ่านข้อมูลสำเร็จ! พบข้อมูลผู้ใช้: ${userSnap.data().name}`;
+                    firebaseStatusDiv.className = 'status-box success';
+                } else {
+                    firebaseStatusDiv.textContent = 'อ่านข้อมูลสำเร็จ! แต่ไม่พบข้อมูลผู้ใช้นี้ในระบบ (ซึ่งเป็นปกติสำหรับผู้ใช้ใหม่)';
+                    firebaseStatusDiv.className = 'status-box info';
+                }
 
             } catch (error) {
-                console.error("LIFF Initialization failed", error);
-                statusDiv.textContent = `เกิดข้อผิดพลาด: ${error.message}`;
-                statusDiv.className = 'error';
+                console.error("Test Failed", error);
+                const errorMessage = `เกิดข้อผิดพลาด: ${error.message}`;
+                // Check if the error is from LIFF or Firebase and update the correct status box
+                if (error.code && error.code.startsWith('liff')) {
+                    liffStatusDiv.textContent = errorMessage;
+                    liffStatusDiv.className = 'status-box error';
+                } else {
+                    firebaseStatusDiv.textContent = errorMessage;
+                    firebaseStatusDiv.className = 'status-box error';
+                }
             }
         }
 
-        // เริ่มการทำงาน
+        // Run the test
         main();
     </script>
 </body>
