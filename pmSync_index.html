@@ -1,0 +1,2073 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PM Sync Up - Maintenance Task Management</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- SheetJS (xlsx) library for reading/writing Excel files -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Custom Styles -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827; /* Dark background */
+            color: #d1d5db; /* Light text */
+        }
+        .form-input, .file-input {
+            background-color: #374151;
+            border: 1px solid #4b5563;
+            color: #d1d5db;
+            border-radius: 0.5rem;
+        }
+        .form-input:focus, .file-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px #1e40af;
+        }
+        .file-input::-webkit-file-upload-button {
+            background: #4b5563;
+            border: none;
+            color: white;
+            padding: 0.5rem 1rem;
+            margin-right: 1rem;
+            cursor: pointer;
+        }
+        .btn-primary { background-color: #2563eb; color: white; transition: background-color: 0.3s; }
+        .btn-primary:hover { background-color: #1d4ed8; }
+        .btn-secondary { background-color: #4b5563; color: white; transition: background-color: 0.3s; }
+        .btn-secondary:hover { background-color: #6b7280; }
+        .btn-accent { background-color: #10b981; color: white; transition: background-color: 0.3s; }
+        .btn-accent:hover { background-color: #059669; }
+        .card { background-color: #1f2937; border: 1px solid #374151; }
+        .dashboard-card {
+            background-color: #1f2937;
+            border: 1px solid #374151;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer; 
+        }
+        .dashboard-card:hover {
+            transform: translateY(-4px);
+            border-color: #3b82f6;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .dashboard-card.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+        .machine-container.drag-over {
+            border: 2px dashed #3b82f6;
+            background-color: #1e3a8a;
+        }
+        /* Calendar Styles */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 4px;
+        }
+        .calendar-day {
+            background-color: #374151;
+            min-height: 120px;
+            padding: 8px;
+            border-radius: 0.5rem;
+            transition: background-color: 0.2s;
+        }
+        .calendar-day-header {
+            font-weight: 600;
+            text-align: center;
+            padding-bottom: 8px;
+            color: #9ca3af;
+        }
+        .calendar-day.other-month {
+            background-color: #1f2937;
+            color: #4b5563;
+        }
+        .calendar-task {
+            background-color: #4b5563;
+            padding: 4px 8px;
+            border-radius: 0.25rem;
+            font-size: 0.8rem;
+            line-height: 1.2;
+            margin-bottom: 4px;
+            cursor: grab;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .calendar-task .task-description {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .calendar-task.overdue {
+            background-color: #b91c1c; /* Red for overdue */
+        }
+        .calendar-task:hover {
+            background-color: #6b7280;
+        }
+        .calendar-task.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+        .calendar-day.drag-over {
+            background-color: #1d4ed8;
+        }
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <!-- Auth Container -->
+    <div id="auth-container" class="max-w-md mx-auto mt-10">
+        <div class="bg-gray-800 p-8 rounded-xl shadow-lg">
+            <!-- Login/Register Forms -->
+            <form id="login-form">
+                <h2 class="text-2xl font-bold text-white text-center mb-6">ลงชื่อเข้าใช้</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label for="login-email" class="block text-sm font-medium text-gray-300">Email</label>
+                        <input type="email" id="login-email" class="w-full mt-1 p-2 form-input" required>
+                    </div>
+                    <div>
+                        <label for="login-password" class="block text-sm font-medium text-gray-300">Password</label>
+                        <input type="password" id="login-password" class="w-full mt-1 p-2 form-input" required>
+                    </div>
+                    <button type="submit" class="w-full py-2 px-4 rounded-md font-semibold btn-primary">เข้าสู่ระบบ</button>
+                </div>
+                <p class="text-center text-sm text-gray-400 mt-4">
+                    ยังไม่มีบัญชี? <a href="#" id="show-register" class="font-medium text-blue-400 hover:underline">สมัครสมาชิก</a>
+                </p>
+            </form>
+            <form id="register-form" style="display: none;">
+                <h2 class="text-2xl font-bold text-white text-center mb-6">สมัครสมาชิก</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label for="register-email" class="block text-sm font-medium text-gray-300">Email</label>
+                        <input type="email" id="register-email" class="w-full mt-1 p-2 form-input" required>
+                    </div>
+                    <div>
+                        <label for="register-password" class="block text-sm font-medium text-gray-300">Password</label>
+                        <input type="password" id="register-password" class="w-full mt-1 p-2 form-input" required>
+                    </div>
+                    <button type="submit" class="w-full py-2 px-4 rounded-md font-semibold btn-primary">สมัครสมาชิก</button>
+                </div>
+                 <p class="text-center text-sm text-gray-400 mt-4">
+                    มีบัญชีอยู่แล้ว? <a href="#" id="show-login" class="font-medium text-blue-400 hover:underline">ลงชื่อเข้าใช้</a>
+                </p>
+            </form>
+            <p id="auth-error" class="text-red-400 text-center mt-4 text-sm"></p>
+        </div>
+    </div>
+
+    <!-- App Container (hidden by default) -->
+    <div id="app-container" class="max-w-7xl mx-auto" style="display: none;">
+        <header class="mb-8 text-center relative">
+            <h1 class="text-4xl font-bold text-white">PM Sync Up</h1>
+            <p class="text-lg text-gray-400 mt-2">ระบบจัดการงานซ่อมบำรุง</p>
+            <div id="user-display" class="absolute top-0 right-0 flex items-center gap-4">
+                <span id="user-email" class="text-sm text-gray-300"></span>
+                <button id="logout-btn" class="text-sm py-2 px-4 rounded-md font-semibold btn-secondary">ออกจากระบบ</button>
+            </div>
+            <div class="mt-6 flex flex-wrap justify-center gap-4">
+                <button id="add-task-btn-main" class="py-2 px-6 rounded-lg font-semibold btn-primary text-base shadow-lg hover:shadow-blue-500/50 transition-shadow">
+                    &#43; เพิ่ม Task ใหม่
+                </button>
+                <button id="import-export-btn-main" class="py-2 px-6 rounded-lg font-semibold btn-secondary text-base shadow-lg hover:shadow-gray-500/50 transition-shadow">
+                    ⤓ Import / Export ⤒
+                </button>
+                 <button id="plan-generator-btn-main" class="py-2 px-6 rounded-lg font-semibold btn-accent text-base shadow-lg hover:shadow-green-500/50 transition-shadow">
+                    📅 สร้างแผน PM
+                </button>
+                <button id="job-order-btn-main" class="py-2 px-6 rounded-lg font-semibold btn-secondary text-base shadow-lg hover:shadow-gray-500/50 transition-shadow bg-indigo-600 hover:bg-indigo-700">
+                    📋 ภาพรวม Job Order
+                </button>
+                 <button id="upcoming-tasks-btn-main" class="py-2 px-6 rounded-lg font-semibold btn-secondary text-base shadow-lg hover:shadow-gray-500/50 transition-shadow bg-teal-600 hover:bg-teal-700">
+                    📅 ตารางงานที่จะถึง
+                </button>
+                 <button id="manage-sections-lines-btn" class="py-2 px-6 rounded-lg font-semibold btn-secondary text-base shadow-lg hover:shadow-gray-500/50 transition-shadow bg-gray-600 hover:bg-gray-700">
+                    ⚙️ จัดการ Section/Line
+                </button>
+                <button id="back-to-tasks-btn" class="py-2 px-6 rounded-lg font-semibold btn-secondary text-base shadow-lg hover:shadow-gray-500/50 transition-shadow" style="display: none;">
+                    ↩️ กลับไปหน้า Task
+                </button>
+            </div>
+        </header>
+
+        <div class="lg:col-span-12">
+            <div id="filter-container" class="mb-6 flex justify-end">
+                <div>
+                    <label for="section-filter" class="block text-sm font-medium text-gray-400 mb-1">Filter by Section</label>
+                    <select id="section-filter" class="form-input w-48">
+                        <option>Loading...</option>
+                    </select>
+                </div>
+            </div>
+            <div id="view-header" class="mb-4">
+                <!-- Breadcrumbs will be injected here -->
+            </div>
+            <div id="view-container">
+                <!-- Views will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Container -->
+    <div id="task-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden z-50">
+        <!-- Modal Content -->
+        <div class="bg-gray-800 rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] relative" id="form-modal-content">
+            <button id="close-modal-btn" class="absolute top-4 right-4 text-gray-400 hover:text-white text-3xl font-bold leading-none z-10">&times;</button>
+            <div class="overflow-y-auto max-h-[calc(90vh-2rem)] p-6">
+                <h2 id="modal-title" class="text-2xl font-semibold text-white mb-4"></h2>
+                
+                <!-- Form View -->
+                <div id="form-view">
+                    <form id="task-form" class="space-y-4">
+                        <input type="hidden" id="task-id">
+                        <div>
+                            <label for="task_no" class="block text-sm font-medium text-gray-300">Task No.</label>
+                            <input type="text" id="task_no" placeholder="จะถูกสร้างอัตโนมัติ" class="w-full mt-1 p-2 form-input" disabled>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label for="section" class="block text-sm font-medium text-gray-300">Section</label>
+                                <select id="section" class="w-full mt-1 p-2 form-input">
+                                    <option>Loading...</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="line" class="block text-sm font-medium text-gray-300">Line</label>
+                                <select id="line" class="w-full mt-1 p-2 form-input">
+                                    <option>Loading...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="machine" class="block text-sm font-medium text-gray-300">Machine</label>
+                            <input type="text" id="machine" placeholder="เช่น Expander, Paster" class="w-full mt-1 p-2 form-input" required>
+                        </div>
+                        <div>
+                            <label for="unit" class="block text-sm font-medium text-gray-300">Unit</label>
+                            <input type="text" id="unit" placeholder="หน่วยย่อย (ถ้ามี)" class="w-full mt-1 p-2 form-input">
+                        </div>
+                        <div>
+                            <label for="description" class="block text-sm font-medium text-gray-300">Description</label>
+                            <textarea id="description" rows="3" placeholder="คำอธิบายงาน" class="w-full mt-1 p-2 form-input" required></textarea>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                             <div>
+                                <label for="type" class="block text-sm font-medium text-gray-300">Type</label>
+                                <select id="type" class="w-full mt-1 p-2 form-input">
+                                    <option>CBM</option><option>TBM</option>
+                                </select>
+                            </div>
+                             <div>
+                                <label for="last_pm_date" class="block text-sm font-medium text-gray-300">Last PM Date</label>
+                                <input type="date" id="last_pm_date" class="w-full mt-1 p-2 form-input" required>
+                            </div>
+                        </div>
+                        <fieldset class="border border-gray-600 p-4 rounded-lg">
+                            <legend class="text-sm font-medium text-gray-300 px-2">จำนวนคน</legend>
+                            <div class="grid grid-cols-3 gap-2">
+                                <div><label for="man_mt" class="block text-xs text-center">MT</label><input type="number" id="man_mt" value="0" min="0" class="w-full mt-1 p-2 form-input text-center"></div>
+                                <div><label for="man_pd" class="block text-xs text-center">PD</label><input type="number" id="man_pd" value="0" min="0" class="w-full mt-1 p-2 form-input text-center"></div>
+                                <div><label for="man_maker" class="block text-xs text-center">Maker</label><input type="number" id="man_maker" value="0" min="0" class="w-full mt-1 p-2 form-input text-center"></div>
+                            </div>
+                        </fieldset>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label for="interval_week" class="block text-sm font-medium text-gray-300">Interval (Week)</label>
+                                <input type="number" id="interval_week" min="1" class="w-full mt-1 p-2 form-input" required>
+                            </div>
+                            <div>
+                                <label for="period_hour" class="block text-sm font-medium text-gray-300">Period (Hour)</label>
+                                <input type="number" id="period_hour" min="0.1" step="0.1" class="w-full mt-1 p-2 form-input" required>
+                            </div>
+                        </div>
+                        <fieldset class="border border-gray-600 p-4 rounded-lg">
+                            <legend class="text-sm font-medium text-gray-300 px-2">Parts</legend>
+                            <div id="parts-container" class="space-y-2"></div>
+                            <button type="button" id="add-part-btn" class="mt-4 w-full text-sm py-2 px-4 rounded-md btn-secondary">เพิ่มรายการ Part</button>
+                        </fieldset>
+                        <div class="flex gap-4 pt-4">
+                            <button type="submit" id="save-btn" class="w-full py-2 px-4 rounded-md font-semibold btn-primary">บันทึก</button>
+                            <button type="button" id="cancel-btn" class="w-full py-2 px-4 rounded-md font-semibold btn-secondary">ยกเลิก</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Import/Export View -->
+                <div id="import-export-view" class="space-y-6">
+                    <div>
+                        <h3 class="text-lg font-semibold text-white mb-2">Import/Export Tasks</h3>
+                        <div class="space-y-4 p-4 border border-gray-600 rounded-lg">
+                             <div>
+                                <label for="excel-file-input" class="block text-sm font-medium text-gray-300">เลือกไฟล์ Tasks (.xlsx)</label>
+                                <input type="file" id="excel-file-input" class="w-full mt-1 text-sm file-input" accept=".xlsx, .xls">
+                            </div>
+                            <div class="flex flex-col sm:flex-row gap-4">
+                                <button id="import-excel-btn" class="w-full py-2 px-4 rounded-md font-semibold btn-primary">นำเข้า Tasks</button>
+                                <button id="export-excel-btn" class="w-full py-2 px-4 rounded-md font-semibold btn-secondary">ส่งออก Tasks</button>
+                            </div>
+                        </div>
+                    </div>
+                     <div>
+                        <h3 class="text-lg font-semibold text-white mb-2">Part Costs Data</h3>
+                        <div class="space-y-4 p-4 border border-gray-600 rounded-lg">
+                             <div>
+                                <label for="part-cost-file-input" class="block text-sm font-medium text-gray-300">เลือกไฟล์ Part Costs (.xlsx)</label>
+                                <input type="file" id="part-cost-file-input" class="w-full mt-1 text-sm file-input" accept=".xlsx, .xls">
+                            </div>
+                            <button id="upload-part-cost-btn" class="w-full py-2 px-4 rounded-md font-semibold btn-accent">Upload Costs</button>
+                            <button id="refresh-costs-btn" class="w-full py-2 px-4 rounded-md font-semibold btn-secondary mt-2">รีเฟรชข้อมูลราคา Part</button>
+                        </div>
+                    </div>
+                    <div id="import-status" class="text-center text-sm text-gray-400 pt-2"></div>
+                </div>
+
+                <!-- Plan Generator View -->
+                <div id="plan-generator-view" class="space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label for="plan-month-input" class="block text-sm font-medium text-gray-300">เลือกเดือน</label>
+                            <input type="month" id="plan-month-input" class="w-full mt-1 p-2 form-input">
+                        </div>
+                        <div>
+                            <label for="plan-section-filter" class="block text-sm font-medium text-gray-300">เลือก Section</label>
+                            <select id="plan-section-filter" class="w-full mt-1 p-2 form-input">
+                                <option>Loading...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <button id="generate-plan-btn" class="w-full py-2 px-4 rounded-md font-semibold btn-accent">สร้างแผน</button>
+                        <button id="export-plan-btn" class="w-full py-2 px-4 rounded-md font-semibold btn-secondary" style="display: none;">Export Plan to Excel</button>
+                    </div>
+                     <div id="plan-actions" class="mt-4" style="display: none;">
+                        <button id="create-jobs-btn" class="w-full py-2 px-4 rounded-md font-semibold btn-primary">สร้าง Job Orders จากแผนนี้</button>
+                        <p id="job-creation-status" class="text-center text-sm text-gray-400 pt-2"></p>
+                    </div>
+                    <div id="plan-results-container" class="mt-4"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        // IMPORTANT: Replace this with your own Firebase project configuration!
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, setDoc, deleteDoc, onSnapshot, query, where, serverTimestamp, Timestamp, getDoc, writeBatch, updateDoc, arrayUnion, deleteField, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+        // --- Firebase Configuration ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyChgMw8w5odImWedAartGwzU-SI8zg0TEI",
+            authDomain: "pmsyncup.firebaseapp.com",
+            projectId: "pmsyncup",
+            storageBucket: "pmsyncup.firebasestorage.app",
+            messagingSenderId: "1068306597297",
+            appId: "1:1068306597297:web:bebe594daf267bc5e96990"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // --- GLOBAL STATE ---
+        let taskDataSummary = {};
+        let machineSettings = {};
+        let partCosts = {};
+        let sections = [];
+        let lines = [];
+        let allCalculatedUpcomingTasks = [];
+        let unsubscribeTasks = null;
+        let unsubscribeMachineSettings = null;
+        let unsubscribePartCosts = null;
+        let unsubscribeJobOrders = null;
+        let unsubscribeSections = null;
+        let unsubscribeLines = null;
+        let lastSnapshot = null;
+        let currentSectionFilter = 'All';
+        let currentPlanTasks = [];
+
+        // --- DOM Elements ---
+        const getElement = (id) => document.getElementById(id);
+        const authContainer = getElement('auth-container'), appContainer = getElement('app-container');
+        const loginForm = getElement('login-form'), registerForm = getElement('register-form');
+        const showRegisterLink = getElement('show-register'), showLoginLink = getElement('show-login');
+        const authError = getElement('auth-error'), userEmailDisplay = getElement('user-email');
+        const logoutBtn = getElement('logout-btn'), taskForm = getElement('task-form');
+        const addPartBtn = getElement('add-part-btn'), partsContainer = getElement('parts-container');
+        const saveBtn = getElement('save-btn'), cancelBtn = getElement('cancel-btn'), taskIdInput = getElement('task-id');
+        const excelFileInput = getElement('excel-file-input'), importExcelBtn = getElement('import-excel-btn');
+        const exportExcelBtn = getElement('export-excel-btn'), importStatus = getElement('import-status');
+        const viewHeader = getElement('view-header'), viewContainer = getElement('view-container');
+        const addTaskBtnMain = getElement('add-task-btn-main'), importExportBtnMain = getElement('import-export-btn-main');
+        const planGeneratorBtnMain = getElement('plan-generator-btn-main');
+        const jobOrderBtnMain = getElement('job-order-btn-main');
+        const upcomingTasksBtnMain = getElement('upcoming-tasks-btn-main');
+        const manageSectionsLinesBtn = getElement('manage-sections-lines-btn');
+        const backToTasksBtn = getElement('back-to-tasks-btn');
+        const taskModal = getElement('task-modal'), closeModalBtn = getElement('close-modal-btn');
+        const modalTitle = getElement('modal-title'), formView = getElement('form-view'), importExportView = getElement('import-export-view');
+        const planGeneratorView = getElement('plan-generator-view'), planMonthInput = getElement('plan-month-input');
+        const generatePlanBtn = getElement('generate-plan-btn'), planResultsContainer = getElement('plan-results-container');
+        const exportPlanBtn = getElement('export-plan-btn');
+        const planActions = getElement('plan-actions');
+        const createJobsBtn = getElement('create-jobs-btn');
+        const jobCreationStatus = getElement('job-creation-status');
+        const sectionFilter = getElement('section-filter');
+        const filterContainer = getElement('filter-container');
+        const planSectionFilter = getElement('plan-section-filter');
+        const formModalContent = getElement('form-modal-content');
+        const partCostFileInput = getElement('part-cost-file-input');
+        const uploadPartCostBtn = getElement('upload-part-cost-btn');
+        const refreshCostsBtn = getElement('refresh-costs-btn');
+
+        // --- AUTHENTICATION LOGIC ---
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                authContainer.style.display = 'none';
+                appContainer.style.display = 'block';
+                userEmailDisplay.textContent = user.email;
+                listenForPartCosts();
+                listenForMachineSettings();
+                listenForSections();
+                listenForLines();
+                listenForTasks();
+            } else {
+                authContainer.style.display = 'block';
+                appContainer.style.display = 'none';
+                userEmailDisplay.textContent = '';
+                viewContainer.innerHTML = '';
+                if (unsubscribeTasks) unsubscribeTasks();
+                if (unsubscribeMachineSettings) unsubscribeMachineSettings();
+                if (unsubscribePartCosts) unsubscribePartCosts();
+                if (unsubscribeJobOrders) unsubscribeJobOrders();
+                if (unsubscribeSections) unsubscribeSections();
+                if (unsubscribeLines) unsubscribeLines();
+            }
+        });
+
+        loginForm.addEventListener('submit', (e) => { e.preventDefault(); signInWithEmailAndPassword(auth, loginForm['login-email'].value, loginForm['login-password'].value).catch(err => authError.textContent = err.message); });
+        registerForm.addEventListener('submit', (e) => { e.preventDefault(); createUserWithEmailAndPassword(auth, registerForm['register-email'].value, registerForm['register-password'].value).catch(err => authError.textContent = err.message); });
+        logoutBtn.addEventListener('click', () => signOut(auth));
+        showRegisterLink.addEventListener('click', (e) => { e.preventDefault(); loginForm.style.display = 'none'; registerForm.style.display = 'block'; authError.textContent = ''; });
+        showLoginLink.addEventListener('click', (e) => { e.preventDefault(); registerForm.style.display = 'none'; loginForm.style.display = 'block'; authError.textContent = ''; });
+
+        // --- MODAL LOGIC ---
+        const openModal = () => taskModal.classList.remove('hidden');
+        const closeModal = () => {
+            taskModal.classList.add('hidden');
+            resetForm();
+        };
+
+        addTaskBtnMain.addEventListener('click', () => {
+            resetForm();
+            modalTitle.textContent = 'เพิ่ม Task ใหม่';
+            formModalContent.classList.remove('max-w-7xl');
+            formModalContent.classList.add('max-w-2xl');
+            formView.style.display = 'block';
+            importExportView.style.display = 'none';
+            planGeneratorView.style.display = 'none';
+            openModal();
+        });
+
+        importExportBtnMain.addEventListener('click', () => {
+            modalTitle.textContent = 'Import / Export ข้อมูล';
+            formModalContent.classList.remove('max-w-7xl');
+            formModalContent.classList.add('max-w-2xl');
+            formView.style.display = 'none';
+            importExportView.style.display = 'block';
+            planGeneratorView.style.display = 'none';
+            importStatus.textContent = '';
+            openModal();
+        });
+        
+        planGeneratorBtnMain.addEventListener('click', () => {
+            modalTitle.textContent = 'สร้างแผน PM ประจำเดือน';
+            formModalContent.classList.add('max-w-7xl');
+            formModalContent.classList.remove('max-w-2xl');
+            formView.style.display = 'none';
+            importExportView.style.display = 'none';
+            planGeneratorView.style.display = 'block';
+            planResultsContainer.innerHTML = '';
+            exportPlanBtn.style.display = 'none';
+            planActions.style.display = 'none';
+            jobCreationStatus.textContent = '';
+            planMonthInput.valueAsDate = new Date();
+            planSectionFilter.value = 'All';
+            openModal();
+        });
+
+        jobOrderBtnMain.addEventListener('click', () => {
+             listenForJobOrders('Pending');
+        });
+
+        upcomingTasksBtnMain.addEventListener('click', () => {
+            renderUpcomingTasksView();
+        });
+
+        manageSectionsLinesBtn.addEventListener('click', () => {
+            renderSectionLineManagementView();
+        });
+        
+        backToTasksBtn.addEventListener('click', () => {
+            listenForTasks();
+        });
+
+        closeModalBtn.addEventListener('click', closeModal);
+        cancelBtn.addEventListener('click', closeModal);
+        taskModal.addEventListener('click', (e) => {
+            if (e.target.id === 'task-modal') {
+                closeModal();
+            }
+        });
+        
+        // --- ERROR HANDLING ---
+        function handleFirestoreError(error, element) {
+            console.error("Firestore Error:", error.code, error.message);
+            if (error.code === 'permission-denied' || error.code === 'failed-precondition') {
+                element.innerHTML = `<div class="text-center py-10 card rounded-lg">
+                    <p class="text-red-400 font-bold text-lg">เกิดข้อผิดพลาด: ไม่มีสิทธิ์ในการเข้าถึงข้อมูล</p>
+                    <p class="text-gray-400 mt-2">นี่เป็นปัญหาจาก Firestore Security Rules ในโปรเจกต์ Firebase ของคุณ</p>
+                    <p class="text-gray-400 mt-1"><strong>วิธีแก้ไข:</strong> ไปที่ Firebase Console > Firestore Database > Rules และวางโค้ดด้านล่างนี้ทับของเดิม:</p>
+                    <div class="mt-4 p-4 bg-gray-900 rounded-md text-left text-sm font-mono whitespace-pre-wrap"><code>rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}</code></div>
+                </div>`;
+            } else {
+                element.innerHTML = `<div class="text-center py-10 card rounded-lg"><p class="text-red-400">เกิดข้อผิดพลาดในการโหลดข้อมูล: ${error.message}</p></div>`;
+            }
+        }
+        
+        // --- VIEW MANAGEMENT ---
+        function setViewMode(mode) {
+            const mainButtons = [addTaskBtnMain, importExportBtnMain, planGeneratorBtnMain, jobOrderBtnMain, manageSectionsLinesBtn, upcomingTasksBtnMain];
+            if (mode === 'dashboard') {
+                mainButtons.forEach(btn => btn.style.display = 'inline-flex');
+                backToTasksBtn.style.display = 'none';
+                filterContainer.style.display = 'flex';
+                viewHeader.innerHTML = ''; 
+            } else { // 'sub-view'
+                mainButtons.forEach(btn => btn.style.display = 'none');
+                backToTasksBtn.style.display = 'inline-flex';
+                filterContainer.style.display = 'none';
+            }
+            // Stop any active listeners from other views
+            if (mode !== 'dashboard') {
+                if(unsubscribeTasks) unsubscribeTasks();
+            }
+            if (mode !== 'job_orders') {
+                if(unsubscribeJobOrders) unsubscribeJobOrders();
+            }
+        }
+
+        // --- VIEW RENDERING & NAVIGATION ---
+        const renderBreadcrumbs = (crumbs = []) => {
+            if (crumbs.length === 0) {
+                viewHeader.innerHTML = `<h2 class="text-2xl font-semibold text-white">ภาพรวมทั้งหมด</h2>`;
+                return;
+            }
+            const links = crumbs.map((crumb, index) => {
+                if (index === crumbs.length - 1) {
+                    return `<span class="font-semibold text-white">${crumb.label}</span>`;
+                }
+                return `<a href="#" class="breadcrumb-link hover:underline" data-level="${index}" data-line="${crumb.line || ''}" data-machine="${crumb.machine || ''}" data-unit="${crumb.unit || ''}">${crumb.label}</a>`;
+            }).join('<span class="mx-2 text-gray-500">/</span>');
+            viewHeader.innerHTML = `<nav class="text-lg text-gray-400">${links}</nav>`;
+        };
+
+        const renderDashboardView = () => {
+            renderBreadcrumbs();
+            const sortedLines = Object.keys(taskDataSummary).sort();
+            if (sortedLines.length === 0) {
+                viewContainer.innerHTML = `<div class="text-center py-10 card rounded-lg"><p class="text-gray-400">ไม่พบ Task ที่ตรงกับ Filter</p></div>`;
+                return;
+            }
+            const cardsHtml = sortedLines.map(line => `
+                <div class="dashboard-card p-4 rounded-xl" data-view="machines" data-line="${line}">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-xl font-bold text-white">Line ${line}</h3>
+                        <span class="text-2xl font-bold text-blue-400">${taskDataSummary[line].totalTasks}</span>
+                    </div>
+                    <p class="text-sm text-gray-400 mt-1">Tasks</p>
+                </div>
+            `).join('');
+            viewContainer.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">${cardsHtml}</div>`;
+        };
+        
+        const renderMachineView = (line) => {
+            renderBreadcrumbs([{ label: 'ภาพรวม', level: 0 }, { label: `Line ${line}`, level: 1, line: line }]);
+            const machines = taskDataSummary[line].machines;
+            
+            const directMachines = [];
+            const supportMachines = [];
+
+            Object.keys(machines).forEach(machineName => {
+                const machineId = `${line}-${machineName}`;
+                const setting = machineSettings[machineId] || { type: 'direct', order: 999 };
+                const machineData = {
+                    name: machineName,
+                    totalTasks: machines[machineName].totalTasks,
+                    annualCost: machines[machineName].annualCost,
+                    order: setting.order
+                };
+                if (setting.type === 'support') {
+                    supportMachines.push(machineData);
+                } else {
+                    directMachines.push(machineData);
+                }
+            });
+
+            directMachines.sort((a, b) => a.order - b.order);
+            supportMachines.sort((a, b) => a.order - b.order);
+
+            const createMachineCardsHTML = (machines) => {
+                 if (machines.length === 0) return '';
+                return machines.map(machineData => {
+                    const annualCostFormatted = new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(machineData.annualCost || 0);
+                    return `
+                    <div class="dashboard-card p-6 rounded-xl" data-view="units" data-line="${line}" data-machine="${machineData.name}">
+                        <div class="flex justify-between items-start pointer-events-none">
+                            <h3 class="text-xl font-bold text-white">${machineData.name}</h3>
+                            <div class="text-right">
+                                <span class="text-2xl font-bold text-blue-400">${machineData.totalTasks}</span>
+                                <p class="text-gray-400 text-sm mt-1">Tasks</p>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-gray-700 pointer-events-none">
+                            <p class="text-sm text-gray-400">Annual Cost (Est.)</p>
+                            <p class="text-lg font-semibold text-green-400">${annualCostFormatted}</p>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+            };
+            
+            viewContainer.innerHTML = `
+                <div class="space-y-8">
+                    <div>
+                        <h3 class="text-xl font-semibold text-white mb-4 border-b border-gray-600 pb-2">Direct Line Machines</h3>
+                        <div class="machine-container grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 rounded-lg" data-machine-type="direct">
+                            ${createMachineCardsHTML(directMachines)}
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-semibold text-white mb-4 border-b border-gray-600 pb-2">Support Machines</h3>
+                        <div class="machine-container grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 rounded-lg" data-machine-type="support">
+                             ${createMachineCardsHTML(supportMachines)}
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
+
+        const renderUnitSummaryView = async (line, machine) => {
+            renderBreadcrumbs([
+                { label: 'ภาพรวม', level: 0 },
+                { label: `Line ${line}`, level: 1, line: line },
+                { label: machine, level: 2, line: line, machine: machine }
+            ]);
+
+            const units = taskDataSummary[line].machines[machine].units;
+            const sortedUnitNames = Object.keys(units).sort();
+
+            let finalHtml = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">';
+
+            for (const unitName of sortedUnitNames) {
+                const unitData = units[unitName];
+                const annualCostFormatted = new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(unitData.annualCost || 0);
+                finalHtml += `
+                    <div class="dashboard-card p-6 rounded-xl" data-view="unit-tasks" data-line="${line}" data-machine="${machine}" data-unit="${unitName}">
+                        <div class="flex justify-between items-start pointer-events-none">
+                            <h3 class="text-xl font-bold text-white">${unitName}</h3>
+                            <div class="text-right">
+                                <span class="text-2xl font-bold text-blue-400">${unitData.totalTasks}</span>
+                                <p class="text-gray-400 text-sm mt-1">Tasks</p>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-gray-700 pointer-events-none">
+                            <p class="text-sm text-gray-400">Annual Cost (Est.)</p>
+                            <p class="text-lg font-semibold text-yellow-400">${annualCostFormatted}</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            finalHtml += '</div>';
+            viewContainer.innerHTML = finalHtml;
+        };
+
+        const renderUnitTaskView = async (line, machine, unit) => {
+            renderBreadcrumbs([
+                { label: 'ภาพรวม', level: 0 },
+                { label: `Line ${line}`, level: 1, line: line },
+                { label: machine, level: 2, line: line, machine: machine },
+                { label: unit, level: 3, line: line, machine: machine, unit: unit }
+            ]);
+
+            const tasks = taskDataSummary[line].machines[machine].units[unit].tasks;
+            let tasksHtml = '';
+
+            for (const task of tasks) {
+                let partsHtml = '<p class="text-sm text-gray-500">ไม่มี Part</p>';
+                if (task.parts && task.parts.length > 0) {
+                    partsHtml = `<ul class="list-disc list-inside mt-2">${task.parts.map(p => `<li class="text-sm text-gray-300">${p.part_code} <span class="text-gray-500 font-mono">x${p.quantity}</span></li>`).join('')}</ul>`;
+                }
+                tasksHtml += createTaskCardHtml(task, partsHtml);
+            }
+
+            viewContainer.innerHTML = `<div class="space-y-4">${tasksHtml}</div>`;
+        };
+
+        const createTaskCardHtml = (task, partsHtml) => {
+            const lastPmDate = task.last_pm_date.toDate().toLocaleDateString('en-CA');
+            const nextPmDate = new Date(task.last_pm_date.toDate());
+            nextPmDate.setDate(nextPmDate.getDate() + (task.interval_week * 7));
+            const nextPmDateStr = nextPmDate.toLocaleDateString('en-CA');
+            const singlePmCostFormatted = new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(task.singlePmCost || 0);
+
+            let historyHtml = '<p class="text-sm text-gray-500">ไม่มีประวัติ</p>';
+            if (task.jobHistory && Array.isArray(task.jobHistory) && task.jobHistory.length > 0) {
+                const reversedHistory = [...task.jobHistory].reverse();
+                historyHtml = `<ul class="list-disc list-inside mt-2 text-sm text-gray-300">${reversedHistory.slice(0, 5).map(job => {
+                    const date = job.completedAt ? job.completedAt.toDate().toLocaleDateString('en-CA') : 'Pending';
+                    return `<li>${job.jobId} (${date})</li>`;
+                }).join('')}</ul>`;
+                 if (reversedHistory.length > 5) {
+                    historyHtml += `<p class="text-xs text-gray-500 mt-1">และอีก ${reversedHistory.length - 5} รายการ...</p>`;
+                }
+            }
+
+            return `<div class="card rounded-xl shadow-md" data-id="${task.id}">
+                <div class="card-summary p-5 cursor-pointer">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-sm font-semibold text-blue-400">${task.task_no}</p>
+                            <h3 class="text-lg font-bold text-white">${task.description}</h3>
+                        </div>
+                        <div class="flex gap-2 flex-shrink-0 ml-4">
+                            <button class="edit-btn p-2 rounded-md hover:bg-gray-600">✏️</button>
+                            <button class="delete-btn p-2 rounded-md hover:bg-gray-600">🗑️</button>
+                        </div>
+                    </div>
+                    <div class="mt-4 grid grid-cols-3 gap-4 text-center">
+                        <div>
+                            <p class="text-xs text-gray-400">Interval</p>
+                            <p class="font-semibold text-white">${task.interval_week} สัปดาห์</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400">Last PM</p>
+                            <p class="font-semibold text-white">${lastPmDate}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400">Next PM</p>
+                            <p class="font-semibold text-green-400">${nextPmDateStr}</p>
+                        </div>
+                    </div>
+                     <div class="mt-4 pt-4 border-t border-gray-700 text-center">
+                        <p class="text-xs text-gray-400">ค่าใช้จ่ายต่อครั้ง (อะไหล่)</p>
+                        <p class="font-semibold text-yellow-400">${singlePmCostFormatted}</p>
+                    </div>
+                </div>
+                <div class="card-details p-5 border-t border-gray-700" style="display: none;">
+                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-left">
+                        <div><p class="text-xs text-gray-400">Section</p><p class="font-semibold text-white">${task.section}</p></div>
+                        <div><p class="text-xs text-gray-400">Line</p><p class="font-semibold text-white">${task.line}</p></div>
+                        <div><p class="text-xs text-gray-400">Machine</p><p class="font-semibold text-white">${task.machine}</p></div>
+                        <div><p class="text-xs text-gray-400">Unit</p><p class="font-semibold text-white">${task.unit || '-'}</p></div>
+                        <div><p class="text-xs text-gray-400">Type</p><p class="font-semibold text-white">${task.type}</p></div>
+                        <div><p class="text-xs text-gray-400">Period (hr)</p><p class="font-semibold text-white">${task.period_hour}</p></div>
+                    </div>
+                     <div class="mt-4 border-t border-gray-700 pt-4">
+                        <h4 class="font-semibold text-gray-200">Manpower</h4>
+                        <div class="grid grid-cols-3 gap-4 text-left mt-2">
+                            <div><p class="text-xs text-gray-400">MT</p><p class="font-semibold text-white">${task.man_mt}</p></div>
+                            <div><p class="text-xs text-gray-400">PD</p><p class="font-semibold text-white">${task.man_pd}</p></div>
+                            <div><p class="text-xs text-gray-400">Maker</p><p class="font-semibold text-white">${task.man_maker}</p></div>
+                        </div>
+                    </div>
+                     <div class="mt-4 border-t border-gray-700 pt-4">
+                        <h4 class="font-semibold text-gray-200">Parts ที่ต้องใช้</h4>
+                        ${partsHtml}
+                    </div>
+                    <div class="mt-4 border-t border-gray-700 pt-4">
+                        <h4 class="font-semibold text-gray-200">ประวัติ Job Order (ล่าสุด 5 รายการ)</h4>
+                        ${historyHtml}
+                    </div>
+                </div>
+            </div>`;
+        };
+
+        viewHeader.addEventListener('click', (e) => {
+            const target = e.target.closest('.breadcrumb-link');
+            if (!target) return;
+            e.preventDefault();
+            const { level, line, machine } = target.dataset;
+            if (level === '0') {
+                listenForTasks(); // Go back to main dashboard
+            }
+            if (level === '1') renderMachineView(line);
+            if (level === '2') renderUnitSummaryView(line, machine);
+        });
+
+        // --- DATA HANDLING & FILTERING ---
+        async function processAndRender(snapshot) {
+            viewContainer.innerHTML = `<div class="text-center py-10 card rounded-lg"><p class="text-gray-400">กำลังคำนวณข้อมูล...</p></div>`;
+
+            const tempSummary = {};
+            const allTasks = [];
+            snapshot.forEach(doc => {
+                allTasks.push({ id: doc.id, ...doc.data() });
+            });
+
+            const partPromises = allTasks.map(async (task) => {
+                const partsSnapshot = await getDocs(collection(db, `tasks/${task.id}/parts`));
+                task.parts = partsSnapshot.docs.map(doc => doc.data());
+                return task;
+            });
+            const enrichedTasks = await Promise.all(partPromises);
+
+            enrichedTasks.forEach(task => {
+                if (currentSectionFilter !== 'All' && task.section !== currentSectionFilter) { return; }
+                const { line, machine } = task;
+                const unitName = task.unit || 'General';
+                if (!line || !machine) return;
+
+                if (!tempSummary[line]) {
+                    tempSummary[line] = { totalTasks: 0, machines: {} };
+                }
+                if (!tempSummary[line].machines[machine]) {
+                    tempSummary[line].machines[machine] = { totalTasks: 0, annualCost: 0, units: {} };
+                }
+                if (!tempSummary[line].machines[machine].units[unitName]) {
+                    tempSummary[line].machines[machine].units[unitName] = { totalTasks: 0, tasks: [], annualCost: 0 };
+                }
+
+                let singlePmCost = 0;
+                if (task.parts) {
+                    task.parts.forEach(part => {
+                        const cost = partCosts[part.part_code]?.cost || 0;
+                        singlePmCost += (part.quantity || 0) * cost;
+                    });
+                }
+                task.singlePmCost = singlePmCost;
+
+                let taskAnnualCost = 0;
+                const interval = task.interval_week || 1;
+                if (interval > 0) {
+                    const annualFrequency = 52 / interval;
+                    taskAnnualCost = singlePmCost * annualFrequency;
+                }
+
+                tempSummary[line].totalTasks++;
+                tempSummary[line].machines[machine].totalTasks++;
+                tempSummary[line].machines[machine].annualCost += taskAnnualCost;
+                tempSummary[line].machines[machine].units[unitName].totalTasks++;
+                tempSummary[line].machines[machine].units[unitName].annualCost += taskAnnualCost;
+                tempSummary[line].machines[machine].units[unitName].tasks.push(task);
+            });
+
+            taskDataSummary = tempSummary;
+            ensureMachineSettings();
+            renderDashboardView(); 
+        }
+
+        function listenForPartCosts() {
+            const q = query(collection(db, "part_costs"));
+            if (unsubscribePartCosts) unsubscribePartCosts();
+            unsubscribePartCosts = onSnapshot(q, (snapshot) => {
+                partCosts = {}; // Reset before populating
+                snapshot.forEach(doc => {
+                    partCosts[doc.id] = doc.data();
+                });
+                if (lastSnapshot) { // Re-process if tasks are already loaded
+                    processAndRender(lastSnapshot);
+                }
+            }, (error) => {
+                 handleFirestoreError(error, viewContainer)
+            });
+        }
+
+        function listenForMachineSettings() {
+            const q = query(collection(db, "machine_settings"));
+            if (unsubscribeMachineSettings) unsubscribeMachineSettings();
+            unsubscribeMachineSettings = onSnapshot(q, (snapshot) => {
+                snapshot.forEach(doc => {
+                    machineSettings[doc.id] = doc.data();
+                });
+                if (lastSnapshot) { // Re-render if tasks are already loaded
+                    processAndRender(lastSnapshot);
+                }
+            }, (error) => handleFirestoreError(error, viewContainer));
+        }
+
+        async function ensureMachineSettings() {
+            const batch = writeBatch(db);
+            let hasNewSettings = false;
+            let maxOrder = Object.values(machineSettings).reduce((max, s) => Math.max(max, s.order), 0);
+            
+            Object.keys(taskDataSummary).forEach(line => {
+                Object.keys(taskDataSummary[line].machines).forEach(machine => {
+                    const machineId = `${line}-${machine}`;
+                    if (!machineSettings[machineId]) {
+                        maxOrder++;
+                        const settingRef = doc(db, "machine_settings", machineId);
+                        batch.set(settingRef, { type: 'direct', order: maxOrder });
+                        machineSettings[machineId] = { type: 'direct', order: maxOrder }; // Optimistic update
+                        hasNewSettings = true;
+                    }
+                });
+            });
+
+            if (hasNewSettings) {
+                await batch.commit();
+            }
+        }
+
+        function listenForTasks() {
+            setViewMode('dashboard');
+            
+            const q = query(collection(db, "tasks"));
+            if (unsubscribeTasks) unsubscribeTasks();
+            unsubscribeTasks = onSnapshot(q, (snapshot) => {
+                lastSnapshot = snapshot;
+                processAndRender(snapshot);
+            }, (error) => handleFirestoreError(error, viewContainer));
+        }
+
+        sectionFilter.addEventListener('change', (e) => {
+            currentSectionFilter = e.target.value;
+            if (lastSnapshot) {
+                processAndRender(lastSnapshot);
+            }
+        });
+        
+        refreshCostsBtn.addEventListener('click', () => {
+             listenForPartCosts();
+        });
+
+        // --- SECTION & LINE MANAGEMENT ---
+        function listenForSections() {
+            const q = query(collection(db, "sections"), orderBy("name"));
+            if (unsubscribeSections) unsubscribeSections();
+            unsubscribeSections = onSnapshot(q, (snapshot) => {
+                sections = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                populateSectionDropdowns();
+                if (document.getElementById('sections-list')) {
+                    renderSectionsList();
+                }
+            }, (error) => handleFirestoreError(error, viewContainer));
+        }
+
+        function listenForLines() {
+            const q = query(collection(db, "lines"), orderBy("name"));
+            if (unsubscribeLines) unsubscribeLines();
+            unsubscribeLines = onSnapshot(q, (snapshot) => {
+                lines = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                populateLineDropdowns();
+                if (document.getElementById('lines-list')) {
+                    renderLinesList();
+                }
+            }, (error) => handleFirestoreError(error, viewContainer));
+        }
+
+        function populateSectionDropdowns() {
+            const sectionNames = sections.map(s => s.name);
+            const filterDropdown = getElement('section-filter');
+            const planFilterDropdown = getElement('plan-section-filter');
+            const formDropdown = getElement('section');
+
+            filterDropdown.innerHTML = '<option value="All">All Sections</option>' + sectionNames.map(name => `<option value="${name}">${name}</option>`).join('');
+            planFilterDropdown.innerHTML = '<option value="All">All Sections</option>' + sectionNames.map(name => `<option value="${name}">${name}</option>`).join('');
+            formDropdown.innerHTML = sectionNames.map(name => `<option value="${name}">${name}</option>`).join('');
+        }
+
+        function populateLineDropdowns() {
+            const lineNames = lines.map(l => l.name);
+            const formDropdown = getElement('line');
+            formDropdown.innerHTML = lineNames.map(name => `<option value="${name}">${name}</option>`).join('');
+        }
+
+        function renderSectionLineManagementView() {
+            setViewMode('sub-view');
+            viewHeader.innerHTML = `<h2 class="text-2xl font-semibold text-white">จัดการ Section และ Line</h2>`;
+            viewContainer.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Sections Management -->
+                    <div class="card p-6 rounded-lg">
+                        <h3 class="text-xl font-bold mb-4">Sections</h3>
+                        <form id="add-section-form" class="flex gap-2 mb-4">
+                            <input type="text" id="new-section-name" class="form-input flex-grow" placeholder="ชื่อ Section ใหม่" required>
+                            <button type="submit" class="btn-primary px-4 rounded-md">เพิ่ม</button>
+                        </form>
+                        <div id="sections-list" class="space-y-2"></div>
+                    </div>
+
+                    <!-- Lines Management -->
+                    <div class="card p-6 rounded-lg">
+                        <h3 class="text-xl font-bold mb-4">Lines</h3>
+                        <form id="add-line-form" class="flex gap-2 mb-4">
+                            <input type="text" id="new-line-name" class="form-input flex-grow" placeholder="ชื่อ Line ใหม่" required>
+                            <button type="submit" class="btn-primary px-4 rounded-md">เพิ่ม</button>
+                        </form>
+                        <div id="lines-list" class="space-y-2"></div>
+                    </div>
+                </div>
+            `;
+
+            renderSectionsList();
+            renderLinesList();
+
+            getElement('add-section-form').addEventListener('submit', handleAddSection);
+            getElement('add-line-form').addEventListener('submit', handleAddLine);
+            getElement('sections-list').addEventListener('click', handleDeleteSection);
+            getElement('lines-list').addEventListener('click', handleDeleteLine);
+        }
+
+        function renderSectionsList() {
+            const listContainer = getElement('sections-list');
+            if (!listContainer) return;
+            listContainer.innerHTML = sections.length === 0 ? '<p class="text-gray-500 text-sm">ยังไม่มี Section</p>' : sections.map(section => `
+                <div class="flex justify-between items-center bg-gray-700 p-2 rounded">
+                    <span>${section.name}</span>
+                    <button data-id="${section.id}" class="delete-section-btn text-red-400 hover:text-red-600 font-bold px-2">&times;</button>
+                </div>
+            `).join('');
+        }
+
+        function renderLinesList() {
+            const listContainer = getElement('lines-list');
+             if (!listContainer) return;
+            listContainer.innerHTML = lines.length === 0 ? '<p class="text-gray-500 text-sm">ยังไม่มี Line</p>' : lines.map(line => `
+                <div class="flex justify-between items-center bg-gray-700 p-2 rounded">
+                    <span>${line.name}</span>
+                    <button data-id="${line.id}" class="delete-line-btn text-red-400 hover:text-red-600 font-bold px-2">&times;</button>
+                </div>
+            `).join('');
+        }
+        
+        async function handleAddSection(e) {
+            e.preventDefault();
+            const input = getElement('new-section-name');
+            const sectionName = input.value.trim().toUpperCase();
+            if (sectionName && !sections.some(s => s.name === sectionName)) {
+                try {
+                    await setDoc(doc(db, "sections", sectionName), { name: sectionName });
+                    input.value = '';
+                } catch (error) { console.error("Error adding section: ", error); alert('เกิดข้อผิดพลาดในการเพิ่ม Section'); }
+            } else if (sectionName) {
+                alert('Section นี้มีอยู่แล้ว');
+            }
+        }
+
+        async function handleAddLine(e) {
+            e.preventDefault();
+            const input = getElement('new-line-name');
+            const lineName = input.value.trim().toUpperCase();
+            if (lineName && !lines.some(l => l.name === lineName)) {
+                try {
+                    await setDoc(doc(db, "lines", lineName), { name: lineName });
+                    input.value = '';
+                } catch(error) { console.error("Error adding line: ", error); alert('เกิดข้อผิดพลาดในการเพิ่ม Line'); }
+            } else if (lineName) {
+                alert('Line นี้มีอยู่แล้ว');
+            }
+        }
+
+        async function handleDeleteSection(e) {
+            if (e.target.classList.contains('delete-section-btn')) {
+                const docId = e.target.dataset.id;
+                if (confirm(`คุณต้องการลบ Section "${docId}" จริงหรือไม่?`)) {
+                    try {
+                        await deleteDoc(doc(db, "sections", docId));
+                    } catch(error) { console.error("Error deleting section: ", error); alert('เกิดข้อผิดพลาดในการลบ Section'); }
+                }
+            }
+        }
+
+        async function handleDeleteLine(e) {
+            if (e.target.classList.contains('delete-line-btn')) {
+                const docId = e.target.dataset.id;
+                if (confirm(`คุณต้องการลบ Line "${docId}" จริงหรือไม่?`)) {
+                    try {
+                       await deleteDoc(doc(db, "lines", docId));
+                    } catch(error) { console.error("Error deleting line: ", error); alert('เกิดข้อผิดพลาดในการลบ Line'); }
+                }
+            }
+        }
+
+        // --- PLAN GENERATOR & JOB ORDER LOGIC ---
+
+        function renderPlanCalendar() {
+            const monthValue = planMonthInput.value;
+            if (!monthValue) return;
+
+            const [year, month] = monthValue.split('-').map(Number);
+            const monthIndex = month - 1;
+
+            const firstDayOfMonth = new Date(year, monthIndex, 1);
+            const daysInMonth = new Date(year, month, 0).getDate();
+            const startDayOfWeek = firstDayOfMonth.getDay(); // 0=Sun, 1=Mon,...
+
+            let calendarHtml = '<div class="calendar-grid">';
+            const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            daysOfWeek.forEach(day => {
+                calendarHtml += `<div class="calendar-day-header">${day}</div>`;
+            });
+
+            for (let i = 0; i < startDayOfWeek; i++) {
+                calendarHtml += '<div class="calendar-day other-month"></div>';
+            }
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                calendarHtml += `<div class="calendar-day" id="day-${day}" data-day="${day}"><strong>${day}</strong><div class="tasks-for-day mt-1 space-y-1"></div></div>`;
+            }
+            calendarHtml += '</div>';
+            planResultsContainer.innerHTML = calendarHtml;
+
+            const today = new Date();
+            today.setHours(0,0,0,0);
+
+            currentPlanTasks.forEach((task, index) => {
+                const dayOfMonth = task.nextPmDate.getDate();
+                const dayCell = getElement(`day-${dayOfMonth}`);
+                if (dayCell) {
+                    const tasksContainer = dayCell.querySelector('.tasks-for-day');
+                    const taskEl = document.createElement('div');
+                    taskEl.className = 'calendar-task';
+                    
+                    let title = `${task.line}: ${task.description} | ${task.machine}`;
+                    if (task.isOverdue) {
+                        taskEl.classList.add('overdue');
+                        const overdueDate = task.actualOverdueDate || task.nextPmDate;
+                        const daysOverdue = Math.floor((today - overdueDate) / (1000 * 60 * 60 * 24));
+                        if (daysOverdue > 0) {
+                           title = `OVERDUE ${daysOverdue} วัน - ${title}`;
+                        } else {
+                           title = `OVERDUE - ${title}`;
+                        }
+                    }
+
+                    taskEl.innerHTML = `
+                        <div class="flex-grow overflow-hidden">
+                            <div class="font-semibold task-description">${task.line}: ${task.description}</div>
+                            <div class="text-xs text-gray-300">${task.interval_week}W | ${task.period_hour}hr</div>
+                        </div>
+                        <button type="button" class="remove-from-plan-btn flex-shrink-0 ml-2 px-1 rounded hover:bg-red-800 text-gray-300 hover:text-white font-bold" title="Remove from this plan">&times;</button>
+                    `;
+                    taskEl.title = title;
+                    taskEl.draggable = true;
+                    taskEl.dataset.taskIndex = index;
+                    tasksContainer.appendChild(taskEl);
+                }
+            });
+        }
+
+        generatePlanBtn.addEventListener('click', async () => {
+            const monthValue = planMonthInput.value;
+            const selectedSection = planSectionFilter.value;
+
+            if (!monthValue) {
+                planResultsContainer.innerHTML = `<p class="text-yellow-400 text-center">กรุณาเลือกเดือน</p>`;
+                exportPlanBtn.style.display = 'none';
+                return;
+            }
+            
+            jobCreationStatus.textContent = 'กำลังดึงข้อมูล Task ล่าสุด...';
+            const tasksSnapshot = await getDocs(query(collection(db, "tasks")));
+            jobCreationStatus.textContent = '';
+
+            if (tasksSnapshot.empty) {
+                planResultsContainer.innerHTML = `<p class="text-yellow-400 text-center">ยังไม่มีข้อมูล Task</p>`;
+                exportPlanBtn.style.display = 'none';
+                return;
+            }
+
+            const [year, month] = monthValue.split('-').map(Number);
+            const startDate = new Date(year, month - 1, 1);
+            const endDate = new Date(year, month, 0, 23, 59, 59);
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            currentPlanTasks = [];
+            const addedDates = new Set(); 
+
+            tasksSnapshot.forEach(doc => {
+                const task = { id: doc.id, ...doc.data() };
+
+                if (selectedSection !== 'All' && task.section !== selectedSection) {
+                    return;
+                }
+
+                if (!task.last_pm_date || typeof task.last_pm_date.toDate !== 'function') {
+                    console.warn(`Task ${task.task_no} has an invalid last_pm_date.`);
+                    return;
+                }
+
+                const lastPmDate = task.last_pm_date.toDate();
+                const intervalDays = task.interval_week * 7;
+                if (intervalDays <= 0) return;
+
+                // 1. Find the first actual PM date that occurs *after* the last PM date.
+                let nextPmDate = new Date(lastPmDate.getTime());
+                nextPmDate.setDate(nextPmDate.getDate() + intervalDays);
+
+                // 2. Keep advancing this date by the interval until it is no longer in the past (relative to today).
+                while (nextPmDate < today) {
+                    nextPmDate.setDate(nextPmDate.getDate() + intervalDays);
+                }
+                
+                // 3. Check if this first upcoming PM is a "lingering overdue" from a previous month.
+                if (nextPmDate < startDate) {
+                    const key = `${task.id}-overdue`;
+                    if (!addedDates.has(key)) {
+                        currentPlanTasks.push({ ...task, nextPmDate: new Date(startDate.getTime()), isOverdue: true, actualOverdueDate: new Date(nextPmDate.getTime()) });
+                        addedDates.add(key);
+                    }
+                }
+                
+                // 4. Continue from this first upcoming PM date to find all other occurrences within the planning month.
+                let currentRelevantDate = new Date(nextPmDate.getTime());
+                while (currentRelevantDate <= endDate) {
+                    if (currentRelevantDate >= startDate) {
+                         const dateKey = `${task.id}-${currentRelevantDate.toISOString().split('T')[0]}`;
+                         if (!addedDates.has(dateKey)) {
+                            const isOverdue = new Date(currentRelevantDate.getTime()) < today;
+                            const taskToAdd = { ...task, nextPmDate: new Date(currentRelevantDate.getTime()), isOverdue: isOverdue };
+                            if (isOverdue) {
+                                taskToAdd.actualOverdueDate = new Date(currentRelevantDate.getTime());
+                            }
+                            currentPlanTasks.push(taskToAdd);
+                            addedDates.add(dateKey);
+                         }
+                    }
+                    currentRelevantDate.setDate(currentRelevantDate.getDate() + intervalDays);
+                }
+            });
+
+            if (currentPlanTasks.length === 0) {
+                planResultsContainer.innerHTML = `<p class="text-gray-400 text-center mt-4">ไม่พบ Task ที่ถึงกำหนดในเดือนและ Section ที่เลือก</p>`;
+                exportPlanBtn.style.display = 'none';
+                planActions.style.display = 'none';
+                return;
+            }
+
+            currentPlanTasks.sort((a, b) => {
+                const dateComparison = a.nextPmDate.getTime() - b.nextPmDate.getTime();
+                if (dateComparison !== 0) {
+                    return dateComparison;
+                }
+                return a.line.localeCompare(b.line);
+            });
+            renderPlanCalendar();
+            exportPlanBtn.style.display = 'block';
+            planActions.style.display = 'block';
+            jobCreationStatus.textContent = '';
+        });
+
+        createJobsBtn.addEventListener('click', async () => {
+            if (currentPlanTasks.length === 0) {
+                jobCreationStatus.textContent = 'ไม่มีแผนสำหรับสร้าง Job Order';
+                return;
+            }
+
+            jobCreationStatus.textContent = 'กำลังสร้าง Job Orders...';
+            createJobsBtn.disabled = true;
+
+            const today = new Date();
+            const year = today.getFullYear().toString();
+            const month = (today.getMonth() + 1).toString().padStart(2, '0');
+            const day = today.getDate().toString().padStart(2, '0');
+            const prefix = `PM${year.slice(-2)}${month}${day}`;
+
+            const jobsQuery = query(collection(db, "job_orders"), where("jobId", ">=", prefix), where("jobId", "<", prefix + 'z'));
+            const querySnapshot = await getDocs(jobsQuery);
+            let sequence = querySnapshot.size;
+
+            const batch = writeBatch(db);
+            let jobsCreatedCount = 0;
+            const updatePromises = [];
+
+            for (const task of currentPlanTasks) {
+                sequence++;
+                const nextSeq = sequence.toString().padStart(3, '0');
+                const jobId = `${prefix}-${nextSeq}`;
+
+                const jobOrderRef = doc(db, "job_orders", jobId);
+                batch.set(jobOrderRef, {
+                    jobId: jobId,
+                    createdAt: serverTimestamp(),
+                    dueDate: Timestamp.fromDate(task.nextPmDate),
+                    tasks: [ 
+                        {
+                            taskId: task.id,
+                            task_no: task.task_no,
+                            description: task.description,
+                            line: task.line,
+                            machine: task.machine,
+                            unit: task.unit || ''
+                        }
+                    ],
+                    status: 'Pending'
+                });
+                
+                const taskRef = doc(db, "tasks", task.id);
+                updatePromises.push(updateDoc(taskRef, {
+                    jobHistory: arrayUnion({jobId: jobId, completedAt: null})
+                }));
+
+                jobsCreatedCount++;
+            }
+
+            try {
+                await batch.commit();
+                await Promise.all(updatePromises);
+                jobCreationStatus.textContent = `สร้าง Job Order สำเร็จ ${jobsCreatedCount} รายการ!`;
+            } catch (error) {
+                console.error("Error creating job orders:", error);
+                jobCreationStatus.textContent = `เกิดข้อผิดพลาด: ${error.message}`;
+            } finally {
+                createJobsBtn.disabled = false;
+            }
+        });
+
+        function listenForJobOrders(statusFilter = 'Pending') {
+            setViewMode('job_orders');
+            renderJobOrderFilter(statusFilter);
+            
+            const q = query(collection(db, "job_orders"));
+            unsubscribeJobOrders = onSnapshot(q, (snapshot) => {
+                renderJobOrderView(snapshot, statusFilter);
+            }, (error) => {
+                handleFirestoreError(error, viewContainer)
+            });
+        }
+
+        function renderJobOrderFilter(currentStatus) {
+            let filterHtml = `
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-semibold text-white">ภาพรวม Job Order</h2>
+                    <div>
+                        <label for="job-status-filter" class="text-sm font-medium text-gray-400 mr-2">แสดงสถานะ:</label>
+                        <select id="job-status-filter" class="form-input">
+                            <option value="Pending" ${currentStatus === 'Pending' ? 'selected' : ''}>Pending</option>
+                            <option value="Complete" ${currentStatus === 'Complete' ? 'selected' : ''}>Complete</option>
+                            <option value="All" ${currentStatus === 'All' ? 'selected' : ''}>All</option>
+                        </select>
+                    </div>
+                </div>`;
+            viewHeader.innerHTML = filterHtml;
+            getElement('job-status-filter').addEventListener('change', (e) => {
+                listenForJobOrders(e.target.value);
+            });
+        }
+
+        function renderJobOrderView(snapshot, statusFilter) {
+            if (snapshot.empty) {
+                viewContainer.innerHTML = `<div class="text-center py-10 card rounded-lg"><p class="text-gray-400">ยังไม่มี Job Order ที่ถูกสร้าง</p></div>`;
+                return;
+            }
+
+            let jobOrders = [];
+            snapshot.forEach(doc => {
+                jobOrders.push({ id: doc.id, ...doc.data() });
+            });
+
+            // Filter before sorting
+            const filteredJobs = jobOrders.filter(job => statusFilter === 'All' || job.status === statusFilter);
+
+            if (filteredJobs.length === 0) {
+                viewContainer.innerHTML = `<div class="text-center py-10 card rounded-lg"><p class="text-gray-400">ไม่พบ Job Order ที่มีสถานะ "${statusFilter}"</p></div>`;
+                return;
+            }
+
+            // Sort by creation date, newest first
+            filteredJobs.sort((a, b) => {
+                const timeA = a.createdAt ? a.createdAt.toDate().getTime() : 0;
+                const timeB = b.createdAt ? b.createdAt.toDate().getTime() : 0;
+                return timeB - timeA;
+            });
+
+            let jobOrdersHtml = '<div class="space-y-4">';
+            filteredJobs.forEach(job => {
+                const dueDate = job.dueDate.toDate().toLocaleDateString('en-CA');
+                const task = job.tasks[0]; // Since it's 1 job per task now
+
+                const statusClass = job.status === 'Pending' ? 'bg-yellow-500 text-yellow-900' : 'bg-green-500 text-green-900';
+                const buttonClass = job.status === 'Pending' ? 'btn-accent' : 'btn-secondary';
+                const buttonText = job.status === 'Pending' ? 'Mark as Complete' : 'Mark as Pending';
+                const newStatus = job.status === 'Pending' ? 'Complete' : 'Pending';
+
+                jobOrdersHtml += `
+                    <div class="card rounded-xl shadow-md">
+                        <div class="job-order-summary p-5">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-lg font-bold text-indigo-400">${job.id}</p>
+                                    <p class="text-sm text-gray-400">Due Date: ${dueDate}</p>
+                                </div>
+                                <div class="text-right">
+                                     <span class="px-2 py-1 text-xs font-semibold rounded-full ${statusClass}">${job.status}</span>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <p class="text-sm text-gray-400">${task.task_no}</p>
+                                <p class="font-semibold">${task.line}: ${task.description} (${task.machine})</p>
+                            </div>
+                            <div class="mt-4 pt-4 border-t border-gray-600">
+                                <button data-id="${job.id}" data-new-status="${newStatus}" class="toggle-status-btn w-full py-2 px-4 rounded-md font-semibold text-sm ${buttonClass}">${buttonText}</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            jobOrdersHtml += '</div>';
+            viewContainer.innerHTML = jobOrdersHtml;
+        }
+
+        async function updateJobStatus(jobId, newStatus) {
+            const jobRef = doc(db, "job_orders", jobId);
+            try {
+                const updateData = { status: newStatus };
+                const jobSnap = await getDoc(jobRef);
+                if (!jobSnap.exists()) return;
+                
+                const jobData = jobSnap.data();
+                const task = jobData.tasks[0];
+
+                if (newStatus === 'Complete') {
+                    const completedTimestamp = serverTimestamp();
+                    updateData.completedAt = completedTimestamp;
+                    
+                    if (task && task.taskId) {
+                        const taskRef = doc(db, "tasks", task.taskId);
+                        const taskSnap = await getDoc(taskRef);
+                        if (taskSnap.exists()) {
+                            const taskData = taskSnap.data();
+                            const newHistory = (taskData.jobHistory || []).map(h => h.jobId === jobId ? { ...h, completedAt: Timestamp.now() } : h);
+                            await updateDoc(taskRef, {
+                                last_pm_date: jobData.dueDate,
+                                jobHistory: newHistory
+                            });
+                        }
+                    }
+                } else { // Moving back to Pending
+                    updateData.completedAt = deleteField();
+                     if (task && task.taskId) {
+                        const taskRef = doc(db, "tasks", task.taskId);
+                         const taskSnap = await getDoc(taskRef);
+                        if (taskSnap.exists()) {
+                            const taskData = taskSnap.data();
+                            const newHistory = (taskData.jobHistory || []).map(h => h.jobId === jobId ? { ...h, completedAt: null } : h);
+                             await updateDoc(taskRef, {
+                                jobHistory: newHistory
+                            });
+                        }
+                    }
+                }
+
+                await updateDoc(jobRef, updateData);
+
+            } catch (error) {
+                console.error("Error updating job status:", error);
+                alert("เกิดข้อผิดพลาดในการอัปเดตสถานะ");
+            }
+        }
+        
+        function filterAndDisplayUpcomingTasks() {
+            const filterValue = getElement('upcoming-section-filter').value;
+
+            const filteredTasks = filterValue === 'All' 
+                ? allCalculatedUpcomingTasks 
+                : allCalculatedUpcomingTasks.filter(task => task.section === filterValue);
+
+            filteredTasks.sort((a, b) => a.nextPmDate.getTime() - b.nextPmDate.getTime());
+
+            if (filteredTasks.length === 0) {
+                viewContainer.innerHTML = `<div class="text-center py-10 card rounded-lg"><p class="text-gray-400">ไม่พบงานที่ตรงกับ Section ที่เลือก</p></div>`;
+                return;
+            }
+
+            let tableHtml = `
+                <div class="card rounded-lg overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left text-gray-300">
+                            <thead class="text-xs text-gray-400 uppercase bg-gray-700">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3">Next Due Date</th>
+                                    <th scope="col" class="px-6 py-3">Remaining</th>
+                                    <th scope="col" class="px-6 py-3">Task No.</th>
+                                    <th scope="col" class="px-6 py-3">Description</th>
+                                    <th scope="col" class="px-6 py-3">Location</th>
+                                    <th scope="col" class="px-6 py-3">Interval</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+            
+            filteredTasks.forEach(task => {
+                let remainingClass = 'text-white';
+                let remainingText = `${task.remainingDays} วัน`;
+
+                if (task.remainingDays < 0) {
+                    remainingClass = 'text-red-400 font-bold';
+                    remainingText = `เกินกำหนด ${Math.abs(task.remainingDays)} วัน`;
+                } else if (task.remainingDays === 0) {
+                    remainingClass = 'text-yellow-400 font-semibold';
+                    remainingText = 'วันนี้';
+                } else if (task.remainingDays <= 7) {
+                    remainingClass = 'text-yellow-400 font-semibold';
+                }
+
+                tableHtml += `
+                    <tr class="border-b border-gray-700 hover:bg-gray-700/50">
+                        <td class="px-6 py-4 font-medium text-white whitespace-nowrap">${task.nextPmDate.toLocaleDateString('en-CA')}</td>
+                        <td class="px-6 py-4 ${remainingClass}">${remainingText}</td>
+                        <td class="px-6 py-4">${task.task_no}</td>
+                        <td class="px-6 py-4">${task.description}</td>
+                        <td class="px-6 py-4">${task.line} / ${task.machine}</td>
+                        <td class="px-6 py-4">${task.interval_week} Weeks</td>
+                    </tr>
+                `;
+            });
+
+            tableHtml += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            viewContainer.innerHTML = tableHtml;
+        }
+
+        async function renderUpcomingTasksView() {
+            setViewMode('sub-view');
+            viewHeader.innerHTML = `
+                 <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-semibold text-white">ตารางงาน PM ที่จะมาถึง</h2>
+                    <div>
+                        <label for="upcoming-section-filter" class="block text-sm font-medium text-gray-400 mb-1">Filter by Section</label>
+                        <select id="upcoming-section-filter" class="form-input w-48"></select>
+                    </div>
+                </div>
+            `;
+
+            const filterDropdown = getElement('upcoming-section-filter');
+            filterDropdown.innerHTML = '<option value="All">All Sections</option>' + sections.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+            filterDropdown.addEventListener('change', filterAndDisplayUpcomingTasks);
+            
+            viewContainer.innerHTML = `<div class="text-center py-10 card rounded-lg"><p class="text-gray-400">กำลังคำนวณตารางงาน...</p></div>`;
+
+            try {
+                allCalculatedUpcomingTasks = []; // Reset
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                const tasksSnapshot = await getDocs(query(collection(db, "tasks")));
+
+                tasksSnapshot.forEach(doc => {
+                    const task = { id: doc.id, ...doc.data() };
+
+                    if (!task.last_pm_date || typeof task.last_pm_date.toDate !== 'function') {
+                        return; 
+                    }
+
+                    const lastPmDate = task.last_pm_date.toDate();
+                    const intervalDays = task.interval_week * 7;
+                    if (intervalDays <= 0) return;
+
+                    let nextPmDate = new Date(lastPmDate.getTime());
+                    
+                    // Correctly find the *next* upcoming date from today
+                    let calculatedNextPmDate = new Date(lastPmDate.getTime());
+                    while(calculatedNextPmDate < today) {
+                        calculatedNextPmDate.setDate(calculatedNextPmDate.getDate() + intervalDays);
+                    }
+
+                    const diffTime = calculatedNextPmDate.getTime() - today.getTime();
+                    const remainingDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                    allCalculatedUpcomingTasks.push({ ...task, nextPmDate: calculatedNextPmDate, remainingDays: remainingDays });
+                });
+
+                filterAndDisplayUpcomingTasks();
+
+            } catch (error) {
+                handleFirestoreError(error, viewContainer);
+            }
+        }
+
+
+        // --- Drag and Drop Logic for Calendar ---
+        let draggedTaskIndex = null;
+
+        planResultsContainer.addEventListener('dragstart', (e) => {
+            const taskEl = e.target.closest('.calendar-task');
+            if (taskEl) {
+                draggedTaskIndex = taskEl.dataset.taskIndex;
+                e.dataTransfer.effectAllowed = 'move';
+                setTimeout(() => taskEl.classList.add('dragging'), 0);
+            }
+        });
+
+        planResultsContainer.addEventListener('dragend', (e) => {
+            const taskEl = e.target.closest('.calendar-task');
+            if (taskEl) {
+                taskEl.classList.remove('dragging');
+            }
+            draggedTaskIndex = null;
+        });
+
+        planResultsContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const dayEl = e.target.closest('.calendar-day');
+            if (dayEl && !dayEl.classList.contains('other-month')) {
+                dayEl.classList.add('drag-over');
+            }
+        });
+        
+        planResultsContainer.addEventListener('dragleave', (e) => {
+            const dayEl = e.target.closest('.calendar-day');
+            if (dayEl) {
+                dayEl.classList.remove('drag-over');
+            }
+        });
+
+        planResultsContainer.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const dayEl = e.target.closest('.calendar-day');
+            if (dayEl && !dayEl.classList.contains('other-month') && draggedTaskIndex !== null) {
+                dayEl.classList.remove('drag-over');
+                
+                const newDay = parseInt(dayEl.dataset.day);
+                const [year, month] = planMonthInput.value.split('-').map(Number);
+                
+                const taskToUpdate = currentPlanTasks[draggedTaskIndex];
+                taskToUpdate.nextPmDate = new Date(year, month - 1, newDay);
+                taskToUpdate.isOverdue = false; // No longer considered overdue if manually moved
+
+                currentPlanTasks.sort((a, b) => a.nextPmDate - b.nextPmDate);
+                renderPlanCalendar();
+            }
+        });
+
+        planResultsContainer.addEventListener('click', (e) => {
+            const removeBtn = e.target.closest('.remove-from-plan-btn');
+            if (!removeBtn) return;
+
+            const taskEl = removeBtn.closest('.calendar-task');
+            if (taskEl && taskEl.dataset.taskIndex) {
+                const taskIndex = parseInt(taskEl.dataset.taskIndex, 10);
+                if (!isNaN(taskIndex) && taskIndex >= 0 && taskIndex < currentPlanTasks.length) {
+                    currentPlanTasks.splice(taskIndex, 1);
+                    renderPlanCalendar();
+                }
+            }
+        });
+
+
+        exportPlanBtn.addEventListener('click', async () => {
+            if (currentPlanTasks.length === 0) {
+                alert('ไม่มีข้อมูลแผนสำหรับส่งออก');
+                return;
+            }
+
+            const planDataToExport = currentPlanTasks.map(task => ({
+                'Due Date': task.nextPmDate,
+                'Task No.': task.task_no,
+                'Section': task.section,
+                'Line': task.line,
+                'Machine': task.machine,
+                'Unit': task.unit,
+                'Description': task.description,
+            }));
+
+            const partsDataToExport = [];
+            const partPromises = currentPlanTasks.map(async (task) => {
+                const partsQuery = query(collection(db, `tasks/${task.id}/parts`));
+                const partsSnapshot = await getDocs(partsQuery);
+                const costPromises = [];
+                
+                partsSnapshot.forEach(partDoc => {
+                    const part = partDoc.data();
+                    const costPromise = getDoc(doc(db, "part_costs", part.part_code)).then(costDoc => {
+                        const cost = costDoc.exists() ? costDoc.data().cost : 0;
+                        partsDataToExport.push({
+                            'Due Date': task.nextPmDate,
+                            'Task No.': task.task_no,
+                            'Line': task.line,
+                            'Machine': task.machine,
+                            'Unit': task.unit,
+                            'Part Code': part.part_code,
+                            'Quantity': part.quantity,
+                            'Cost': cost,
+                            'Total Cost': (part.quantity || 0) * cost,
+                        });
+                    });
+                    costPromises.push(costPromise);
+                });
+                await Promise.all(costPromises);
+            });
+
+            await Promise.all(partPromises);
+
+            const monthValue = planMonthInput.value || 'plan';
+            const wb = XLSX.utils.book_new();
+            
+            const wsPlan = XLSX.utils.json_to_sheet(planDataToExport);
+            XLSX.utils.book_append_sheet(wb, wsPlan, `PM Plan`);
+            
+            if (partsDataToExport.length > 0) {
+                partsDataToExport.sort((a,b) => {
+                    const dateA = a['Due Date'];
+                    const dateB = b['Due Date'];
+                    if (dateA < dateB) return -1;
+                    if (dateA > dateB) return 1;
+                    return 0;
+                });
+                const wsParts = XLSX.utils.json_to_sheet(partsDataToExport);
+                XLSX.utils.book_append_sheet(wb, wsParts, `Parts`);
+            }
+
+            XLSX.writeFile(wb, `PM_Plan_${monthValue}.xlsx`);
+        });
+
+        // --- EXCEL IMPORT/EXPORT LOGIC ---
+        uploadPartCostBtn.addEventListener('click', () => {
+            const file = partCostFileInput.files[0];
+            if (!file) { importStatus.textContent = 'กรุณาเลือกไฟล์ Part Costs ก่อน'; return; }
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    importStatus.textContent = 'กำลังอัปโหลดข้อมูลต้นทุน...';
+                    const data = new Uint8Array(event.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet);
+
+                    if (json.length === 0) {
+                        importStatus.textContent = 'ไม่พบข้อมูลในไฟล์ Part Costs';
+                        return;
+                    }
+
+                    const batch = writeBatch(db);
+                    let count = 0;
+                    json.forEach(row => {
+                        const partCode = row.item || row.ITEM;
+                        const partCost = row.cur_u_cost || row.CUR_U_COST;
+                        if (partCode && typeof partCost === 'number') {
+                            const docRef = doc(db, "part_costs", partCode.toString());
+                            batch.set(docRef, { cost: partCost });
+                            count++;
+                        }
+                    });
+
+                    await batch.commit();
+                    importStatus.textContent = `อัปโหลดข้อมูลต้นทุนสำเร็จ ${count} รายการ!`;
+                    partCostFileInput.value = '';
+
+                } catch (error) {
+                    console.error("Error uploading part costs:", error);
+                    importStatus.textContent = `เกิดข้อผิดพลาด: ${error.message}`;
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        importExcelBtn.addEventListener('click', () => {
+            const file = excelFileInput.files[0];
+            if (!file) { importStatus.textContent = 'กรุณาเลือกไฟล์ Excel ก่อน'; return; }
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    importStatus.textContent = 'กำลังประมวลผลไฟล์...';
+                    const data = new Uint8Array(event.target.result);
+                    const workbook = XLSX.read(data, { type: 'array', cellDates:true });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet);
+
+                    if (json.length === 0) { importStatus.textContent = 'ไม่พบข้อมูลในไฟล์'; return; }
+
+                    importStatus.textContent = 'กำลังเตรียมข้อมูล Task No...';
+                    const uniqueLines = [...new Set(json.map(row => (row['Line'] || '').toString()).filter(Boolean))];
+                    const countPromises = uniqueLines.map(line => getDocs(query(collection(db, "tasks"), where("line", "==", line))).then(snapshot => ({ line, count: snapshot.size })));
+                    const initialCounts = await Promise.all(countPromises);
+                    const lineCounters = initialCounts.reduce((acc, { line, count }) => { acc[line] = count; return acc; }, {});
+
+                    importStatus.textContent = `กำลังนำเข้า ${json.length} รายการ...`;
+                    
+                    const BATCH_LIMIT = 490;
+                    let batch = writeBatch(db);
+                    let operationCount = 0;
+                    let successCount = 0;
+
+                    for (const row of json) {
+                        const line = (row['Line'] || '').toString();
+                        if (!line) continue;
+
+                        const currentCount = lineCounters[line] || 0;
+                        const newCount = currentCount + 1;
+                        lineCounters[line] = newCount;
+                        const taskNo = `PM${line}-${newCount}`;
+                        
+                        const taskRef = doc(collection(db, 'tasks'));
+                        const taskData = {
+                            task_no: taskNo,
+                            section: row['Section'] || 'N/A', 
+                            line: line, 
+                            machine: row['Machine'] || 'N/A', 
+                            unit: row['Unit'] || '', 
+                            description: row['Description'] || 'N/A', 
+                            type: row['Type'] || 'TBM', 
+                            man_mt: parseInt(row['Man MT'] || row['MAN MT'] || 0), 
+                            man_pd: parseInt(row['Man PD'] || row['MAN PD'] || 0), 
+                            man_maker: parseInt(row['Man Maker'] || row['MAN MAKER'] || 0), 
+                            interval_week: parseInt(row['Interval Week'] || row['Interval'] || 1), 
+                            period_hour: parseFloat(row['Period Hour'] || row['Period'] || 0.1), 
+                            last_pm_date: (row['Last PM Date'] || row['LAST PM']) ? Timestamp.fromDate(new Date(row['Last PM Date'] || row['LAST PM'])) : Timestamp.now(),
+                            owner: auth.currentUser.uid, 
+                            created_at: serverTimestamp(),
+                        };
+                        batch.set(taskRef, taskData);
+                        operationCount++;
+
+                        for (let i = 1; i < 100; i++) {
+                            const partCode = row[`Part Code ${i}`] || row[`PART CODE ${i}`];
+                            const partQty = row[`Part Qty ${i}`] || row[`PART QTY ${i}`];
+                            const partCost = row[`Part Cost ${i}`] || row[`PART COST ${i}`];
+                            
+                            if (partCode && partQty) {
+                                const partRef = doc(collection(taskRef, 'parts'));
+                                batch.set(partRef, { 
+                                    part_code: partCode.toString(), 
+                                    quantity: parseInt(partQty),
+                                    part_cost: parseFloat(partCost || 0)
+                                });
+                                operationCount++;
+                            } else {
+                                break; 
+                            }
+                        }
+                        
+                        if (operationCount >= BATCH_LIMIT) { await batch.commit(); batch = writeBatch(db); operationCount = 0; }
+                        successCount++;
+                    }
+
+                    if (operationCount > 0) { await batch.commit(); }
+
+                    importStatus.textContent = `นำเข้าสำเร็จ ${successCount} รายการ!`;
+                    excelFileInput.value = '';
+                } catch (error) { console.error("Error importing from Excel: ", error); importStatus.textContent = `เกิดข้อผิดพลาด: ${error.message}`; }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        exportExcelBtn.addEventListener('click', async () => {
+            importStatus.textContent = 'กำลังเตรียมข้อมูลสำหรับส่งออก...';
+            try {
+                const tasksQuery = query(collection(db, "tasks"));
+                const tasksSnapshot = await getDocs(tasksQuery);
+                const dataToExport = [];
+                for (const taskDoc of tasksSnapshot.docs) {
+                    const task = taskDoc.data();
+                    const rowData = {
+                        'Task No.': task.task_no,
+                        'Section': task.section,
+                        'Line': task.line,
+                        'Machine': task.machine,
+                        'Unit': task.unit,
+                        'Description': task.description,
+                        'Type': task.type,
+                        'Last PM Date': task.last_pm_date.toDate(),
+                        'Interval Week': task.interval_week,
+                        'Period Hour': task.period_hour,
+                        'Man MT': task.man_mt,
+                        'Man PD': task.man_pd,
+                        'Man Maker': task.man_maker,
+                    };
+                    const partsSnapshot = await getDocs(query(collection(db, `tasks/${taskDoc.id}/parts`)));
+                    let partIndex = 1;
+                    for (const partDoc of partsSnapshot.docs) {
+                        const part = partDoc.data();
+                        rowData[`Part Code ${partIndex}`] = part.part_code;
+                        rowData[`Part Qty ${partIndex}`] = part.quantity;
+                        rowData[`Part Cost ${partIndex}`] = part.part_cost || 0;
+                        partIndex++;
+                    }
+                    dataToExport.push(rowData);
+                }
+                if (dataToExport.length === 0) { importStatus.textContent = 'ไม่มีข้อมูลสำหรับส่งออก'; return; }
+                const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Tasks");
+                XLSX.writeFile(workbook, "PM_Tasks_Export.xlsx");
+                importStatus.textContent = `ส่งออกข้อมูล ${dataToExport.length} รายการสำเร็จ!`;
+            } catch (error) { console.error("Error exporting to Excel: ", error); importStatus.textContent = `เกิดข้อผิดพลาดในการส่งออก: ${error.message}`; }
+        });
+
+        // --- DYNAMIC PARTS FORM ---
+        const addPartInput = (part = { part_code: '', quantity: 1, part_cost: 0 }) => {
+            const partId = `part_${Date.now()}`;
+            const partDiv = document.createElement('div');
+            partDiv.className = 'grid grid-cols-12 gap-2 items-center';
+            partDiv.id = partId;
+            partDiv.innerHTML = `
+                <input type="text" value="${part.part_code}" class="part-code col-span-5 p-2 text-sm form-input" placeholder="Part Code" required>
+                <input type="number" value="${part.quantity}" class="part-quantity col-span-3 p-2 text-sm form-input" placeholder="Qty" min="1" required>
+                <input type="number" value="${part.part_cost || 0}" class="part-cost col-span-3 p-2 text-sm form-input" placeholder="Cost" min="0" step="0.01">
+                <button type="button" class="remove-part-btn col-span-1 text-red-400 hover:text-red-600 font-bold text-xl">&times;</button>
+            `;
+            partsContainer.appendChild(partDiv);
+            partDiv.querySelector('.remove-part-btn').addEventListener('click', () => { document.getElementById(partId).remove(); });
+        };
+        addPartBtn.addEventListener('click', () => addPartInput());
+
+        // --- FORM STATE MANAGEMENT ---
+        const resetForm = () => {
+            taskForm.reset();
+            taskIdInput.value = '';
+            partsContainer.innerHTML = '';
+            modalTitle.textContent = 'เพิ่ม Task ใหม่';
+            saveBtn.textContent = 'บันทึก';
+        }
+        
+        // --- CRUD OPERATIONS ---
+        const generateTaskNo = async (line) => {
+            const q = query(collection(db, "tasks"), where("line", "==", line));
+            const snapshot = await getDocs(q);
+            return `PM${line}-${snapshot.size + 1}`;
+        }
+        taskForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const taskId = taskIdInput.value;
+            const isEditing = !!taskId;
+            const taskData = {
+                section: getElement('section').value, line: getElement('line').value, machine: getElement('machine').value, unit: getElement('unit').value, description: getElement('description').value, type: getElement('type').value, man_mt: parseInt(getElement('man_mt').value), man_pd: parseInt(getElement('man_pd').value), man_maker: parseInt(getElement('man_maker').value), interval_week: parseInt(getElement('interval_week').value), period_hour: parseFloat(getElement('period_hour').value), last_pm_date: Timestamp.fromDate(new Date(getElement('last_pm_date').value)), owner: auth.currentUser.uid
+            };
+            const parts = [];
+            partsContainer.querySelectorAll('.grid').forEach(div => { 
+                const code = div.querySelector('.part-code').value; 
+                const qty = div.querySelector('.part-quantity').value;
+                const cost = div.querySelector('.part-cost').value;
+                if (code && qty) { 
+                    parts.push({ 
+                        part_code: code, 
+                        quantity: parseInt(qty),
+                        part_cost: parseFloat(cost || 0)
+                    }); 
+                } 
+            });
+            try {
+                if (isEditing) {
+                    const taskRef = doc(db, 'tasks', taskId);
+                    // Retain the original task_no
+                    const originalDoc = await getDoc(taskRef);
+                    const originalData = originalDoc.data();
+                    taskData.task_no = originalData.task_no;
+
+                    await setDoc(taskRef, taskData, { merge: true });
+
+                    const oldParts = await getDocs(query(collection(db, `tasks/${taskId}/parts`)));
+                    for (const partDoc of oldParts.docs) { await deleteDoc(doc(db, `tasks/${taskId}/parts`, partDoc.id)); }
+                    for (const part of parts) { await addDoc(collection(db, `tasks/${taskId}/parts`), part); }
+                } else {
+                    taskData.task_no = await generateTaskNo(taskData.line); taskData.created_at = serverTimestamp();
+                    const docRef = await addDoc(collection(db, 'tasks'), taskData);
+                    for (const part of parts) { await addDoc(collection(db, `tasks/${docRef.id}/parts`), part); }
+                }
+                closeModal();
+            } catch (error) { console.error("Error saving task: ", error); alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล"); }
+        });
+
+        // --- COMBINED EVENT LISTENER FOR VIEW CONTAINER (NAVIGATION + CRUD) ---
+        viewContainer.addEventListener('click', async (e) => {
+            const cardSummary = e.target.closest('.card-summary, .job-order-summary');
+            if (cardSummary && !e.target.closest('button')) {
+                const details = cardSummary.nextElementSibling;
+                if (details && (details.classList.contains('card-details') || details.classList.contains('job-order-details'))) {
+                    details.style.display = details.style.display === 'none' ? 'block' : 'none';
+                }
+                return;
+            }
+
+            // Navigation Logic
+            const navTarget = e.target.closest('.dashboard-card');
+            if (navTarget) {
+                const { view, line, machine, unit } = navTarget.dataset;
+                if (view === 'machines') renderMachineView(line);
+                if (view === 'units') renderUnitSummaryView(line, machine);
+                if (view === 'unit-tasks') renderUnitTaskView(line, machine, unit);
+                return;
+            }
+
+            // Job Order Status Toggle
+            const statusBtn = e.target.closest('.toggle-status-btn');
+            if (statusBtn) {
+                const { id, newStatus } = statusBtn.dataset;
+                await updateJobStatus(id, newStatus);
+                return;
+            }
+
+            // CRUD Logic
+            const button = e.target.closest('.edit-btn, .delete-btn');
+            if (button) {
+                const taskCard = button.closest('.card');
+                const docId = taskCard.dataset.id;
+                if (button.classList.contains('edit-btn')) {
+                    const docRef = doc(db, "tasks", docId);
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists()) {
+                        const task = docSnap.data();
+                        resetForm();
+                        taskIdInput.value = docId;
+                        getElement('task_no').value = task.task_no;
+                        getElement('section').value = task.section; getElement('line').value = task.line; getElement('machine').value = task.machine; getElement('unit').value = task.unit; getElement('description').value = task.description; getElement('type').value = task.type; getElement('man_mt').value = task.man_mt; getElement('man_pd').value = task.man_pd; getElement('man_maker').value = task.man_maker; getElement('interval_week').value = task.interval_week; getElement('period_hour').value = task.period_hour; getElement('last_pm_date').value = task.last_pm_date.toDate().toISOString().split('T')[0];
+                        
+                        const partsSnapshot = await getDocs(query(collection(db, `tasks/${docId}/parts`)));
+                        partsSnapshot.forEach(partDoc => { addPartInput(partDoc.data()); });
+                        
+                        modalTitle.textContent = 'แก้ไข Task';
+                        saveBtn.textContent = 'อัปเดต';
+                        formView.style.display = 'block';
+                        importExportView.style.display = 'none';
+                        planGeneratorView.style.display = 'none';
+                        openModal();
+                    }
+                } else if (button.classList.contains('delete-btn')) {
+                    if (confirm(`คุณต้องการลบ Task นี้ (${docId}) จริงหรือไม่?`)) {
+                        try {
+                            const partsSnapshot = await getDocs(query(collection(db, `tasks/${docId}/parts`)));
+                            for (const partDoc of partsSnapshot.docs) { await deleteDoc(doc(db, `tasks/${docId}/parts`, partDoc.id)); }
+                            await deleteDoc(doc(db, "tasks", docId));
+                        } catch (error) { console.error("Error deleting task:", error); alert("เกิดข้อผิดพลาดในการลบข้อมูล"); }
+                    }
+                }
+            }
+        });
+
+    </script>
+</body>
+</html>
+
