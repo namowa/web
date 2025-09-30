@@ -1503,61 +1503,37 @@ service cloud.firestore {
 
             filteredTasks.sort((a, b) => a.nextPmDate.getTime() - b.nextPmDate.getTime());
 
+            let tableBodyHtml = '';
             if (filteredTasks.length === 0) {
-                viewContainer.innerHTML = `<div class="text-center py-10 card rounded-lg"><p class="text-gray-400">ไม่พบงานที่ตรงกับ Section ที่เลือก</p></div>`;
-                return;
+                tableBodyHtml = `<tr><td colspan="6" class="text-center py-10 text-gray-400">ไม่พบงานที่ตรงกับ Section ที่เลือก</td></tr>`;
+            } else {
+                filteredTasks.forEach(task => {
+                    let remainingClass = 'text-white';
+                    let remainingText = `${task.remainingDays} วัน`;
+
+                    if (task.remainingDays < 0) {
+                        remainingClass = 'text-red-400 font-bold';
+                        remainingText = `เกินกำหนด ${Math.abs(task.remainingDays)} วัน`;
+                    } else if (task.remainingDays === 0) {
+                        remainingClass = 'text-yellow-400 font-semibold';
+                        remainingText = 'วันนี้';
+                    } else if (task.remainingDays <= 7) {
+                        remainingClass = 'text-yellow-400 font-semibold';
+                    }
+
+                    tableBodyHtml += `
+                        <tr class="border-b border-gray-700 hover:bg-gray-700/50 cursor-pointer upcoming-task-row" data-task-id="${task.id}">
+                            <td class="px-6 py-4 font-medium text-white whitespace-nowrap">${task.nextPmDate.toLocaleDateString('en-CA')}</td>
+                            <td class="px-6 py-4 ${remainingClass}">${remainingText}</td>
+                            <td class="px-6 py-4">${task.task_no}</td>
+                            <td class="px-6 py-4">${task.description}</td>
+                            <td class="px-6 py-4">${task.line} / ${task.machine}</td>
+                            <td class="px-6 py-4">${task.interval_week} Weeks</td>
+                        </tr>
+                    `;
+                });
             }
-
-            let tableHtml = `
-                <div class="card rounded-lg overflow-hidden">
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm text-left text-gray-300">
-                            <thead class="text-xs text-gray-400 uppercase bg-gray-700">
-                                <tr>
-                                    <th scope="col" class="px-6 py-3">Next Due Date</th>
-                                    <th scope="col" class="px-6 py-3">Remaining</th>
-                                    <th scope="col" class="px-6 py-3">Task No.</th>
-                                    <th scope="col" class="px-6 py-3">Description</th>
-                                    <th scope="col" class="px-6 py-3">Location</th>
-                                    <th scope="col" class="px-6 py-3">Interval</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-            `;
-            
-            filteredTasks.forEach(task => {
-                let remainingClass = 'text-white';
-                let remainingText = `${task.remainingDays} วัน`;
-
-                if (task.remainingDays < 0) {
-                    remainingClass = 'text-red-400 font-bold';
-                    remainingText = `เกินกำหนด ${Math.abs(task.remainingDays)} วัน`;
-                } else if (task.remainingDays === 0) {
-                    remainingClass = 'text-yellow-400 font-semibold';
-                    remainingText = 'วันนี้';
-                } else if (task.remainingDays <= 7) {
-                    remainingClass = 'text-yellow-400 font-semibold';
-                }
-
-                tableHtml += `
-                    <tr class="border-b border-gray-700 hover:bg-gray-700/50">
-                        <td class="px-6 py-4 font-medium text-white whitespace-nowrap">${task.nextPmDate.toLocaleDateString('en-CA')}</td>
-                        <td class="px-6 py-4 ${remainingClass}">${remainingText}</td>
-                        <td class="px-6 py-4">${task.task_no}</td>
-                        <td class="px-6 py-4">${task.description}</td>
-                        <td class="px-6 py-4">${task.line} / ${task.machine}</td>
-                        <td class="px-6 py-4">${task.interval_week} Weeks</td>
-                    </tr>
-                `;
-            });
-
-            tableHtml += `
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            `;
-            viewContainer.innerHTML = tableHtml;
+            document.getElementById('upcoming-tasks-tbody').innerHTML = tableBodyHtml;
         }
 
         async function renderUpcomingTasksView() {
@@ -1571,13 +1547,32 @@ service cloud.firestore {
                     </div>
                 </div>
             `;
+            viewContainer.innerHTML = `
+                <div class="card rounded-lg overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left text-gray-300">
+                            <thead class="text-xs text-gray-400 uppercase bg-gray-700">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3">Next Due Date</th>
+                                    <th scope="col" class="px-6 py-3">Remaining</th>
+                                    <th scope="col" class="px-6 py-3">Task No.</th>
+                                    <th scope="col" class="px-6 py-3">Description</th>
+                                    <th scope="col" class="px-6 py-3">Location</th>
+                                    <th scope="col" class="px-6 py-3">Interval</th>
+                                </tr>
+                            </thead>
+                            <tbody id="upcoming-tasks-tbody">
+                                <tr><td colspan="6" class="text-center py-10 text-gray-400">กำลังคำนวณตารางงาน...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
 
             const filterDropdown = getElement('upcoming-section-filter');
             filterDropdown.innerHTML = '<option value="All">All Sections</option>' + sections.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
             filterDropdown.addEventListener('change', filterAndDisplayUpcomingTasks);
             
-            viewContainer.innerHTML = `<div class="text-center py-10 card rounded-lg"><p class="text-gray-400">กำลังคำนวณตารางงาน...</p></div>`;
-
             try {
                 allCalculatedUpcomingTasks = []; // Reset
                 const today = new Date();
@@ -1596,9 +1591,6 @@ service cloud.firestore {
                     const intervalDays = task.interval_week * 7;
                     if (intervalDays <= 0) return;
 
-                    let nextPmDate = new Date(lastPmDate.getTime());
-                    
-                    // Correctly find the *next* upcoming date from today
                     let calculatedNextPmDate = new Date(lastPmDate.getTime());
                     while(calculatedNextPmDate < today) {
                         calculatedNextPmDate.setDate(calculatedNextPmDate.getDate() + intervalDays);
@@ -1611,6 +1603,54 @@ service cloud.firestore {
                 });
 
                 filterAndDisplayUpcomingTasks();
+
+            } catch (error) {
+                handleFirestoreError(error, viewContainer);
+            }
+        }
+        
+        async function renderSingleTaskView(taskId) {
+            setViewMode('sub-view');
+            viewContainer.innerHTML = `<div class="text-center py-10 card rounded-lg"><p class="text-gray-400">กำลังโหลดข้อมูล Task...</p></div>`;
+
+            try {
+                const taskRef = doc(db, "tasks", taskId);
+                const taskSnap = await getDoc(taskRef);
+
+                if (!taskSnap.exists()) {
+                    viewContainer.innerHTML = `<div class="text-center py-10 card rounded-lg"><p class="text-red-400">ไม่พบ Task ที่ต้องการ</p></div>`;
+                    return;
+                }
+
+                const task = { id: taskSnap.id, ...taskSnap.data() };
+
+                const partsSnapshot = await getDocs(query(collection(db, `tasks/${taskId}/parts`)));
+                task.parts = partsSnapshot.docs.map(partDoc => partDoc.data());
+
+                let singlePmCost = 0;
+                if (task.parts) {
+                    task.parts.forEach(part => {
+                        const cost = partCosts[part.part_code]?.cost || 0;
+                        singlePmCost += (part.quantity || 0) * cost;
+                    });
+                }
+                task.singlePmCost = singlePmCost;
+
+                let partsHtml = '<p class="text-sm text-gray-500">ไม่มี Part</p>';
+                if (task.parts && task.parts.length > 0) {
+                    partsHtml = `<ul class="list-disc list-inside mt-2">${task.parts.map(p => `<li class="text-sm text-gray-300">${p.part_code} <span class="text-gray-500 font-mono">x${p.quantity}</span></li>`).join('')}</ul>`;
+                }
+
+                renderBreadcrumbs([
+                    { label: 'ภาพรวม', level: 0 },
+                    { label: `Line ${task.line}`, level: 1, line: task.line },
+                    { label: task.machine, level: 2, line: task.line, machine: task.machine },
+                    { label: task.unit || 'General', level: 3, line: task.line, machine: task.machine, unit: task.unit || 'General' },
+                    { label: task.task_no } 
+                ]);
+
+                const taskCardHTML = createTaskCardHtml(task, partsHtml);
+                viewContainer.innerHTML = `<div class="space-y-4">${taskCardHTML}</div>`;
 
             } catch (error) {
                 handleFirestoreError(error, viewContainer);
@@ -2019,6 +2059,16 @@ service cloud.firestore {
                 if (view === 'machines') renderMachineView(line);
                 if (view === 'units') renderUnitSummaryView(line, machine);
                 if (view === 'unit-tasks') renderUnitTaskView(line, machine, unit);
+                return;
+            }
+
+            // Upcoming Task Row Click
+            const upcomingRow = e.target.closest('.upcoming-task-row');
+            if (upcomingRow) {
+                const taskId = upcomingRow.dataset.taskId;
+                if (taskId) {
+                    await renderSingleTaskView(taskId);
+                }
                 return;
             }
 
