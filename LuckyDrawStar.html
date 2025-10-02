@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>สุ่มสอยดาวลุ้นโชค</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for Thai characters -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Confetti library for celebration effect -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+    <style>
+        /* Custom styles and starry night background animation */
+        body {
+            font-family: 'Kanit', sans-serif;
+            background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+            overflow: hidden;
+        }
+
+        @keyframes move-twinkle-back {
+            from { background-position: 0 0; }
+            to { background-position: -10000px 5000px; }
+        }
+
+        .stars, .twinkling {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .stars {
+            background: #000 url(https://www.script-tutorials.com/demos/360/images/stars.png) repeat top center;
+            z-index: -3;
+        }
+
+        .twinkling {
+            background: transparent url(https://www.script-tutorials.com/demos/360/images/twinkling.png) repeat top center;
+            z-index: -2;
+            animation: move-twinkle-back 200s linear infinite;
+        }
+        
+        /* Custom glow effect for the winner display */
+        .winner-glow {
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes glow {
+            from {
+                text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #e60073, 0 0 40px #e60073, 0 0 50px #e60073, 0 0 60px #e60073, 0 0 70px #e60073;
+            }
+            to {
+                text-shadow: 0 0 20px #fff, 0 0 30px #ff4da6, 0 0 40px #ff4da6, 0 0 50px #ff4da6, 0 0 60px #ff4da6, 0 0 70px #ff4da6, 0 0 80px #ff4da6;
+            }
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(192, 132, 252, 0.6);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(192, 132, 252, 0.8);
+        }
+
+        /* Star styles */
+        .star-button {
+            transition: transform 0.2s ease-in-out, filter 0.2s;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
+            animation: drift 15s ease-in-out infinite; /* Apply base animation */
+        }
+        .star-button:hover:not(:disabled) {
+            transform: scale(1.1);
+            filter: drop-shadow(0 0 10px #ff4da6);
+        }
+        .star-button:disabled {
+            cursor: not-allowed;
+            animation: fadeOutStar 1s forwards;
+        }
+        .star-svg {
+            /* Width and height are now set by JavaScript for random sizes */
+            fill: url(#star-gradient);
+            stroke: #f8c04e;
+            stroke-width: 1;
+        }
+        @keyframes fadeOutStar {
+            to {
+                transform: scale(0.8);
+                opacity: 0.2;
+            }
+        }
+        /* Drifting animation for stars */
+        @keyframes drift {
+            0% {
+                transform: translate(0px, 0px) rotate(0deg);
+            }
+            25% {
+                transform: translate(10px, -15px) rotate(3deg);
+            }
+            50% {
+                transform: translate(-5px, 10px) rotate(-2deg);
+            }
+            75% {
+                transform: translate(5px, -5px) rotate(2deg);
+            }
+            100% {
+                transform: translate(0px, 0px) rotate(0deg);
+            }
+        }
+    </style>
+</head>
+<body class="text-white flex items-center justify-center min-h-screen p-4">
+    <!-- Starry night background layers -->
+    <div class="stars"></div>
+    <div class="twinkling"></div>
+    
+    <!-- Toggle Panel Button -->
+    <button id="toggle-panel-btn" class="fixed top-4 left-4 z-20 bg-black bg-opacity-50 backdrop-blur-md p-2 rounded-full text-purple-300 hover:text-white transition-colors">
+        <svg id="toggle-icon-hide" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/></svg>
+        <svg id="toggle-icon-show" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m14 15 3-3-3-3"/></svg>
+    </button>
+
+    <!-- SVG Definitions for star gradient -->
+    <svg width="0" height="0" class="absolute">
+      <defs>
+        <linearGradient id="star-gradient" x1="50%" y1="0%" x2="50%" y2="100%">
+          <stop offset="0%" stop-color="#FDE047" /> <!-- yellow-300 -->
+          <stop offset="100%" stop-color="#F59E0B" /> <!-- amber-500 -->
+        </linearGradient>
+      </defs>
+    </svg>
+
+    <main id="main-grid" class="w-full max-w-6xl mx-auto z-10 grid grid-cols-1 lg:grid-cols-2 gap-8 transition-all duration-500">
+        <!-- Left Column: Controls and Name Input -->
+        <div id="left-panel" class="bg-black bg-opacity-40 backdrop-blur-md p-6 rounded-2xl shadow-2xl border border-purple-500/30 flex flex-col transition-all duration-500 max-h-[90vh]">
+            <h1 class="text-4xl font-bold text-center mb-2 text-purple-300">สุ่มสอยดาวลุ้นโชค</h1>
+            <p class="text-center text-purple-200/80 mb-6">เพิ่มรายชื่อเพื่อสร้างดวงดาว!</p>
+            
+            <div class="mb-4">
+                <label for="name-input" class="block mb-2 text-sm font-medium text-purple-300">ใส่รายชื่อ (แต่ละบรรทัดสำหรับ 1 ชื่อ)</label>
+                <textarea id="name-input" rows="6" class="w-full bg-gray-900/50 border border-purple-500/50 rounded-lg p-3 text-white focus:ring-purple-400 focus:border-purple-400" placeholder="ตัวอย่าง:&#10;สมชาย  รักดี (เว้นวรรค 2 ครั้ง)&#10;สมหญิง ใจงาม (เว้นวรรค 1 ครั้ง)&#10;มานี"></textarea>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-4">
+                <button id="add-names-btn" class="w-full bg-purple-600 hover:bg-purple-700 transition-all duration-300 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                    เพิ่ม/อัปเดตรายชื่อ
+                </button>
+                <button id="reset-btn" class="w-full bg-red-600 hover:bg-red-700 transition-all duration-300 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                    เริ่มใหม่
+                </button>
+            </div>
+            
+            <div class="mt-6">
+                 <h2 class="text-lg font-semibold text-purple-300">จำนวนดาวทั้งหมด: <span id="participant-count">0</span> ดวง</h2>
+            </div>
+            
+            <!-- Winners List Section -->
+            <div class="mt-4 flex-1 flex flex-col min-h-0">
+                <h2 class="text-lg font-semibold text-purple-300 mb-2">รายชื่อผู้ที่ได้รับรางวัลแล้ว</h2>
+                <div class="flex-1 overflow-y-auto bg-gray-900/50 p-3 rounded-lg border border-purple-500/50">
+                    <p id="winners-placeholder" class="text-purple-300/70 text-center">ยังไม่มีผู้ได้รับรางวัล</p>
+                    <ol id="winners-list" class="list-decimal list-inside text-white space-y-1"></ol>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Column: Star Field -->
+        <div id="star-field" class="bg-black bg-opacity-40 backdrop-blur-md p-6 rounded-2xl shadow-2xl border border-purple-500/30 flex flex-wrap gap-4 items-center justify-center content-start min-h-[400px] lg:min-h-full max-h-[90vh] overflow-y-auto">
+            <div id="star-placeholder" class="text-center text-purple-300/70">
+                <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 opacity-50"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                <p>เพิ่มรายชื่อเพื่อสร้างดวงดาว</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Winner Modal -->
+    <div id="winner-modal" class="hidden fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-800/80 border border-purple-500 rounded-2xl shadow-2xl p-8 text-center max-w-lg w-full relative">
+            <button id="close-modal-btn" class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            <p class="text-2xl text-purple-300 mb-4">ผู้โชคดีจากดาวดวงนี้คือ</p>
+            <p id="modal-winner-name" class="text-5xl md:text-6xl font-bold break-words min-h-[80px] flex items-center justify-center"></p>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const nameInput = document.getElementById('name-input');
+        const addNamesBtn = document.getElementById('add-names-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const participantCountSpan = document.getElementById('participant-count');
+        const starField = document.getElementById('star-field');
+        const starPlaceholder = document.getElementById('star-placeholder');
+        const winnerModal = document.getElementById('winner-modal');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const modalWinnerName = document.getElementById('modal-winner-name');
+        const togglePanelBtn = document.getElementById('toggle-panel-btn');
+        const leftPanel = document.getElementById('left-panel');
+        const mainGrid = document.getElementById('main-grid');
+        const toggleIconHide = document.getElementById('toggle-icon-hide');
+        const toggleIconShow = document.getElementById('toggle-icon-show');
+        const winnersList = document.getElementById('winners-list');
+        const winnersPlaceholder = document.getElementById('winners-placeholder');
+
+        // --- State ---
+        let participants = [];
+        let shuffledParticipants = [];
+        let winners = [];
+        let drawInterval = null;
+
+        // --- Functions ---
+        
+        /**
+         * Renders the list of winners.
+         */
+        const renderWinnersList = () => {
+            winnersList.innerHTML = ''; // Clear list
+            if (winners.length === 0) {
+                winnersPlaceholder.classList.remove('hidden');
+            } else {
+                winnersPlaceholder.classList.add('hidden');
+                winners.forEach(winner => {
+                    const li = document.createElement('li');
+                    li.textContent = winner;
+                    winnersList.appendChild(li);
+                });
+            }
+        };
+
+        /**
+         * Renders stars to the star field based on the shuffled participants list.
+         */
+        const renderStars = () => {
+            starField.innerHTML = ''; // Clear current stars
+            if (shuffledParticipants.length === 0) {
+                starField.appendChild(starPlaceholder);
+                return;
+            }
+
+            const starSVG = `<svg class="star-svg" viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+            
+            shuffledParticipants.forEach((name, index) => {
+                const starButton = document.createElement('button');
+                starButton.className = 'star-button';
+                starButton.dataset.index = index;
+                starButton.innerHTML = starSVG;
+                starButton.addEventListener('click', handleStarClick);
+                
+                const starSvgElement = starButton.querySelector('.star-svg');
+                const size = Math.random() * 35 + 25; // Random size from 25px to 60px
+                starSvgElement.style.width = `${size}px`;
+                starSvgElement.style.height = `${size}px`;
+                
+                const duration = Math.random() * 10 + 10; // 10s to 20s
+                const delay = Math.random() * 5;        // 0s to 5s
+                starButton.style.animationDuration = `${duration}s`;
+                starButton.style.animationDelay = `${delay}s`;
+
+                starField.appendChild(starButton);
+            });
+        };
+        
+        /**
+         * Hides the winner modal and clears any running animations.
+         */
+        const hideWinnerModal = () => {
+            winnerModal.classList.add('hidden');
+            if (drawInterval) clearInterval(drawInterval);
+            modalWinnerName.innerHTML = ''; // Use innerHTML to clear
+            modalWinnerName.classList.remove('winner-glow');
+        };
+
+        /**
+         * Shows the winner modal and starts the reveal animation.
+         */
+        const showWinnerModal = (winner) => {
+            winnerModal.classList.remove('hidden');
+            modalWinnerName.classList.remove('winner-glow');
+            
+            let shuffleCount = 0;
+            const availableNames = [...participants]; // Use all names for shuffling visual
+
+            drawInterval = setInterval(() => {
+                const randomIndex = Math.floor(Math.random() * availableNames.length);
+                const randomName = availableNames[randomIndex];
+                // Replace double spaces with <br> for line breaks
+                modalWinnerName.innerHTML = randomName.replace(/  /g, '<br>');
+                shuffleCount++;
+
+                if (shuffleCount > 30) { // Stop after 3 seconds
+                    clearInterval(drawInterval);
+                    // Replace double spaces with <br> for the final winner
+                    modalWinnerName.innerHTML = winner.replace(/  /g, '<br>');
+                    modalWinnerName.classList.add('winner-glow');
+
+                    confetti({
+                        particleCount: 150,
+                        spread: 90,
+                        origin: { y: 0.6 }
+                    });
+                }
+            }, 100);
+        };
+
+        /**
+         * Handles the click event on a star.
+         */
+        const handleStarClick = (event) => {
+            const starButton = event.currentTarget;
+            const winnerIndex = parseInt(starButton.dataset.index);
+            const winner = shuffledParticipants[winnerIndex];
+
+            // Add to winners list and render
+            winners.push(winner);
+            renderWinnersList();
+
+            starButton.disabled = true; // Disable the clicked star
+            showWinnerModal(winner);
+        };
+
+        /**
+         * Handles adding names from the textarea, shuffling, and re-rendering stars.
+         */
+        const handleAddNames = () => {
+            const namesFromInput = nameInput.value
+                .split('\n')
+                .map(name => name.trim())
+                .filter(name => name !== '');
+            
+            if (namesFromInput.length > 0) {
+                participants = [...new Set(namesFromInput)]; // Overwrite with new list for simplicity
+                shuffledParticipants = [...participants].sort(() => Math.random() - 0.5);
+                
+                // Reset winners when the participant list is updated
+                winners = [];
+                renderWinnersList();
+                
+                participantCountSpan.textContent = participants.length;
+                renderStars();
+            }
+        };
+
+        /**
+         * Resets the entire application state.
+         */
+        const handleReset = () => {
+            participants = [];
+            shuffledParticipants = [];
+            winners = [];
+            nameInput.value = '';
+            participantCountSpan.textContent = '0';
+            renderStars();
+            renderWinnersList();
+            hideWinnerModal();
+        };
+
+        /**
+         * Toggles the visibility of the control panel.
+         */
+        const handleTogglePanel = () => {
+            leftPanel.classList.toggle('hidden');
+            toggleIconHide.classList.toggle('hidden');
+            toggleIconShow.classList.toggle('hidden');
+
+            if (leftPanel.classList.contains('hidden')) {
+                mainGrid.classList.remove('lg:grid-cols-2');
+                mainGrid.classList.add('lg:grid-cols-1');
+            } else {
+                mainGrid.classList.remove('lg:grid-cols-1');
+                mainGrid.classList.add('lg:grid-cols-2');
+            }
+        };
+
+
+        // --- Event Listeners ---
+        addNamesBtn.addEventListener('click', handleAddNames);
+        resetBtn.addEventListener('click', handleReset);
+        closeModalBtn.addEventListener('click', hideWinnerModal);
+        togglePanelBtn.addEventListener('click', handleTogglePanel);
+        
+        // --- Initial Load ---
+        renderStars();
+        renderWinnersList();
+    </script>
+</body>
+</html>
+
