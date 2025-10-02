@@ -47,18 +47,21 @@
             animation: move-twinkle-back 200s linear infinite;
         }
         
-        /* Custom glow effect for the winner display */
-        .winner-glow {
-            animation: glow 2s ease-in-out infinite alternate;
+        /* Rainbow glow effect for the winner display */
+        .rainbow-winner {
+            animation: rainbow-glow 4s linear infinite;
+            color: white; /* Ensure text color is always white */
         }
         
-        @keyframes glow {
-            from {
-                text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #e60073, 0 0 40px #e60073, 0 0 50px #e60073, 0 0 60px #e60073, 0 0 70px #e60073;
-            }
-            to {
-                text-shadow: 0 0 20px #fff, 0 0 30px #ff4da6, 0 0 40px #ff4da6, 0 0 50px #ff4da6, 0 0 60px #ff4da6, 0 0 70px #ff4da6, 0 0 80px #ff4da6;
-            }
+        @keyframes rainbow-glow {
+            0% { text-shadow: 0 0 10px #ff80ed, 0 0 20px #ff80ed; }
+            15% { text-shadow: 0 0 10px #06b6d4, 0 0 20px #06b6d4; }
+            30% { text-shadow: 0 0 10px #a3e635, 0 0 20px #a3e635; }
+            45% { text-shadow: 0 0 10px #fde047, 0 0 20px #fde047; }
+            60% { text-shadow: 0 0 10px #f97316, 0 0 20px #f97316; }
+            75% { text-shadow: 0 0 10px #ef4444, 0 0 20px #ef4444; }
+            90% { text-shadow: 0 0 10px #a855f7, 0 0 20px #a855f7; }
+            100% { text-shadow: 0 0 10px #ff80ed, 0 0 20px #ff80ed; }
         }
 
         /* Custom scrollbar */
@@ -147,9 +150,11 @@
       </defs>
     </svg>
 
-    <main id="main-grid" class="w-full max-w-6xl mx-auto z-10 grid grid-cols-1 lg:grid-cols-2 gap-8 transition-all duration-500">
+    <!-- UPDATED: Wider layout (max-w-screen-xl) and new 1/3 + 2/3 grid layout (lg:grid-cols-3) -->
+    <main id="main-grid" class="w-full max-w-screen-xl mx-auto z-10 grid grid-cols-1 lg:grid-cols-3 gap-8 transition-all duration-500">
         <!-- Left Column: Controls and Name Input -->
-        <div id="left-panel" class="bg-black bg-opacity-40 backdrop-blur-md p-6 rounded-2xl shadow-2xl border border-purple-500/30 flex flex-col transition-all duration-500 max-h-[90vh]">
+        <!-- UPDATED: Added lg:col-span-1 for the new grid layout -->
+        <div id="left-panel" class="bg-black bg-opacity-40 backdrop-blur-md p-6 rounded-2xl shadow-2xl border border-purple-500/30 flex flex-col transition-all duration-500 max-h-[90vh] lg:col-span-1">
             <h1 class="text-4xl font-bold text-center mb-2 text-purple-300">สุ่มสอยดาวลุ้นโชค</h1>
             <p class="text-center text-purple-200/80 mb-6">เพิ่มรายชื่อเพื่อสร้างดวงดาว!</p>
             
@@ -184,7 +189,8 @@
         </div>
         
         <!-- Right Column: Star Field -->
-        <div id="star-field" class="bg-black bg-opacity-40 backdrop-blur-md p-6 rounded-2xl shadow-2xl border border-purple-500/30 flex flex-wrap gap-4 items-center justify-center content-start min-h-[400px] lg:min-h-full max-h-[90vh] overflow-y-auto">
+        <!-- UPDATED: Added lg:col-span-2 for the new grid layout -->
+        <div id="star-field" class="bg-black bg-opacity-40 backdrop-blur-md p-6 rounded-2xl shadow-2xl border border-purple-500/30 flex flex-wrap gap-4 items-center justify-center content-start min-h-[400px] lg:min-h-full max-h-[90vh] overflow-y-auto lg:col-span-2">
             <div id="star-placeholder" class="text-center text-purple-300/70">
                 <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 opacity-50"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                 <p>เพิ่มรายชื่อเพื่อสร้างดวงดาว</p>
@@ -287,7 +293,7 @@
             winnerModal.classList.add('hidden');
             if (drawInterval) clearInterval(drawInterval);
             modalWinnerName.innerHTML = ''; // Use innerHTML to clear
-            modalWinnerName.classList.remove('winner-glow');
+            modalWinnerName.classList.remove('rainbow-winner');
         };
 
         /**
@@ -295,7 +301,7 @@
          */
         const showWinnerModal = (winner) => {
             winnerModal.classList.remove('hidden');
-            modalWinnerName.classList.remove('winner-glow');
+            modalWinnerName.classList.remove('rainbow-winner');
             
             let shuffleCount = 0;
             const availableNames = [...participants]; // Use all names for shuffling visual
@@ -311,7 +317,7 @@
                     clearInterval(drawInterval);
                     // Replace double spaces with <br> for the final winner
                     modalWinnerName.innerHTML = winner.replace(/  /g, '<br>');
-                    modalWinnerName.classList.add('winner-glow');
+                    modalWinnerName.classList.add('rainbow-winner');
 
                     confetti({
                         particleCount: 150,
@@ -382,12 +388,15 @@
             toggleIconHide.classList.toggle('hidden');
             toggleIconShow.classList.toggle('hidden');
 
+            // UPDATED: Toggle column spans instead of grid definition for a smoother transition
             if (leftPanel.classList.contains('hidden')) {
-                mainGrid.classList.remove('lg:grid-cols-2');
-                mainGrid.classList.add('lg:grid-cols-1');
+                // When panel is hidden, star field spans the full grid width
+                starField.classList.remove('lg:col-span-2');
+                starField.classList.add('lg:col-span-3');
             } else {
-                mainGrid.classList.remove('lg:grid-cols-1');
-                mainGrid.classList.add('lg:grid-cols-2');
+                // When panel is shown, star field goes back to its default span
+                starField.classList.remove('lg:col-span-3');
+                starField.classList.add('lg:col-span-2');
             }
         };
 
