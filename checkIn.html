@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบเช็คชื่อด้วยใบหน้า</title>
+    <title>ระบบเช็คชื่อด้วยใบหน้า V3</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Face API -->
     <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+    <!-- Font -->
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Sarabun', sans-serif; }
@@ -16,19 +18,33 @@
 <body class="bg-slate-100 min-h-screen p-4 md:p-8">
 
     <div class="max-w-6xl mx-auto">
-        <!-- Header -->
-        <header class="mb-6 text-center">
-            <h1 class="text-3xl font-bold text-slate-800">ระบบเช็คชื่อผู้เข้าอบรมด้วยใบหน้า</h1>
-            <p id="status-loading" class="text-yellow-600 animate-pulse">กำลังโหลดโมเดล AI... กรุณารอสักครู่</p>
-            <p id="status-ready" class="text-green-600 hidden font-semibold">ระบบพร้อมใช้งาน</p>
+        <!-- Header & Navigation -->
+        <header class="mb-6">
+            <div class="text-center mb-6">
+                <h1 class="text-3xl font-bold text-slate-800">ระบบเช็คชื่อผู้เข้าอบรมด้วยใบหน้า</h1>
+                <p id="status-loading" class="text-yellow-600 animate-pulse">กำลังโหลดโมเดล AI... กรุณารอสักครู่</p>
+                <p id="status-ready" class="text-green-600 hidden font-semibold">ระบบพร้อมใช้งาน</p>
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex justify-center space-x-4 mb-6">
+                <button id="tab-attendance" class="px-6 py-2 bg-blue-600 text-white rounded-full font-semibold shadow-md transition-all">
+                    หน้าเช็คชื่อ / ลงทะเบียน
+                </button>
+                <button id="tab-management" class="px-6 py-2 bg-white text-slate-600 hover:bg-slate-200 rounded-full font-semibold shadow-sm transition-all">
+                    จัดการข้อมูลผู้ลงทะเบียน
+                </button>
+            </div>
         </header>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- VIEW 1: Attendance & Registration -->
+        <div id="view-attendance" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- Main Interaction Area (Camera & Register) -->
             <div class="lg:col-span-2 space-y-6">
                 <!-- Camera Feed -->
                 <div class="bg-white p-4 rounded-xl shadow-lg">
-                    <div id="video-container" class="rounded-lg overflow-hidden bg-black aspect-video relative flex items-center justify-center">
+                    <!-- Added min-h to prevent collapse before video loads -->
+                    <div id="video-container" class="rounded-lg overflow-hidden bg-black aspect-video relative flex items-center justify-center min-h-[300px]">
                          <video id="video" class="w-full h-full object-cover" autoplay muted playsinline></video>
                          <canvas id="overlay"></canvas>
                          <div id="camera-placeholder" class="absolute text-white flex flex-col items-center">
@@ -84,27 +100,56 @@
                     </div>
 
                     <div class="flex-1 overflow-y-auto pr-2 space-y-2" id="attendance-list">
-                        <!-- Attendance items will be injected here -->
-                        <p class="text-slate-400 text-center py-4">ยังไม่มีการเช็คชื่อวันนี้</p>
+                        <p class="text-slate-400 text-center py-4">กำลังโหลด...</p>
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- VIEW 2: User Management (Hidden by default) -->
+        <div id="view-management" class="hidden bg-white p-6 rounded-xl shadow-lg">
+            <h2 class="text-2xl font-semibold mb-6 text-slate-800 border-b pb-4">จัดการข้อมูลผู้ลงทะเบียน</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-slate-500 border-b border-slate-200">
+                            <th class="py-3 px-4 font-semibold">ชื่อ-นามสกุล</th>
+                            <th class="py-3 px-4 font-semibold">วันที่ลงทะเบียน</th>
+                            <th class="py-3 px-4 font-semibold text-right">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="user-management-list">
+                        <!-- User rows will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+            <p id="no-users-msg" class="text-center text-slate-500 py-8 hidden">ยังไม่มีผู้ลงทะเบียนในระบบ</p>
         </div>
     </div>
 
     <!-- Toast Notification -->
     <div id="toast" class="fixed bottom-5 right-5 px-6 py-4 rounded-lg shadow-xl transform transition-all duration-300 translate-y-20 opacity-0 z-50 font-semibold text-white"></div>
 
+    <!-- Custom Modal for Delete Confirmation -->
+    <div id="delete-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-xl shadow-xl max-w-sm w-full mx-4">
+            <h3 class="text-xl font-bold text-slate-800 mb-2">ยืนยันการลบ</h3>
+            <p class="text-slate-600 mb-6">คุณต้องการลบผู้ใช้งาน "<span id="delete-user-name" class="font-semibold"></span>" ใช่หรือไม่? การกระทำนี้ไม่สามารถเรียกคืนได้</p>
+            <div class="flex justify-end space-x-3">
+                <button id="btn-cancel-delete" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg font-medium">ยกเลิก</button>
+                <button id="btn-confirm-delete" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium">ลบผู้ใช้งาน</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Firebase Setup -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, where, orderBy, serverTimestamp, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, where, orderBy, serverTimestamp, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- Configuration & Globals ---
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
-        
-        // Your web app's Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyDQHNJIYdss2pPiaIhJIwh0r33ZgByomUA",
             authDomain: "checkin-58c3d.firebaseapp.com",
@@ -119,8 +164,11 @@
         let faceMatcher = null;
         let isModelLoaded = false;
         let isCameraReady = false;
+        let allRegisteredUsers = [];
+        let userToDeleteId = null;
+        // NEW: Track who already checked in TODAY to update UI and prevent duplicate calls
+        const checkedInToday = new Set();
 
-        // Use 'public' path for shared kiosk-mode style data
         const COLLECTION_USERS = `artifacts/${appId}/public/data/face_users`;
         const COLLECTION_ATTENDANCE = `artifacts/${appId}/public/data/face_attendance`;
 
@@ -136,13 +184,19 @@
         const countRegisteredEl = document.getElementById('count-registered');
         const btnClearToday = document.getElementById('btn-clear-today');
         const cameraPlaceholder = document.getElementById('camera-placeholder');
+        const tabAttendance = document.getElementById('tab-attendance');
+        const tabManagement = document.getElementById('tab-management');
+        const viewAttendance = document.getElementById('view-attendance');
+        const viewManagement = document.getElementById('view-management');
+        const userManagementListEl = document.getElementById('user-management-list');
+        const noUsersMsg = document.getElementById('no-users-msg');
+        const deleteModal = document.getElementById('delete-modal');
+        const deleteUserNameEl = document.getElementById('delete-user-name');
+        const btnCancelDelete = document.getElementById('btn-cancel-delete');
+        const btnConfirmDelete = document.getElementById('btn-confirm-delete');
 
         // --- Initialization ---
         async function initApp() {
-            if (!firebaseConfig) {
-                showToast('Error: Firebase config missing', 'error');
-                return;
-            }
             const app = initializeApp(firebaseConfig);
             auth = getAuth(app);
             db = getFirestore(app);
@@ -150,7 +204,6 @@
             onAuthStateChanged(auth, async (firebaseUser) => {
                 if (firebaseUser) {
                     user = firebaseUser;
-                    // Load models first, then data, then camera
                     await loadModels();
                     await loadRegisteredUsers();
                     setupRealtimeAttendance();
@@ -161,20 +214,39 @@
             });
         }
 
+        // --- Tab Switching ---
+        tabAttendance.addEventListener('click', () => switchTab('attendance'));
+        tabManagement.addEventListener('click', () => switchTab('management'));
+        function switchTab(tab) {
+            if (tab === 'attendance') {
+                viewAttendance.classList.remove('hidden');
+                viewManagement.classList.add('hidden');
+                tabAttendance.classList.replace('bg-white', 'bg-blue-600');
+                tabAttendance.classList.replace('text-slate-600', 'text-white');
+                tabManagement.classList.replace('bg-blue-600', 'bg-white');
+                tabManagement.classList.replace('text-white', 'text-slate-600');
+            } else {
+                viewAttendance.classList.add('hidden');
+                viewManagement.classList.remove('hidden');
+                tabManagement.classList.replace('bg-white', 'bg-blue-600');
+                tabManagement.classList.replace('text-slate-600', 'text-white');
+                tabAttendance.classList.replace('bg-blue-600', 'bg-white');
+                tabAttendance.classList.replace('text-white', 'text-slate-600');
+                renderManagementList();
+            }
+        }
+
         // --- Face API Setup ---
         async function loadModels() {
             try {
-                // Using a reliable CDN for standard face-api models
-                const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
-                // Alternative if above fails due to CORS in some environments:
+                // Alternative robust CDN
                 // const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
-
+                const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
                 await Promise.all([
                     faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
                     faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
                     faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
                 ]);
-
                 isModelLoaded = true;
                 updateSystemStatus();
             } catch (error) {
@@ -199,53 +271,52 @@
         video.addEventListener('play', () => {
             isCameraReady = true;
             updateSystemStatus();
-
-            // Setup canvas to match video dimensions
             const displaySize = { width: video.offsetWidth, height: video.offsetHeight };
             faceapi.matchDimensions(canvas, displaySize);
 
-            // Start detection loop
             setInterval(async () => {
-                if (!isModelLoaded || !faceMatcher) return;
+                if (!isModelLoaded || !faceMatcher || viewAttendance.classList.contains('hidden')) return;
 
-                // Ensure canvas matches video if window resized
                 if (canvas.width !== video.offsetWidth || canvas.height !== video.offsetHeight) {
                      faceapi.matchDimensions(canvas, { width: video.offsetWidth, height: video.offsetHeight });
                 }
 
-                // Detect all faces
-                const detections = await faceapi.detectAllFaces(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+                // Slightly lower Detection confidence to ensure we catch faces even at bad angles
+                const detections = await faceapi.detectAllFaces(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.4 }))
                     .withFaceLandmarks()
                     .withFaceDescriptors();
 
                 const resizedDetections = faceapi.resizeResults(detections, { width: video.offsetWidth, height: video.offsetHeight });
-
-                // Clear previous drawings
                 canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
 
                 if (resizedDetections.length > 0) {
                     const results = resizedDetections.map(d => faceMatcher.findBestMatch(d.descriptor));
-
                     results.forEach((result, i) => {
                         const box = resizedDetections[i].detection.box;
                         const { label, distance } = result;
-
-                        // Draw box
-                        let color = '#ef4444'; // Red for unknown
+                        
+                        let color = '#ef4444'; // Red (Unknown)
                         let text = 'ไม่รู้จัก';
 
                         if (label !== 'unknown') {
-                             color = '#22c55e'; // Green for known
-                             text = `${label} (${Math.round((1-distance)*100)}%)`;
-                             // Trigger Check-in for known person
-                             handleCheckIn(label);
+                            const isCheckedIn = checkedInToday.has(label);
+                            // Green if new, Blue if already checked in
+                            color = isCheckedIn ? '#3b82f6' : '#22c55e';
+                            const percentage = Math.round((1-distance)*100);
+                            text = `${label} (${percentage}%) ${isCheckedIn ? '(เช็คชื่อแล้ว)' : ''}`;
+                            
+                            // Trigger check-in only if NOT checked in today
+                            if (!isCheckedIn) {
+                                handleCheckIn(label);
+                            }
                         }
-
-                        const drawBox = new faceapi.draw.DrawBox(box, { label: text, boxColor: color });
+                        
+                        // Draw with slightly thicker lines for better visibility
+                        const drawBox = new faceapi.draw.DrawBox(box, { label: text, boxColor: color, lineWidth: 2 });
                         drawBox.draw(canvas);
                     });
                 }
-            }, 500); // Check every 500ms
+            }, 500);
         });
 
         function updateSystemStatus() {
@@ -258,164 +329,158 @@
 
         // --- Firestore Logic ---
 
-        // 1. Load known faces
         function loadRegisteredUsers() {
-            const q = query(collection(db, COLLECTION_USERS));
+            const q = query(collection(db, COLLECTION_USERS), orderBy('createdAt', 'desc'));
             onSnapshot(q, (snapshot) => {
                 labeledFaceDescriptors = [];
+                allRegisteredUsers = [];
                 let count = 0;
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    // Convert regular array back to Float32Array for face-api
-                    const descriptor = new Float32Array(data.descriptor);
-                    labeledFaceDescriptors.push(new faceapi.LabeledFaceDescriptors(data.name, [descriptor]));
-                    count++;
+                snapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    allRegisteredUsers.push({ id: docSnap.id, ...data });
+                    if(data.descriptor) {
+                         const descriptor = new Float32Array(data.descriptor);
+                         labeledFaceDescriptors.push(new faceapi.LabeledFaceDescriptors(data.name, [descriptor]));
+                         count++;
+                    }
                 });
-
                 countRegisteredEl.textContent = count;
-
-                if (labeledFaceDescriptors.length > 0) {
-                    faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6); // 0.6 is distance threshold
-                     console.log("Face Matcher updated with", count, "faces");
-                } else {
-                    faceMatcher = null; // Reset if no users
-                }
+                // Distance 0.6 = 40% similarity threshold.
+                // If user sees 50% (distance 0.5), it matches (0.5 < 0.6).
+                faceMatcher = labeledFaceDescriptors.length > 0 ? new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6) : null;
+                if (!viewManagement.classList.contains('hidden')) renderManagementList();
             });
         }
 
-        // 2. Register new face
-        btnRegister.addEventListener('click', async () => {
-            const name = inputName.value.trim();
-            if (!name) {
-                showToast("กรุณากรอกชื่อก่อนลงทะเบียน", 'warning');
+        function renderManagementList() {
+            userManagementListEl.innerHTML = '';
+            if (allRegisteredUsers.length === 0) {
+                noUsersMsg.classList.remove('hidden');
                 return;
             }
-            if (!isModelLoaded || !isCameraReady) {
-                 showToast("ระบบยังไม่พร้อม กรุณารอสักครู่", 'warning');
-                 return;
-            }
+            noUsersMsg.classList.add('hidden');
+            allRegisteredUsers.forEach(user => {
+                const dateStr = user.createdAt ? user.createdAt.toDate().toLocaleDateString('th-TH') : '-';
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-slate-100 hover:bg-slate-50 transition-colors';
+                tr.innerHTML = `
+                    <td class="py-4 px-4 font-medium text-slate-800 name-cell">${user.name}</td>
+                    <td class="py-4 px-4 text-slate-500">${dateStr}</td>
+                    <td class="py-4 px-4 text-right space-x-2 action-cell">
+                        <button class="btn-edit text-blue-600 hover:text-blue-800 font-semibold text-sm px-3 py-1 bg-blue-50 hover:bg-blue-100 rounded-md transition">แก้ไข</button>
+                        <button class="btn-delete text-red-600 hover:text-red-800 font-semibold text-sm px-3 py-1 bg-red-50 hover:bg-red-100 rounded-md transition">ลบ</button>
+                    </td>`;
+                
+                const btnEdit = tr.querySelector('.btn-edit');
+                const btnDelete = tr.querySelector('.btn-delete');
+                const nameCell = tr.querySelector('.name-cell');
+                const actionCell = tr.querySelector('.action-cell');
 
-            btnRegister.disabled = true;
-            btnRegister.textContent = "กำลังประมวลผล...";
-
-            try {
-                // Detect single face with highest confidence
-                const detection = await faceapi.detectSingleFace(video, new faceapi.SsdMobilenetv1Options())
-                    .withFaceLandmarks()
-                    .withFaceDescriptor();
-
-                if (detection) {
-                    // Save to Firestore. Must convert Float32Array to normal array for JSON storage.
-                    const descriptorArray = Array.from(detection.descriptor);
-                    await addDoc(collection(db, COLLECTION_USERS), {
-                        name: name,
-                        descriptor: descriptorArray,
-                        createdAt: serverTimestamp()
+                btnDelete.addEventListener('click', () => confirmDeleteUser(user.id, user.name));
+                btnEdit.addEventListener('click', () => {
+                    const currentName = nameCell.textContent;
+                    nameCell.innerHTML = `<input type="text" class="edit-input w-full p-2 border rounded focus:ring-2 focus:ring-blue-500" value="${currentName}">`;
+                    actionCell.innerHTML = `<button class="btn-save text-white bg-green-500 hover:bg-green-600 font-semibold text-sm px-3 py-1 rounded-md transition mr-2">บันทึก</button><button class="btn-cancel text-slate-600 bg-slate-200 hover:bg-slate-300 font-semibold text-sm px-3 py-1 rounded-md transition">ยกเลิก</button>`;
+                    nameCell.querySelector('input').focus();
+                    actionCell.querySelector('.btn-save').addEventListener('click', async () => {
+                        const newName = nameCell.querySelector('input').value.trim();
+                        if (newName && newName !== currentName) {
+                            await updateDoc(doc(db, COLLECTION_USERS, user.id), { name: newName });
+                            showToast('แก้ไขชื่อเรียบร้อยแล้ว', 'success');
+                        } else { renderManagementList(); }
                     });
+                    actionCell.querySelector('.btn-cancel').addEventListener('click', () => renderManagementList());
+                });
+                userManagementListEl.appendChild(tr);
+            });
+        }
 
-                    showToast(`ลงทะเบียน "${name}" เรียบร้อยแล้ว`, 'success');
-                    inputName.value = '';
-                } else {
-                    showToast("ไม่พบใบหน้า หรือมีมากกว่า 1 คนในกล้อง", 'error');
-                }
-            } catch (e) {
-                console.error("Registration error:", e);
-                showToast("เกิดข้อผิดพลาดในการลงทะเบียน", 'error');
-            } finally {
-                btnRegister.disabled = false;
-                btnRegister.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    ถ่ายภาพเพื่อลงทะเบียน`;
+        function confirmDeleteUser(id, name) {
+            userToDeleteId = id;
+            deleteUserNameEl.textContent = name;
+            deleteModal.classList.remove('hidden');
+            deleteModal.classList.add('flex');
+        }
+        btnCancelDelete.addEventListener('click', () => { deleteModal.classList.add('hidden'); deleteModal.classList.remove('flex'); userToDeleteId = null; });
+        btnConfirmDelete.addEventListener('click', async () => {
+            if (userToDeleteId) {
+                await deleteDoc(doc(db, COLLECTION_USERS, userToDeleteId));
+                showToast('ลบผู้ใช้งานเรียบร้อยแล้ว', 'success');
+                deleteModal.classList.add('hidden'); deleteModal.classList.remove('flex'); userToDeleteId = null;
             }
         });
 
-        // 3. Check-in Logic (Debounced)
-        const recentCheckIns = new Map(); // Memory cache to avoid spamming Firestore every frame
+        btnRegister.addEventListener('click', async () => {
+            const name = inputName.value.trim();
+            if (!name) { showToast("กรุณากรอกชื่อก่อนลงทะเบียน", 'warning'); return; }
+            if (!isModelLoaded || !isCameraReady) { showToast("ระบบยังไม่พร้อม", 'warning'); return; }
+            btnRegister.disabled = true; btnRegister.textContent = "กำลังประมวลผล...";
+            try {
+                const detection = await faceapi.detectSingleFace(video, new faceapi.SsdMobilenetv1Options()).withFaceLandmarks().withFaceDescriptor();
+                if (detection) {
+                    await addDoc(collection(db, COLLECTION_USERS), { name: name, descriptor: Array.from(detection.descriptor), createdAt: serverTimestamp() });
+                    showToast(`ลงทะเบียน "${name}" เรียบร้อยแล้ว`, 'success');
+                    inputName.value = '';
+                } else { showToast("ไม่พบใบหน้า หรือมีมากกว่า 1 คนในกล้อง", 'error'); }
+            } catch (e) { console.error(e); showToast("เกิดข้อผิดพลาด", 'error'); }
+            finally { btnRegister.disabled = false; btnRegister.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>ถ่ายภาพเพื่อลงทะเบียน`; }
+        });
+
+        // 3. Check-in Logic (IMPROVED)
+        const pendingCheckIns = new Set(); // Prevent multiple parallel calls for same person
 
         async function handleCheckIn(name) {
-            const now = Date.now();
-            const lastCheckIn = recentCheckIns.get(name);
-
-            // Don't check in same person within 1 minute (60000ms) to prevent spam due to high FPS detection
-            if (lastCheckIn && (now - lastCheckIn < 60000)) {
-                return;
-            }
-
-            // Optimistically update local cache
-            recentCheckIns.set(name, now);
-
-            // Double check against Firestore today's data to be sure (optional but good for persistence across refreshes if needed,
-            // here we rely on real-time listener to keep local state reasonably synced, but let's just push and rely on UI to show it)
-            // A better approach for real production is to query if they already checked in TODAY before adding.
-            // For simplicity in this demo, we'll just add it and let the UI filter or show duplicates if they happen after refresh.
-            // *Self-correction*: Let's query today's start timestamp to prevent duplicate inserts on refresh.
+            // If already checked in today locally, SKIP everything.
+            if (checkedInToday.has(name) || pendingCheckIns.has(name)) return;
+            
+            pendingCheckIns.add(name);
+            console.log(`Attempting check-in for: ${name}`);
 
             const todayStart = new Date();
             todayStart.setHours(0,0,0,0);
 
-            const q = query(
-                collection(db, COLLECTION_ATTENDANCE),
-                where("name", "==", name),
-                where("timestamp", ">=", todayStart)
-            );
-
-            const snapshot = await getDocs(q);
-            if (!snapshot.empty) {
-                 // Already checked in today in DB
-                 return;
-            }
-
-            // Add to Firestore
             try {
-                await addDoc(collection(db, COLLECTION_ATTENDANCE), {
-                    name: name,
-                    timestamp: serverTimestamp()
-                });
-                showToast(`${name} เช็คชื่อแล้ว!`, 'success');
+                // Double check Firestore just in case local state is stale (e.g. page refresh right after midnight)
+                const q = query(collection(db, COLLECTION_ATTENDANCE), where("name", "==", name), where("timestamp", ">=", todayStart));
+                const snapshot = await getDocs(q);
+                
+                if (!snapshot.empty) {
+                    console.log(`${name} already in DB today.`);
+                    checkedInToday.add(name); // Sync local state
+                } else {
+                    await addDoc(collection(db, COLLECTION_ATTENDANCE), { name: name, timestamp: serverTimestamp() });
+                    showToast(`${name} เช็คชื่อแล้ว!`, 'success');
+                    // checkedInToday.add(name) will be handled by onSnapshot automatically for robustness
+                }
             } catch (e) {
-                console.error("Check-in failed", e);
-                recentCheckIns.delete(name); // revert cache if failed
+                console.error("Check-in failed for", name, e);
+            } finally {
+                pendingCheckIns.delete(name);
             }
         }
 
-        // 4. Real-time Attendance List
+        // 4. Real-time Attendance List (IMPROVED)
         function setupRealtimeAttendance() {
-            // Query for today's attendance
             const todayStart = new Date();
             todayStart.setHours(0,0,0,0);
-
-            const q = query(
-                collection(db, COLLECTION_ATTENDANCE),
-                where("timestamp", ">=", todayStart),
-                orderBy("timestamp", "desc")
-            );
-
+            const q = query(collection(db, COLLECTION_ATTENDANCE), where("timestamp", ">=", todayStart), orderBy("timestamp", "desc"));
+            
             onSnapshot(q, (snapshot) => {
                 attendanceListEl.innerHTML = '';
+                checkedInToday.clear(); // Reset and rebuild from fresh data
                 let count = 0;
+                
                 if (snapshot.empty) {
                     attendanceListEl.innerHTML = '<p class="text-slate-400 text-center py-4">ยังไม่มีการเช็คชื่อวันนี้</p>';
                 } else {
                     snapshot.forEach(doc => {
                         const data = doc.data();
-                        const time = data.timestamp ? data.timestamp.toDate().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : 'กำลังบันทึก...';
+                        checkedInToday.add(data.name); // IMPORTANT: Keep track of who checked in
                         
+                        const time = data.timestamp ? data.timestamp.toDate().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '...';
                         const item = document.createElement('div');
                         item.className = 'flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100 animate-fadeIn';
-                        item.innerHTML = `
-                            <div class="flex items-center">
-                                <div class="h-8 w-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center mr-3">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                                    </svg>
-                                </div>
-                                <span class="font-medium text-slate-700">${data.name}</span>
-                            </div>
-                            <span class="text-sm text-slate-500">${time} น.</span>
-                        `;
+                        item.innerHTML = `<div class="flex items-center"><div class="h-8 w-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg></div><span class="font-medium text-slate-700">${data.name}</span></div><span class="text-sm text-slate-500">${time} น.</span>`;
                         attendanceListEl.appendChild(item);
                         count++;
                     });
@@ -424,56 +489,36 @@
             });
         }
 
-        // 5. Clear today's list (Utility for testing/resetting demo)
         btnClearToday.addEventListener('click', async () => {
-            if(!confirm('คุณแน่ใจหรือไม่ที่จะล้างข้อมูลการเช็คชื่อของวันนี้? (ข้อมูลผู้ลงทะเบียนจะไม่หายไป)')) return;
-
-            const todayStart = new Date();
-            todayStart.setHours(0,0,0,0);
-             const q = query(
-                collection(db, COLLECTION_ATTENDANCE),
-                where("timestamp", ">=", todayStart)
-            );
-            const snapshot = await getDocs(q);
-            snapshot.forEach(async (docSnap) => {
-                await deleteDoc(doc(db, COLLECTION_ATTENDANCE, docSnap.id));
-            });
-            recentCheckIns.clear();
-            showToast('ล้างรายการวันนี้เรียบร้อย', 'success');
+             deleteUserNameEl.textContent = "รายการเช็คชื่อทั้งหมดของวันนี้";
+             deleteModal.querySelector('h3').textContent = "ยืนยันการล้างรายการ";
+             if (btnClearToday.dataset.confirm === 'true') {
+                const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+                const q = query(collection(db, COLLECTION_ATTENDANCE), where("timestamp", ">=", todayStart));
+                const snapshot = await getDocs(q);
+                snapshot.forEach(async (docSnap) => await deleteDoc(doc(db, COLLECTION_ATTENDANCE, docSnap.id)));
+                checkedInToday.clear();
+                showToast('ล้างรายการวันนี้เรียบร้อย', 'success');
+                btnClearToday.textContent = 'ล้างรายการวันนี้'; btnClearToday.classList.remove('text-red-700', 'font-bold'); delete btnClearToday.dataset.confirm;
+            } else {
+                btnClearToday.textContent = 'ยืนยันการล้าง?'; btnClearToday.classList.add('text-red-700', 'font-bold'); btnClearToday.dataset.confirm = 'true';
+                setTimeout(() => { btnClearToday.textContent = 'ล้างรายการวันนี้'; btnClearToday.classList.remove('text-red-700', 'font-bold'); delete btnClearToday.dataset.confirm; }, 3000);
+            }
         });
 
-
-        // --- Utilities ---
         function showToast(message, type = 'success') {
             const toast = document.getElementById('toast');
             toast.textContent = message;
             toast.className = `fixed bottom-5 right-5 px-6 py-4 rounded-lg shadow-xl transform transition-all duration-300 z-50 font-semibold text-white ${type === 'success' ? 'bg-green-500' : type === 'warning' ? 'bg-yellow-500' : 'bg-red-500'}`;
-
-            // Show
-            setTimeout(() => {
-                toast.classList.remove('translate-y-20', 'opacity-0');
-            }, 10);
-
-            // Hide after 3s
-            setTimeout(() => {
-                toast.classList.add('translate-y-20', 'opacity-0');
-            }, 3000);
+            setTimeout(() => toast.classList.remove('translate-y-20', 'opacity-0'), 10);
+            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
         }
 
-        // Start App
         initApp();
-
     </script>
-
     <style>
-        /* Simple fade-in animation for list items */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fadeIn {
-            animation: fadeIn 0.3s ease-out forwards;
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
     </style>
 </body>
 </html>
