@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบเช็คชื่อด้วยใบหน้า</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; }
+        #video-container { position: relative; }
+        canvas { position: absolute; top: 0; left: 0; }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <header class="mb-6 text-center">
+            <h1 class="text-3xl font-bold text-slate-800">ระบบเช็คชื่อผู้เข้าอบรมด้วยใบหน้า</h1>
+            <p id="status-loading" class="text-yellow-600 animate-pulse">กำลังโหลดโมเดล AI... กรุณารอสักครู่</p>
+            <p id="status-ready" class="text-green-600 hidden font-semibold">ระบบพร้อมใช้งาน</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Main Interaction Area (Camera & Register) -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Camera Feed -->
+                <div class="bg-white p-4 rounded-xl shadow-lg">
+                    <div id="video-container" class="rounded-lg overflow-hidden bg-black aspect-video relative flex items-center justify-center">
+                         <video id="video" class="w-full h-full object-cover" autoplay muted playsinline></video>
+                         <canvas id="overlay"></canvas>
+                         <div id="camera-placeholder" class="absolute text-white flex flex-col items-center">
+                             <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                             </svg>
+                             <span class="mt-2">กำลังเปิดกล้อง...</span>
+                         </div>
+                    </div>
+                </div>
+
+                <!-- Registration Form -->
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4 flex items-center text-slate-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                        </svg>
+                        ลงทะเบียนผู้เข้าอบรมใหม่
+                    </h2>
+                    <div class="flex gap-4 md:flex-row flex-col">
+                        <input type="text" id="trainee-name" placeholder="กรอกชื่อ-นามสกุล" class="flex-1 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        <button id="btn-register" disabled class="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white px-6 py-3 rounded-lg font-semibold transition flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            ถ่ายภาพเพื่อลงทะเบียน
+                        </button>
+                    </div>
+                    <p class="text-sm text-slate-500 mt-2">* ให้ผู้ลงทะเบียนยืนหน้ากล้องเพียงคนเดียวขณะกดปุ่ม</p>
+                </div>
+            </div>
+
+            <!-- Sidebar (Attendance List) -->
+            <div class="space-y-6">
+                <!-- Today's Stats -->
+                 <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-green-50 p-4 rounded-xl border border-green-100">
+                        <h3 class="text-green-800 text-sm font-semibold">เช็คชื่อแล้ว</h3>
+                        <p id="count-present" class="text-3xl font-bold text-green-600">0</p>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                        <h3 class="text-blue-800 text-sm font-semibold">ลงทะเบียนทั้งหมด</h3>
+                        <p id="count-registered" class="text-3xl font-bold text-blue-600">0</p>
+                    </div>
+                </div>
+
+                <!-- List -->
+                <div class="bg-white p-6 rounded-xl shadow-lg max-h-[600px] flex flex-col">
+                    <div class="flex justify-between items-center mb-4">
+                         <h2 class="text-xl font-semibold text-slate-700">รายการเข้าอบรมวันนี้</h2>
+                         <button id="btn-clear-today" class="text-sm text-red-500 hover:text-red-700">ล้างรายการวันนี้</button>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto pr-2 space-y-2" id="attendance-list">
+                        <!-- Attendance items will be injected here -->
+                        <p class="text-slate-400 text-center py-4">ยังไม่มีการเช็คชื่อวันนี้</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 px-6 py-4 rounded-lg shadow-xl transform transition-all duration-300 translate-y-20 opacity-0 z-50 font-semibold text-white"></div>
+
+    <!-- Firebase Setup -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, where, orderBy, serverTimestamp, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Configuration & Globals ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
+        
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDQHNJIYdss2pPiaIhJIwh0r33ZgByomUA",
+            authDomain: "checkin-58c3d.firebaseapp.com",
+            projectId: "checkin-58c3d",
+            storageBucket: "checkin-58c3d.firebasestorage.app",
+            messagingSenderId: "1086783925775",
+            appId: "1:1086783925775:web:e8afa72e0b4f5f768f7d7a"
+        };
+
+        let db, auth, user;
+        let labeledFaceDescriptors = [];
+        let faceMatcher = null;
+        let isModelLoaded = false;
+        let isCameraReady = false;
+
+        // Use 'public' path for shared kiosk-mode style data
+        const COLLECTION_USERS = `artifacts/${appId}/public/data/face_users`;
+        const COLLECTION_ATTENDANCE = `artifacts/${appId}/public/data/face_attendance`;
+
+        // --- UI Elements ---
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('overlay');
+        const statusLoading = document.getElementById('status-loading');
+        const statusReady = document.getElementById('status-ready');
+        const btnRegister = document.getElementById('btn-register');
+        const inputName = document.getElementById('trainee-name');
+        const attendanceListEl = document.getElementById('attendance-list');
+        const countPresentEl = document.getElementById('count-present');
+        const countRegisteredEl = document.getElementById('count-registered');
+        const btnClearToday = document.getElementById('btn-clear-today');
+        const cameraPlaceholder = document.getElementById('camera-placeholder');
+
+        // --- Initialization ---
+        async function initApp() {
+            if (!firebaseConfig) {
+                showToast('Error: Firebase config missing', 'error');
+                return;
+            }
+            const app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+
+            onAuthStateChanged(auth, async (firebaseUser) => {
+                if (firebaseUser) {
+                    user = firebaseUser;
+                    // Load models first, then data, then camera
+                    await loadModels();
+                    await loadRegisteredUsers();
+                    setupRealtimeAttendance();
+                    startVideo();
+                } else {
+                    signInAnonymously(auth).catch(e => showToast("Auth failed: " + e.message, 'error'));
+                }
+            });
+        }
+
+        // --- Face API Setup ---
+        async function loadModels() {
+            try {
+                // Using a reliable CDN for standard face-api models
+                const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
+                // Alternative if above fails due to CORS in some environments:
+                // const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+
+                await Promise.all([
+                    faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+                ]);
+
+                isModelLoaded = true;
+                updateSystemStatus();
+            } catch (error) {
+                console.error("Model Load Error:", error);
+                statusLoading.textContent = "เกิดข้อผิดพลาดในการโหลดโมเดล AI (ลองรีเฟรชหน้าจอ)";
+                statusLoading.classList.add('text-red-600');
+            }
+        }
+
+        function startVideo() {
+            navigator.mediaDevices.getUserMedia({ video: {} })
+                .then(stream => {
+                    video.srcObject = stream;
+                    cameraPlaceholder.classList.add('hidden');
+                })
+                .catch(err => {
+                    console.error("Camera Error:", err);
+                    showToast("ไม่สามารถเข้าถึงกล้องได้ กรุณาตรวจสอบสิทธิ์", 'error');
+                });
+        }
+
+        video.addEventListener('play', () => {
+            isCameraReady = true;
+            updateSystemStatus();
+
+            // Setup canvas to match video dimensions
+            const displaySize = { width: video.offsetWidth, height: video.offsetHeight };
+            faceapi.matchDimensions(canvas, displaySize);
+
+            // Start detection loop
+            setInterval(async () => {
+                if (!isModelLoaded || !faceMatcher) return;
+
+                // Ensure canvas matches video if window resized
+                if (canvas.width !== video.offsetWidth || canvas.height !== video.offsetHeight) {
+                     faceapi.matchDimensions(canvas, { width: video.offsetWidth, height: video.offsetHeight });
+                }
+
+                // Detect all faces
+                const detections = await faceapi.detectAllFaces(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+                    .withFaceLandmarks()
+                    .withFaceDescriptors();
+
+                const resizedDetections = faceapi.resizeResults(detections, { width: video.offsetWidth, height: video.offsetHeight });
+
+                // Clear previous drawings
+                canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+
+                if (resizedDetections.length > 0) {
+                    const results = resizedDetections.map(d => faceMatcher.findBestMatch(d.descriptor));
+
+                    results.forEach((result, i) => {
+                        const box = resizedDetections[i].detection.box;
+                        const { label, distance } = result;
+
+                        // Draw box
+                        let color = '#ef4444'; // Red for unknown
+                        let text = 'ไม่รู้จัก';
+
+                        if (label !== 'unknown') {
+                             color = '#22c55e'; // Green for known
+                             text = `${label} (${Math.round((1-distance)*100)}%)`;
+                             // Trigger Check-in for known person
+                             handleCheckIn(label);
+                        }
+
+                        const drawBox = new faceapi.draw.DrawBox(box, { label: text, boxColor: color });
+                        drawBox.draw(canvas);
+                    });
+                }
+            }, 500); // Check every 500ms
+        });
+
+        function updateSystemStatus() {
+            if (isModelLoaded && isCameraReady) {
+                statusLoading.classList.add('hidden');
+                statusReady.classList.remove('hidden');
+                btnRegister.disabled = false;
+            }
+        }
+
+        // --- Firestore Logic ---
+
+        // 1. Load known faces
+        function loadRegisteredUsers() {
+            const q = query(collection(db, COLLECTION_USERS));
+            onSnapshot(q, (snapshot) => {
+                labeledFaceDescriptors = [];
+                let count = 0;
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    // Convert regular array back to Float32Array for face-api
+                    const descriptor = new Float32Array(data.descriptor);
+                    labeledFaceDescriptors.push(new faceapi.LabeledFaceDescriptors(data.name, [descriptor]));
+                    count++;
+                });
+
+                countRegisteredEl.textContent = count;
+
+                if (labeledFaceDescriptors.length > 0) {
+                    faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6); // 0.6 is distance threshold
+                     console.log("Face Matcher updated with", count, "faces");
+                } else {
+                    faceMatcher = null; // Reset if no users
+                }
+            });
+        }
+
+        // 2. Register new face
+        btnRegister.addEventListener('click', async () => {
+            const name = inputName.value.trim();
+            if (!name) {
+                showToast("กรุณากรอกชื่อก่อนลงทะเบียน", 'warning');
+                return;
+            }
+            if (!isModelLoaded || !isCameraReady) {
+                 showToast("ระบบยังไม่พร้อม กรุณารอสักครู่", 'warning');
+                 return;
+            }
+
+            btnRegister.disabled = true;
+            btnRegister.textContent = "กำลังประมวลผล...";
+
+            try {
+                // Detect single face with highest confidence
+                const detection = await faceapi.detectSingleFace(video, new faceapi.SsdMobilenetv1Options())
+                    .withFaceLandmarks()
+                    .withFaceDescriptor();
+
+                if (detection) {
+                    // Save to Firestore. Must convert Float32Array to normal array for JSON storage.
+                    const descriptorArray = Array.from(detection.descriptor);
+                    await addDoc(collection(db, COLLECTION_USERS), {
+                        name: name,
+                        descriptor: descriptorArray,
+                        createdAt: serverTimestamp()
+                    });
+
+                    showToast(`ลงทะเบียน "${name}" เรียบร้อยแล้ว`, 'success');
+                    inputName.value = '';
+                } else {
+                    showToast("ไม่พบใบหน้า หรือมีมากกว่า 1 คนในกล้อง", 'error');
+                }
+            } catch (e) {
+                console.error("Registration error:", e);
+                showToast("เกิดข้อผิดพลาดในการลงทะเบียน", 'error');
+            } finally {
+                btnRegister.disabled = false;
+                btnRegister.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    ถ่ายภาพเพื่อลงทะเบียน`;
+            }
+        });
+
+        // 3. Check-in Logic (Debounced)
+        const recentCheckIns = new Map(); // Memory cache to avoid spamming Firestore every frame
+
+        async function handleCheckIn(name) {
+            const now = Date.now();
+            const lastCheckIn = recentCheckIns.get(name);
+
+            // Don't check in same person within 1 minute (60000ms) to prevent spam due to high FPS detection
+            if (lastCheckIn && (now - lastCheckIn < 60000)) {
+                return;
+            }
+
+            // Optimistically update local cache
+            recentCheckIns.set(name, now);
+
+            // Double check against Firestore today's data to be sure (optional but good for persistence across refreshes if needed,
+            // here we rely on real-time listener to keep local state reasonably synced, but let's just push and rely on UI to show it)
+            // A better approach for real production is to query if they already checked in TODAY before adding.
+            // For simplicity in this demo, we'll just add it and let the UI filter or show duplicates if they happen after refresh.
+            // *Self-correction*: Let's query today's start timestamp to prevent duplicate inserts on refresh.
+
+            const todayStart = new Date();
+            todayStart.setHours(0,0,0,0);
+
+            const q = query(
+                collection(db, COLLECTION_ATTENDANCE),
+                where("name", "==", name),
+                where("timestamp", ">=", todayStart)
+            );
+
+            const snapshot = await getDocs(q);
+            if (!snapshot.empty) {
+                 // Already checked in today in DB
+                 return;
+            }
+
+            // Add to Firestore
+            try {
+                await addDoc(collection(db, COLLECTION_ATTENDANCE), {
+                    name: name,
+                    timestamp: serverTimestamp()
+                });
+                showToast(`${name} เช็คชื่อแล้ว!`, 'success');
+            } catch (e) {
+                console.error("Check-in failed", e);
+                recentCheckIns.delete(name); // revert cache if failed
+            }
+        }
+
+        // 4. Real-time Attendance List
+        function setupRealtimeAttendance() {
+            // Query for today's attendance
+            const todayStart = new Date();
+            todayStart.setHours(0,0,0,0);
+
+            const q = query(
+                collection(db, COLLECTION_ATTENDANCE),
+                where("timestamp", ">=", todayStart),
+                orderBy("timestamp", "desc")
+            );
+
+            onSnapshot(q, (snapshot) => {
+                attendanceListEl.innerHTML = '';
+                let count = 0;
+                if (snapshot.empty) {
+                    attendanceListEl.innerHTML = '<p class="text-slate-400 text-center py-4">ยังไม่มีการเช็คชื่อวันนี้</p>';
+                } else {
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        const time = data.timestamp ? data.timestamp.toDate().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : 'กำลังบันทึก...';
+                        
+                        const item = document.createElement('div');
+                        item.className = 'flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100 animate-fadeIn';
+                        item.innerHTML = `
+                            <div class="flex items-center">
+                                <div class="h-8 w-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center mr-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                <span class="font-medium text-slate-700">${data.name}</span>
+                            </div>
+                            <span class="text-sm text-slate-500">${time} น.</span>
+                        `;
+                        attendanceListEl.appendChild(item);
+                        count++;
+                    });
+                }
+                countPresentEl.textContent = count;
+            });
+        }
+
+        // 5. Clear today's list (Utility for testing/resetting demo)
+        btnClearToday.addEventListener('click', async () => {
+            if(!confirm('คุณแน่ใจหรือไม่ที่จะล้างข้อมูลการเช็คชื่อของวันนี้? (ข้อมูลผู้ลงทะเบียนจะไม่หายไป)')) return;
+
+            const todayStart = new Date();
+            todayStart.setHours(0,0,0,0);
+             const q = query(
+                collection(db, COLLECTION_ATTENDANCE),
+                where("timestamp", ">=", todayStart)
+            );
+            const snapshot = await getDocs(q);
+            snapshot.forEach(async (docSnap) => {
+                await deleteDoc(doc(db, COLLECTION_ATTENDANCE, docSnap.id));
+            });
+            recentCheckIns.clear();
+            showToast('ล้างรายการวันนี้เรียบร้อย', 'success');
+        });
+
+
+        // --- Utilities ---
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `fixed bottom-5 right-5 px-6 py-4 rounded-lg shadow-xl transform transition-all duration-300 z-50 font-semibold text-white ${type === 'success' ? 'bg-green-500' : type === 'warning' ? 'bg-yellow-500' : 'bg-red-500'}`;
+
+            // Show
+            setTimeout(() => {
+                toast.classList.remove('translate-y-20', 'opacity-0');
+            }, 10);
+
+            // Hide after 3s
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        // Start App
+        initApp();
+
+    </script>
+
+    <style>
+        /* Simple fade-in animation for list items */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+    </style>
+</body>
+</html>
