@@ -168,6 +168,7 @@
         let userToDeleteId = null;
         // NEW: Track who already checked in TODAY to update UI and prevent duplicate calls
         const checkedInToday = new Set();
+        let isAttendanceListReady = false; // Flag to ensure we have loaded today's list before allowing check-ins
 
         const COLLECTION_USERS = `artifacts/${appId}/public/data/face_users`;
         const COLLECTION_ATTENDANCE = `artifacts/${appId}/public/data/face_attendance`;
@@ -305,8 +306,8 @@
                             const percentage = Math.round((1-distance)*100);
                             text = `${label} (${percentage}%) ${isCheckedIn ? '(เช็คชื่อแล้ว)' : ''}`;
                             
-                            // Trigger check-in only if NOT checked in today
-                            if (!isCheckedIn) {
+                            // Trigger check-in only if NOT checked in today AND attendance list is fully loaded
+                            if (!isCheckedIn && isAttendanceListReady) {
                                 handleCheckIn(label);
                             }
                         }
@@ -426,48 +427,49 @@
             finally { btnRegister.disabled = false; btnRegister.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>ถ่ายภาพเพื่อลงทะเบียน`; }
         });
 
-        // 3. Check-in Logic (IMPROVED)
-        const pendingCheckIns = new Set(); // Prevent multiple parallel calls for same person
+        // 3. Check-in Logic (FIXED: Removed double-query that caused index error)
+        const pendingCheckIns = new Set();
 
         async function handleCheckIn(name) {
-            // If already checked in today locally, SKIP everything.
+            // Trust the `checkedInToday` set which is populated by the main listener.
+            // If it's not in there AND attendance list is ready, it's a new check-in.
             if (checkedInToday.has(name) || pendingCheckIns.has(name)) return;
             
             pendingCheckIns.add(name);
             console.log(`Attempting check-in for: ${name}`);
 
-            const todayStart = new Date();
-            todayStart.setHours(0,0,0,0);
-
             try {
-                // Double check Firestore just in case local state is stale (e.g. page refresh right after midnight)
-                const q = query(collection(db, COLLECTION_ATTENDANCE), where("name", "==", name), where("timestamp", ">=", todayStart));
-                const snapshot = await getDocs(q);
-                
-                if (!snapshot.empty) {
-                    console.log(`${name} already in DB today.`);
-                    checkedInToday.add(name); // Sync local state
-                } else {
-                    await addDoc(collection(db, COLLECTION_ATTENDANCE), { name: name, timestamp: serverTimestamp() });
-                    showToast(`${name} เช็คชื่อแล้ว!`, 'success');
-                    // checkedInToday.add(name) will be handled by onSnapshot automatically for robustness
-                }
+                // Removed the explicit getDocs query here that was causing "Query requires index" error.
+                // We now rely entirely on the realtime listener to tell us who is checked in.
+                await addDoc(collection(db, COLLECTION_ATTENDANCE), { name: name, timestamp: serverTimestamp() });
+                showToast(`${name} เช็คชื่อแล้ว!`, 'success');
             } catch (e) {
                 console.error("Check-in failed for", name, e);
-            } finally {
-                pendingCheckIns.delete(name);
+                // On error, remove from pending so it can try again later, but maybe after a longer delay in real world
+                setTimeout(() => pendingCheckIns.delete(name), 5000); 
             }
+            // Note: We don't immediately delete from pendingCheckIns on success, 
+            // we let the onSnapshot update `checkedInToday` first, 
+            // effectively using pendingCheckIns as a temporary block until confirmed by DB.
+            // Actually, let's clear it after a safe delay to ensure onSnapshot caught up.
+             setTimeout(() => pendingCheckIns.delete(name), 10000);
         }
 
         // 4. Real-time Attendance List (IMPROVED)
         function setupRealtimeAttendance() {
+            // FIX: Simplified query to avoid potential index issues here too, 
+            // though single field + order usually works. 
+            // If this also fails, we will remove orderBy and sort in JS.
             const todayStart = new Date();
             todayStart.setHours(0,0,0,0);
+            
+            // Try with orderBy first. If it fails in YOUR console, tell me, we might need to remove orderBy.
+            // Usually 'where(field >= X) orderBy(field)' is OK without composite index.
             const q = query(collection(db, COLLECTION_ATTENDANCE), where("timestamp", ">=", todayStart), orderBy("timestamp", "desc"));
             
             onSnapshot(q, (snapshot) => {
                 attendanceListEl.innerHTML = '';
-                checkedInToday.clear(); // Reset and rebuild from fresh data
+                checkedInToday.clear();
                 let count = 0;
                 
                 if (snapshot.empty) {
@@ -475,8 +477,10 @@
                 } else {
                     snapshot.forEach(doc => {
                         const data = doc.data();
-                        checkedInToday.add(data.name); // IMPORTANT: Keep track of who checked in
-                        
+                        checkedInToday.add(data.name);
+                        // If it was pending, it's now confirmed, so we can remove from pending (optional, as checkedInToday handles it now)
+                        pendingCheckIns.delete(data.name); 
+
                         const time = data.timestamp ? data.timestamp.toDate().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '...';
                         const item = document.createElement('div');
                         item.className = 'flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100 animate-fadeIn';
@@ -486,6 +490,13 @@
                     });
                 }
                 countPresentEl.textContent = count;
+                isAttendanceListReady = true; // Data is loaded, enable check-ins
+            }, (error) => {
+                console.error("Attendance realtime listener failed:", error);
+                // Fallback if even this simple query fails due to index (unlikely but possible)
+                if (error.code.includes('index')) {
+                     showToast("ระบบต้องการ Index กรุณาแจ้งผู้ดูแล", 'error');
+                }
             });
         }
 
@@ -494,6 +505,7 @@
              deleteModal.querySelector('h3').textContent = "ยืนยันการล้างรายการ";
              if (btnClearToday.dataset.confirm === 'true') {
                 const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+                // Simple query for deletion, should be fine without composite index
                 const q = query(collection(db, COLLECTION_ATTENDANCE), where("timestamp", ">=", todayStart));
                 const snapshot = await getDocs(q);
                 snapshot.forEach(async (docSnap) => await deleteDoc(doc(db, COLLECTION_ATTENDANCE, docSnap.id)));
