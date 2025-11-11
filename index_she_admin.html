@@ -114,6 +114,8 @@
             lotterySettings: { cost: 20, limit: 5 },
             numberedLotteryData: {},
             userSearchTerm: '',
+            userSortBy: 'name', // Add this
+            userSortDir: 'asc',  // Add this
             unsubscribers: [],
             activityChart: null
         };
@@ -352,11 +354,29 @@
         // --- Sub-Content Rendering Functions ---
         function renderAdminUsersContent() {
             const searchTerm = state.userSearchTerm.toLowerCase();
-            const filteredUsers = state.allUsers.filter(user => {
+            let filteredUsers = state.allUsers.filter(user => { // Changed to let
                 return user.id.toLowerCase().includes(searchTerm) || 
                        user.name.toLowerCase().includes(searchTerm) ||
                        (user.employeeId && user.employeeId.toLowerCase().includes(searchTerm));
             });
+
+            // --- Add Sorting Logic ---
+            filteredUsers.sort((a, b) => {
+                const valA = a[state.userSortBy] || (state.userSortBy === 'points' ? 0 : '');
+                const valB = b[state.userSortBy] || (state.userSortBy === 'points' ? 0 : '');
+
+                let comparison = 0;
+                if (state.userSortBy === 'points') {
+                    // Number comparison
+                    comparison = valA - valB;
+                } else {
+                    // String comparison with Thai locale
+                    comparison = String(valA).localeCompare(String(valB), 'th');
+                }
+
+                return state.userSortDir === 'asc' ? comparison : -comparison;
+            });
+            // --- End Sorting Logic ---
 
             return `
                 <div class="flex justify-between items-center mb-4">
@@ -364,6 +384,27 @@
                     <button id="export-users-btn" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-emerald-700">Export to Excel</button>
                 </div>
                 <input type="text" id="user-search-input" placeholder="ค้นหาด้วยรหัส, ชื่อ, หรือ LINE ID..." value="${state.userSearchTerm}" class="w-full p-2 border rounded mb-4">
+                
+                <!-- Add Sort UI -->
+                <div class="flex gap-4 mb-4">
+                    <div class="flex-1">
+                        <label for="user-sort-by" class="block text-sm font-medium text-gray-700">เรียงตาม:</label>
+                        <select id="user-sort-by" class="w-full p-2 border rounded mt-1 bg-white">
+                            <option value="name" ${state.userSortBy === 'name' ? 'selected' : ''}>ชื่อ</option>
+                            <option value="employeeId" ${state.userSortBy === 'employeeId' ? 'selected' : ''}>รหัสพนักงาน</option>
+                            <option value="points" ${state.userSortBy === 'points' ? 'selected' : ''}>คะแนน</option>
+                        </select>
+                    </div>
+                    <div class="flex-1">
+                        <label for="user-sort-dir" class="block text-sm font-medium text-gray-700">ลำดับ:</label>
+                        <select id="user-sort-dir" class="w-full p-2 border rounded mt-1 bg-white">
+                            <option value="asc" ${state.userSortDir === 'asc' ? 'selected' : ''}>น้อยไปมาก</option>
+                            <option value="desc" ${state.userSortDir === 'desc' ? 'selected' : ''}>มากไปน้อย</option>
+                        </select>
+                    </div>
+                </div>
+                <!-- End Sort UI -->
+
                 <div class="space-y-2 mb-6 max-h-72 overflow-y-auto border p-2 rounded-lg">
                     ${filteredUsers.length > 0 ? filteredUsers.map(user => {
                         const completedActivities = Object.keys(user.activityStatus || {})
@@ -884,7 +925,6 @@
         async function main() {
             try {
                 // --- LIFF ID (ตามที่คุณให้มา) ---
-                /*
                 await liff.init({ liffId: "1654435774-E1myB7b4" });
                 if (!liff.isLoggedIn()) {
                     liff.login();
@@ -903,21 +943,10 @@
                     loadingScreen.classList.add('hidden');
                     unauthorizedScreen.classList.remove('hidden');
                 }
-                */
-
-                // --- การเปลี่ยนแปลง: ยกเลิกการตรวจสอบ LIFF/Login ---
-                // แสดงหน้า Admin ทันทีเพื่อการทดสอบ
-                console.warn("LIFF login check is disabled.");
-                loadingScreen.classList.add('hidden');
-                adminContainer.classList.remove('hidden');
-                attachListeners();
-                // --- สิ้นสุดการเปลี่ยนแปลง ---
-
             } catch (error) {
-                console.error("Admin Init failed (LIFF check is disabled)", error);
+                console.error("LIFF/Admin Init failed", error);
                 loadingScreen.classList.add('hidden');
                 unauthorizedScreen.classList.remove('hidden');
-                unauthorizedScreen.innerHTML = `<h2 class="text-2xl font-bold text-red-600">เกิดข้อผิดพลาด</h2><p class="text-gray-600 mt-2">${error}</p>`;
             }
         }
 
@@ -1005,6 +1034,18 @@
             mainContent.addEventListener('submit', (e) => {
                 if (e.target.id === 'lottery-settings-form') {
                     handleLotterySettingsSave(e);
+                }
+            });
+
+            // --- Add Change Listener for Sort Dropdowns ---
+            mainContent.addEventListener('change', (e) => {
+                if (e.target.id === 'user-sort-by') {
+                    state.userSortBy = e.target.value;
+                    renderAdminUsers();
+                }
+                if (e.target.id === 'user-sort-dir') {
+                    state.userSortDir = e.target.value;
+                    renderAdminUsers();
                 }
             });
         });
