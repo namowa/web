@@ -240,11 +240,12 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, addDoc, onSnapshot, collection, query, deleteDoc, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
         // --- Configuration and Constants ---
         const CONFIG = {
-            LIFF_ID: "1654435774-VGmjB3Gk",
-            WEBHOOK_URL: 'https://prod-53.southeastasia.logic.azure.com:443/workflows/c2e513eb481f410ba8177327c40e7f9d/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=AiNM5m_ySfmRHe50_UsM83kLpJJOMBtCkvID9APwgvc',
+            LIFF_ID: "1654435774-VGmjB3Gk", // LIFF ID ของคุณ
+            WEBHOOK_URL: 'https://prod-53.southeastasia.logic.azure.com:443/workflows/c2e513eb481f410ba8177327c40e7f9d/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=AiNM5m_ySfmRHe50_UsM83kLpJJOMBtCkvID9APwgvc', // Webhook URL ของคุณ
             EXERCISE_TYPE_MAP: {
                 running: 'การวิ่ง',
                 walking: 'เดิน',
@@ -295,8 +296,8 @@
             },
             historyContainer: document.getElementById('history-container'),
             dashboard: {
-                 bmiGaugeChartCanvas: document.getElementById('bmiGaugeChart'),
-                 exerciseSummaryContainer: document.getElementById('exercise-summary-container'),
+                bmiGaugeChartCanvas: document.getElementById('bmiGaugeChart'),
+                exerciseSummaryContainer: document.getElementById('exercise-summary-container'),
             },
             sendingPopup: document.getElementById('sending-popup'),
             confirmModal: {
@@ -314,6 +315,7 @@
                 db: null,
                 userId: null,
             },
+            appId: null, // จะถูกตั้งค่าใน main()
             liff: {
                 profile: null,
                 liffId: null,
@@ -329,7 +331,7 @@
             weightChartInstance: null,
             bmiGaugeChartInstance: null,
             itemToDeleteId: null,
-            unsubscribeListeners: [], // To store unsubscribe functions for cleanup
+            unsubscribeListeners: [], // เพื่อเก็บฟังก์ชัน unsubscribe
         };
 
         // --- Helper & Utility Functions ---
@@ -364,6 +366,7 @@
 
         // --- API & Webhook Communication ---
         const postToWebhook = async (payload) => {
+            // ลบค่า null หรือ undefined ออกจาก payload
             const cleanedPayload = Object.entries(payload).reduce((acc, [key, value]) => {
                 if (value !== null && value !== undefined) acc[key] = value;
                 return acc;
@@ -565,8 +568,7 @@
             setElementVisibility(DOM.sendingPopup, true);
             try {
                 const { db, userId } = state.firebase;
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-                const profileRef = doc(db, "artifacts", appId, "users", userId);
+                const profileRef = doc(db, "artifacts", state.appId, "users", userId);
                 const newWeight = parseFloat(DOM.profile.weight.value);
                 const newHeight = parseFloat(DOM.profile.height.value);
                 
@@ -577,8 +579,12 @@
                 };
                 await setDoc(profileRef, { profile: profileData }, { merge: true });
 
-                if (newWeight) await addDoc(collection(profileRef, "weights"), { value: newWeight, timestamp: serverTimestamp() });
-                if (newHeight) await addDoc(collection(profileRef, "heights"), { value: newHeight, timestamp: serverTimestamp() });
+                if (newWeight && newWeight !== state.appData.weightHistory.at(-1)?.value) {
+                    await addDoc(collection(profileRef, "weights"), { value: newWeight, timestamp: serverTimestamp() });
+                }
+                if (newHeight && newHeight !== state.appData.heightHistory.at(-1)?.value) {
+                     await addDoc(collection(profileRef, "heights"), { value: newHeight, timestamp: serverTimestamp() });
+                }
                 
                 const webhookPayload = {
                     userId: userId, displayName: state.liff.profile.displayName, pictureUrl: state.liff.profile.pictureUrl,
@@ -601,8 +607,7 @@
             setElementVisibility(DOM.sendingPopup, true);
             try {
                 const { db, userId } = state.firebase;
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-                const logsCollectionRef = collection(db, "artifacts", appId, "users", userId, "logs");
+                const logsCollectionRef = collection(db, "artifacts", state.appId, "users", userId, "logs");
                 
                 const logToSave = {
                     type: state.currentLogType,
@@ -645,12 +650,11 @@
             if (!state.itemToDeleteId) return;
             const { id, type } = state.itemToDeleteId;
             const { db, userId } = state.firebase;
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
             let docRef;
 
-            if (type === 'weight') docRef = doc(db, "artifacts", appId, "users", userId, "weights", id);
-            else if (type === 'height') docRef = doc(db, "artifacts", appId, "users", userId, "heights", id);
-            else docRef = doc(db, "artifacts", appId, "users", userId, "logs", id);
+            if (type === 'weight') docRef = doc(db, "artifacts", state.appId, "users", userId, "weights", id);
+            else if (type === 'height') docRef = doc(db, "artifacts", state.appId, "users", userId, "heights", id);
+            else docRef = doc(db, "artifacts", state.appId, "users", userId, "logs", id);
             
             try {
                 await deleteDoc(docRef);
@@ -695,14 +699,13 @@
         // --- Real-time Data Listeners ---
         const setupFirestoreListeners = () => {
             const { db, userId } = state.firebase;
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
             
-            // Clean up old listeners before attaching new ones
+            // ล้าง listeners เก่าก่อน
             state.unsubscribeListeners.forEach(unsub => unsub());
             state.unsubscribeListeners = [];
 
             // Listener for Profile
-            const profileRef = doc(db, "artifacts", appId, "users", userId);
+            const profileRef = doc(db, "artifacts", state.appId, "users", userId);
             const unsubProfile = onSnapshot(profileRef, (docSnap) => {
                 if (docSnap.exists()) {
                     state.appData.profile = docSnap.data().profile || { dob: '', gender: '' };
@@ -782,48 +785,71 @@
             });
             DOM.confirmModal.confirmBtn.addEventListener('click', handleDeleteItem);
         };
+        
         const initializeAppUI = () => {
             setElementVisibility(DOM.appLoading, false);
             setElementVisibility(DOM.mainApp, true);
             setupEventListeners();
-            setupFirestoreListeners();
+            // setupFirestoreListeners จะถูกเรียกหลังจาก auth พร้อม
         };
+
         const main = async () => {
             try {
-                // Firebase configuration provided by the user
-                const firebaseConfig = {
-                    apiKey: "AIzaSyDATchWwmazw3wPnuNk4i-d79rnyBpSDM0",
-                    authDomain: "line-liff-a543c.firebaseapp.com",
-                    projectId: "line-liff-a543c",
-                    storageBucket: "line-liff-a543c.appspot.com",
-                    messagingSenderId: "617440448369",
-                    appId: "1:617440448369:web:523f9ce4861c6b656c30d0"
-                };
-                
-                // Use a default app ID since __app_id is not available in this context
-                const appId = 'health-tracker-app'; 
+                // เปิด Debug Log ของ Firebase
+                setLogLevel('Debug');
 
-                // 1. Initialize Firebase
+                // 1. ตรวจสอบ Environment Variables
+                if (typeof __firebase_config === 'undefined' || typeof __app_id === 'undefined' || typeof __initial_auth_token === 'undefined') {
+                    DOM.appLoading.textContent = "การกำหนดค่าแอปไม่สมบูรณ์ (config/appId/token หายไป)";
+                    console.error("Environment variables (firebase_config, app_id, initial_auth_token) are missing.");
+                    setElementVisibility(DOM.liffLoading, false);
+                    return;
+                }
+                
+                const firebaseConfig = JSON.parse(__firebase_config);
+                state.appId = __app_id; // เก็บ appId ไว้ใน state
+
+                // 2. Initialize Firebase
                 state.firebase.app = initializeApp(firebaseConfig);
                 state.firebase.auth = getAuth(state.firebase.app);
                 state.firebase.db = getFirestore(state.firebase.app);
+                console.log("Firebase Initialized.");
 
-                // 2. Authenticate with Firebase (using anonymous sign-in for standalone use)
-                await signInAnonymously(state.firebase.auth);
-                
                 // 3. Initialize LIFF
                 await liff.init({ liffId: CONFIG.LIFF_ID });
                 if (!liff.isLoggedIn()) {
                     liff.login();
                     return; 
                 }
-                
                 state.liff.profile = await liff.getProfile();
-                state.firebase.userId = state.liff.profile.userId; // Use LIFF User ID for document paths
+                console.log("LIFF Initialized. LIFF User ID:", state.liff.profile.userId);
+                
+                // 4. Authenticate with Firebase using the provided custom token
+                // นี่คือส่วนสำคัญที่เชื่อมโยง LIFF user กับ Firebase user
+                await signInWithCustomToken(state.firebase.auth, __initial_auth_token);
+                console.log("Firebase signed in with custom token.");
 
-                // 4. Start the app
+                // 5. ตั้งค่า userId จาก Firebase auth state
+                // UID นี้ควรจะตรงกับ LIFF User ID ที่ใช้สร้าง Token
+                if (state.firebase.auth.currentUser) {
+                    state.firebase.userId = state.firebase.auth.currentUser.uid;
+                    console.log("Firebase Auth User ID:", state.firebase.userId);
+                    
+                    // ตรวจสอบความถูกต้อง (เผื่อไว้)
+                    if (state.firebase.userId !== state.liff.profile.userId) {
+                         console.warn(`Potential ID Mismatch: Firebase Auth UID (${state.firebase.userId}) vs LIFF Profile UID (${state.liff.profile.userId}).`);
+                         // ยึด LIFF ID ตามตรรกะเดิมของคุณ เพื่อให้ path ถูกต้อง
+                         state.firebase.userId = state.liff.profile.userId;
+                    }
+                } else {
+                    throw new Error("Firebase authentication failed, currentUser is null.");
+                }
+
+                // 6. เริ่มต้น UI และ Listeners
                 updateLiffProfileUI();
                 initializeAppUI();
+                setupFirestoreListeners(); // เรียกหลังจากมี userId ที่ถูกต้องแล้ว
+                console.log(`App initialized for user: ${state.firebase.userId}`);
 
             } catch (error) {
                 console.error("Initialization failed", error);
