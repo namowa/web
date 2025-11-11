@@ -795,26 +795,30 @@
 
         const main = async () => {
             try {
-                // เปิด Debug Log ของ Firebase
-                setLogLevel('Debug');
-
-                // 1. ตรวจสอบ Environment Variables
-                if (typeof __firebase_config === 'undefined' || typeof __app_id === 'undefined' || typeof __initial_auth_token === 'undefined') {
-                    DOM.appLoading.textContent = "การกำหนดค่าแอปไม่สมบูรณ์ (config/appId/token หายไป)";
-                    console.error("Environment variables (firebase_config, app_id, initial_auth_token) are missing.");
-                    setElementVisibility(DOM.liffLoading, false);
-                    return;
-                }
+                // Firebase configuration provided by the user
+                const firebaseConfig = {
+                    apiKey: "AIzaSyDATchWwmazw3wPnuNk4i-d79rnyBpSDM0",
+                    authDomain: "line-liff-a543c.firebaseapp.com",
+                    projectId: "line-liff-a543c",
+                    storageBucket: "line-liff-a543c.appspot.com",
+                    messagingSenderId: "617440448369",
+                    appId: "1:617440448369:web:523f9ce4861c6b656c30d0"
+                };
                 
-                const firebaseConfig = JSON.parse(__firebase_config);
-                state.appId = __app_id; // เก็บ appId ไว้ใน state
+                // ใช้ app ID เริ่มต้นเนื่องจาก __app_id ไม่ได้ถูกส่งมาในบริบทนี้
+                state.appId = 'health-tracker-app'; // ตั้งค่า appID เริ่มต้นใน state
+                console.log("Using default appId:", state.appId);
 
-                // 2. Initialize Firebase
+                // 1. Initialize Firebase
                 state.firebase.app = initializeApp(firebaseConfig);
                 state.firebase.auth = getAuth(state.firebase.app);
                 state.firebase.db = getFirestore(state.firebase.app);
                 console.log("Firebase Initialized.");
 
+                // 2. Authenticate with Firebase (using anonymous sign-in for standalone use)
+                await signInAnonymously(state.firebase.auth);
+                console.log("Firebase signed in anonymously.");
+                
                 // 3. Initialize LIFF
                 await liff.init({ liffId: CONFIG.LIFF_ID });
                 if (!liff.isLoggedIn()) {
@@ -822,33 +826,13 @@
                     return; 
                 }
                 state.liff.profile = await liff.getProfile();
+                state.firebase.userId = state.liff.profile.userId; // ใช้ LIFF User ID สำหรับ document paths
                 console.log("LIFF Initialized. LIFF User ID:", state.liff.profile.userId);
-                
-                // 4. Authenticate with Firebase using the provided custom token
-                // นี่คือส่วนสำคัญที่เชื่อมโยง LIFF user กับ Firebase user
-                await signInWithCustomToken(state.firebase.auth, __initial_auth_token);
-                console.log("Firebase signed in with custom token.");
 
-                // 5. ตั้งค่า userId จาก Firebase auth state
-                // UID นี้ควรจะตรงกับ LIFF User ID ที่ใช้สร้าง Token
-                if (state.firebase.auth.currentUser) {
-                    state.firebase.userId = state.firebase.auth.currentUser.uid;
-                    console.log("Firebase Auth User ID:", state.firebase.userId);
-                    
-                    // ตรวจสอบความถูกต้อง (เผื่อไว้)
-                    if (state.firebase.userId !== state.liff.profile.userId) {
-                         console.warn(`Potential ID Mismatch: Firebase Auth UID (${state.firebase.userId}) vs LIFF Profile UID (${state.liff.profile.userId}).`);
-                         // ยึด LIFF ID ตามตรรกะเดิมของคุณ เพื่อให้ path ถูกต้อง
-                         state.firebase.userId = state.liff.profile.userId;
-                    }
-                } else {
-                    throw new Error("Firebase authentication failed, currentUser is null.");
-                }
-
-                // 6. เริ่มต้น UI และ Listeners
+                // 4. Start the app
                 updateLiffProfileUI();
                 initializeAppUI();
-                setupFirestoreListeners(); // เรียกหลังจากมี userId ที่ถูกต้องแล้ว
+                setupFirestoreListeners(); // เรียก listeners หลังจาก auth และ userId ถูกตั้งค่าแล้ว
                 console.log(`App initialized for user: ${state.firebase.userId}`);
 
             } catch (error) {
