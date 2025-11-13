@@ -114,8 +114,10 @@
             lotterySettings: { cost: 20, limit: 5 },
             numberedLotteryData: {},
             userSearchTerm: '',
-            userSortBy: 'name', // Add this
-            userSortDir: 'asc',  // Add this
+            userSortBy: 'name',
+            userSortDir: 'asc',
+            pendingFilterActivityId: 'all',
+            pendingSearchTerm: '', // เพิ่ม state สำหรับเก็บค่าค้นหา
             unsubscribers: [],
             activityChart: null
         };
@@ -451,13 +453,57 @@
         }
 
         function renderAdminPendingRequestsContent() {
-            const pendingRequests = state.pendingRequests || [];
-            pendingRequests.sort((a, b) => new Date(a.requestDate) - new Date(b.requestDate));
+            // --- Add Filter Logic ---
+            const searchTerm = state.pendingSearchTerm.toLowerCase();
+
+            const filteredRequests = state.pendingRequests.filter(req => {
+                // 1. Filter by Activity ID
+                const activityMatch = state.pendingFilterActivityId === 'all' || req.activityId === state.pendingFilterActivityId;
+                if (!activityMatch) return false;
+
+                // 2. Filter by Search Term
+                if (searchTerm === '') return true; // No search term, so it passes
+                
+                const nameMatch = req.userName.toLowerCase().includes(searchTerm);
+                const idMatch = req.userId.toLowerCase().includes(searchTerm);
+                const activityNameMatch = req.activityName.toLowerCase().includes(searchTerm);
+                
+                return nameMatch || idMatch || activityNameMatch;
+            });
+            // --- End Filter Logic ---
+
+            filteredRequests.sort((a, b) => new Date(a.requestDate) - new Date(b.requestDate));
+            
+            // --- Create <option> tags for filter ---
+            const filterOptions = state.activities
+                .map(act => `<option value="${act.id}" ${state.pendingFilterActivityId === act.id ? 'selected' : ''}>${act.name}</option>`)
+                .join('');
 
             return `
-                <h2 class="text-2xl font-bold mb-4 text-gray-800">อนุมัติกิจกรรม (${pendingRequests.length})</h2>
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-gray-800">อนุมัติกิจกรรม (${filteredRequests.length})</h2>
+                </div>
+
+                <!-- Add Filter & Search UI -->
+                <div class="flex flex-col md:flex-row gap-4 mb-4">
+                    <!-- Search Box -->
+                    <div class="flex-1">
+                        <label for="pending-search-input" class="block text-sm font-medium text-gray-700">ค้นหา:</label>
+                        <input type="text" id="pending-search-input" placeholder="ค้นหาด้วยชื่อ, ID ผู้ใช้, กิจกรรม..." value="${state.pendingSearchTerm}" class="w-full p-2 border rounded mt-1">
+                    </div>
+                    <!-- Filter Dropdown -->
+                    <div class="flex-1 md:w-auto md:min-w-[250px]">
+                        <label for="activity-filter" class="block text-sm font-medium text-gray-700">กรองตามกิจกรรม:</label>
+                        <select id="activity-filter" class="w-full p-2 border rounded mt-1 bg-white">
+                            <option value="all" ${state.pendingFilterActivityId === 'all' ? 'selected' : ''}>-- กิจกรรมทั้งหมด --</option>
+                            ${filterOptions}
+                        </select>
+                    </div>
+                </div>
+                <!-- End Filter & Search UI -->
+
                 <div class="space-y-2 max-h-[70vh] overflow-y-auto border p-2 rounded-lg">
-                    ${pendingRequests.length > 0 ? pendingRequests.map(req => `
+                    ${filteredRequests.length > 0 ? filteredRequests.map(req => `
                         <div class="flex items-center justify-between p-2 border rounded-lg bg-yellow-50">
                             <div>
                                 <p class="font-semibold text-sm">${req.activityName}</p>
@@ -468,7 +514,7 @@
                                 <button data-id="${req.id}" class="reject-request-btn text-red-500 hover:text-red-700 font-semibold">ปฏิเสธ</button>
                             </div>
                         </div>
-                    `).join('') : '<p class="text-gray-500 text-center p-4">ไม่มีคำขอที่รอดำเนินการ</p>'}
+                    `).join('') : '<p class="text-gray-500 text-center p-4">ไม่มีคำขอที่รอดำเนินการ (ตามตัวกรองนี้)</p>'}
                 </div>
             `;
         }
@@ -925,6 +971,7 @@
         async function main() {
             try {
                 // --- LIFF ID (ตามที่คุณให้มา) ---
+                
                 await liff.init({ liffId: "1654435774-E1myB7b4" });
                 if (!liff.isLoggedIn()) {
                     liff.login();
@@ -943,10 +990,24 @@
                     loadingScreen.classList.add('hidden');
                     unauthorizedScreen.classList.remove('hidden');
                 }
+                
+
+                // --- การเปลี่ยนแปลง: ยกเลิกการตรวจสอบ LIFF/Login ---
+                // แสดงหน้า Admin ทันทีเพื่อการทดสอบ
+                /*
+                console.warn("LIFF login check is disabled.");
+                loadingScreen.classList.add('hidden');
+                adminContainer.classList.remove('hidden');
+                attachListeners();
+                */
+                // --- สิ้นสุดการเปลี่ยนแปลง ---
+
             } catch (error) {
-                console.error("LIFF/Admin Init failed", error);
+                // console.error("Admin Init failed (LIFF check is disabled)", error);
+                console.error("LIFF/Admin Init failed", error); // Revert error message
                 loadingScreen.classList.add('hidden');
                 unauthorizedScreen.classList.remove('hidden');
+                unauthorizedScreen.innerHTML = `<h2 class="text-2xl font-bold text-red-600">เกิดข้อผิดพลาด</h2><p class="text-gray-600 mt-2">${error}</p>`;
             }
         }
 
@@ -1028,6 +1089,12 @@
                     state.userSearchTerm = e.target.value;
                     renderAdminUsers(); // Re-render only the user list for performance
                 }
+                // --- เพิ่มการดักจับสำหรับ Search box ---
+                if (e.target.id === 'pending-search-input') {
+                    state.pendingSearchTerm = e.target.value;
+                    renderAdminPendingRequests(); // Re-render pending requests
+                }
+                // --- สิ้นสุด ---
             });
             
             // Submit listener for forms outside of modal
@@ -1047,6 +1114,12 @@
                     state.userSortDir = e.target.value;
                     renderAdminUsers();
                 }
+                // --- เพิ่มการดักจับสำหรับ Filter ---
+                if (e.target.id === 'activity-filter') {
+                    state.pendingFilterActivityId = e.target.value;
+                    renderAdminPendingRequests(); // Re-render หน้าอนุมัติ
+                }
+                // --- สิ้นสุด ---
             });
         });
     </script>
