@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Tracker Admin</title>
+    <!-- LIFF SDK -->
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS (XLSX) -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: 'Sarabun', sans-serif; }
+        .sidebar-item.active { background-color: #4f46e5; color: white; }
+        /* Modal Transitions */
+        .modal { transition: opacity 0.25s ease; }
+        body.modal-active { overflow-x: hidden; overflow-y: hidden !important; }
+    </style>
+</head>
+<body class="bg-gray-100 flex h-screen overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white border-r flex-shrink-0 hidden md:flex flex-col">
+        <div class="p-6 border-b flex items-center gap-3">
+            <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">H</div>
+            <h1 class="text-xl font-bold text-gray-800">Admin Panel</h1>
+        </div>
+        <nav class="flex-1 p-4 space-y-2">
+            <button onclick="showPage('dashboard')" id="nav-dashboard" class="sidebar-item active w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
+                <i class="fa-solid fa-chart-pie"></i>
+                <span>ภาพรวม (Overview)</span>
+            </button>
+            <button onclick="showPage('users')" id="nav-users" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
+                <i class="fa-solid fa-users"></i>
+                <span>รายบุคคล (Users)</span>
+            </button>
+            <div class="pt-4 mt-4 border-t border-gray-100">
+                <button onclick="exportToExcel()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-green-600 hover:bg-green-50 transition-colors">
+                    <i class="fa-solid fa-file-excel"></i>
+                    <span>ส่งออก Excel</span>
+                </button>
+            </div>
+        </nav>
+        <div class="p-4 border-t text-xs text-gray-400">
+            Health Tracker System v2.2 (Admin Auth)
+        </div>
+        <!-- Admin Profile Small -->
+        <div id="admin-profile-display" class="p-4 bg-gray-50 border-t flex items-center space-x-3 hidden">
+            <img id="admin-img" src="" class="w-8 h-8 rounded-full bg-gray-300">
+            <div class="overflow-hidden">
+                <p id="admin-name" class="text-sm font-bold text-gray-700 truncate">Admin</p>
+                <p class="text-xs text-green-600">Logged In</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col h-screen overflow-hidden">
+        <!-- Mobile Header -->
+        <header class="bg-white shadow-sm md:hidden p-4 flex justify-between items-center z-10">
+            <h1 class="text-lg font-bold">Health Tracker Admin</h1>
+            <button id="mobile-menu-btn" class="text-gray-600 focus:outline-none">
+                <i class="fa-solid fa-bars text-xl"></i>
+            </button>
+        </header>
+
+        <!-- Content Area -->
+        <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6 relative">
+            
+            <!-- Loading / Auth State Overlay -->
+            <div id="global-loading" class="absolute inset-0 bg-gray-100 z-50 flex flex-col items-center justify-center h-full w-full">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
+                <p class="text-gray-500" id="loading-text">กำลังตรวจสอบสิทธิ์ผู้ดูแลระบบ...</p>
+            </div>
+
+            <!-- Access Denied Screen -->
+            <div id="access-denied" class="absolute inset-0 bg-red-50 z-50 flex flex-col items-center justify-center h-full w-full hidden">
+                <div class="bg-white p-8 rounded-xl shadow-lg text-center max-w-md">
+                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                        <i class="fa-solid fa-lock text-3xl text-red-600"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
+                    <p class="text-gray-600 mb-6">คุณไม่มีสิทธิ์เข้าถึงหน้านี้ บัญชี LINE ของคุณไม่ได้รับอนุญาตให้เป็น Admin</p>
+                    <div class="bg-gray-100 p-3 rounded text-xs text-gray-500 break-all mb-6">
+                        Your ID: <span id="denied-user-id" class="font-mono font-bold"></span>
+                    </div>
+                    <button onclick="liff.logout(); location.reload();" class="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded hover:bg-indigo-700 transition duration-150">
+                        ลองเข้าสู่ระบบด้วยบัญชีอื่น
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dashboard View -->
+            <div id="page-dashboard" class="hidden space-y-6">
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-500">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-xs font-medium text-gray-500 uppercase">ผู้ใช้งานทั้งหมด</p>
+                                <h3 class="text-2xl font-bold text-gray-800 mt-1" id="stat-total-users">-</h3>
+                            </div>
+                            <div class="p-2 bg-blue-50 rounded-lg text-blue-600">
+                                <i class="fa-solid fa-user-group"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-green-500">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-xs font-medium text-gray-500 uppercase">ระยะทางรวม (กม.)</p>
+                                <h3 class="text-2xl font-bold text-gray-800 mt-1" id="stat-total-km">-</h3>
+                            </div>
+                            <div class="p-2 bg-green-50 rounded-lg text-green-600">
+                                <i class="fa-solid fa-person-running"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-orange-500">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-xs font-medium text-gray-500 uppercase">แคลอรี่รวม (kcal)</p>
+                                <h3 class="text-2xl font-bold text-gray-800 mt-1" id="stat-total-kcal">-</h3>
+                            </div>
+                            <div class="p-2 bg-orange-50 rounded-lg text-orange-600">
+                                <i class="fa-solid fa-fire"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-purple-500">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-xs font-medium text-gray-500 uppercase">เวลารวม (นาที)</p>
+                                <h3 class="text-2xl font-bold text-gray-800 mt-1" id="stat-total-minutes">-</h3>
+                            </div>
+                            <div class="p-2 bg-purple-50 rounded-lg text-purple-600">
+                                <i class="fa-solid fa-clock"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Health Stats Charts (New Section) -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-white rounded-xl shadow-sm p-6">
+                        <h3 class="font-bold text-gray-800 mb-4 text-center">สัดส่วน BMI</h3>
+                        <div class="relative h-48 w-full">
+                            <canvas id="bmiDistChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm p-6">
+                        <h3 class="font-bold text-gray-800 mb-4 text-center">สัดส่วน %ไขมัน</h3>
+                        <div class="relative h-48 w-full">
+                            <canvas id="fatDistChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm p-6">
+                        <h3 class="font-bold text-gray-800 mb-4 text-center">สัดส่วน %กล้ามเนื้อ</h3>
+                        <div class="relative h-48 w-full">
+                            <canvas id="muscleDistChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Activity Chart & Recent Activity -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Chart -->
+                    <div class="bg-white rounded-xl shadow-sm p-6 lg:col-span-1">
+                        <h3 class="font-bold text-gray-800 mb-4">สัดส่วนกิจกรรม</h3>
+                        <div class="relative h-64 w-full">
+                            <canvas id="activityTypeChart"></canvas>
+                        </div>
+                    </div>
+                    <!-- Recent Activity Table -->
+                    <div class="bg-white rounded-xl shadow-sm p-6 lg:col-span-2 overflow-hidden">
+                        <h3 class="font-bold text-gray-800 mb-4">รายการบันทึกล่าสุด</h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">เวลา</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User ID</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ประเภท</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">รายละเอียด</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200 cursor-pointer" id="recent-logs-table">
+                                    <!-- Dynamic Rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Users View -->
+            <div id="page-users" class="hidden h-full flex flex-col md:flex-row gap-6">
+                <!-- User List -->
+                <div class="w-full md:w-1/3 bg-white rounded-xl shadow-sm overflow-hidden flex flex-col h-[85vh]">
+                    <div class="p-4 border-b bg-gray-50 space-y-3">
+                        <h3 class="font-bold text-gray-800">รายชื่อพนักงาน</h3>
+                        <!-- Search -->
+                        <input type="text" id="user-search" placeholder="ค้นหา ID..." class="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <!-- Filters & Sorts -->
+                        <div class="flex gap-2">
+                            <select id="user-sort" class="w-1/2 px-2 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                                <option value="default">เรียงตาม ID</option>
+                                <option value="bmi-desc">BMI (มาก-น้อย)</option>
+                                <option value="bmi-asc">BMI (น้อย-มาก)</option>
+                                <option value="weight-desc">น้ำหนัก (มาก-น้อย)</option>
+                                <option value="weight-asc">น้ำหนัก (น้อย-มาก)</option>
+                                <option value="height-desc">ส่วนสูง (มาก-น้อย)</option>
+                                <option value="height-asc">ส่วนสูง (น้อย-มาก)</option>
+                                <option value="activity-desc">กิจกรรม (มาก-น้อย)</option>
+                            </select>
+                            <select id="user-filter-bmi" class="w-1/2 px-2 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                                <option value="all">BMI: ทั้งหมด</option>
+                                <option value="underweight">ผอม</option>
+                                <option value="normal">สมส่วน</option>
+                                <option value="overweight">ท้วม</option>
+                                <option value="obese">อ้วน</option>
+                                <option value="dangerous">อันตราย</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="overflow-y-auto flex-1 p-2 space-y-2" id="user-list-container">
+                        <!-- User Items -->
+                    </div>
+                </div>
+
+                <!-- User Detail -->
+                <div class="w-full md:w-2/3 bg-white rounded-xl shadow-sm p-6 hidden flex flex-col h-[85vh] overflow-y-auto" id="user-detail-panel">
+                    <div class="flex items-center space-x-4 border-b pb-4 mb-4">
+                        <div class="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center text-2xl text-gray-500 overflow-hidden">
+                            <i class="fa-solid fa-user" id="detail-user-icon"></i>
+                            <img id="detail-user-img" class="w-full h-full object-cover hidden">
+                        </div>
+                        <div class="overflow-hidden">
+                            <h2 class="text-xl md:text-2xl font-bold text-gray-800 truncate" id="detail-user-name">Select a User</h2>
+                            <p class="text-sm text-gray-500 hidden" id="detail-user-id">ID: -</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                        <div class="bg-gray-50 p-3 rounded-lg text-center">
+                            <p class="text-xs text-gray-500">เพศ</p>
+                            <p class="font-bold" id="detail-gender">-</p>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded-lg text-center">
+                            <p class="text-xs text-gray-500">อายุ</p>
+                            <p class="font-bold" id="detail-age">-</p>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded-lg text-center">
+                            <p class="text-xs text-gray-500">น้ำหนักล่าสุด</p>
+                            <p class="font-bold text-indigo-600" id="detail-weight">-</p>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded-lg text-center">
+                            <p class="text-xs text-gray-500">ส่วนสูง</p>
+                            <p class="font-bold" id="detail-height">-</p>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded-lg text-center">
+                            <p class="text-xs text-gray-500">BMI</p>
+                            <p class="font-bold" id="detail-bmi">-</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                         <div class="h-48 bg-gray-50 rounded-lg p-2">
+                             <p class="text-xs text-center text-gray-500 mb-1">ประวัติน้ำหนัก</p>
+                            <canvas id="userWeightChart"></canvas>
+                        </div>
+                        <div class="h-48 bg-gray-50 rounded-lg p-2">
+                             <p class="text-xs text-center text-gray-500 mb-1">ประวัติ %ไขมัน</p>
+                            <canvas id="userFatChart"></canvas>
+                        </div>
+                         <div class="h-48 bg-gray-50 rounded-lg p-2">
+                             <p class="text-xs text-center text-gray-500 mb-1">ประวัติ %กล้ามเนื้อ</p>
+                            <canvas id="userMuscleChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="font-bold text-gray-700 mb-2">ประวัติกิจกรรม</h4>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-sm text-left text-gray-500">
+                                <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-2">วันที่</th>
+                                        <th class="px-4 py-2">ประเภท</th>
+                                        <th class="px-4 py-2">รายละเอียด</th>
+                                        <th class="px-4 py-2">ค่าที่ได้</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="detail-logs-table" class="cursor-pointer">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Empty State for Detail -->
+                <div class="w-full md:w-2/3 bg-white rounded-xl shadow-sm p-6 flex flex-col items-center justify-center text-gray-400 h-[85vh]" id="user-detail-empty">
+                    <i class="fa-regular fa-id-card text-6xl mb-4"></i>
+                    <p>เลือกพนักงานจากรายการด้านซ้ายเพื่อดูรายละเอียด</p>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Modals -->
+        
+        <!-- Log Detail Modal -->
+        <div id="log-detail-modal" class="fixed inset-0 z-50 hidden overflow-y-auto">
+            <div class="flex items-center justify-center min-h-screen px-4 text-center">
+                <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onclick="closeModal('log-detail-modal')"></div>
+                <div class="inline-block w-full max-w-lg p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-2xl">
+                    <div class="flex justify-between items-start mb-4">
+                        <h3 class="text-lg font-medium leading-6 text-gray-900" id="modal-log-title">รายละเอียดกิจกรรม</h3>
+                        <button onclick="closeModal('log-detail-modal')" class="text-gray-400 hover:text-gray-500">
+                            <i class="fa-solid fa-xmark text-xl"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Image -->
+                    <div class="mb-4 bg-gray-100 rounded-lg overflow-hidden flex justify-center items-center" style="min-height: 200px;">
+                        <img id="modal-log-image" src="" class="max-h-96 w-auto object-contain hidden" alt="Activity Image">
+                        <div id="modal-log-no-image" class="text-gray-400 hidden p-10">ไม่มีรูปภาพ</div>
+                    </div>
+
+                    <!-- Info -->
+                    <div class="space-y-3 text-sm text-gray-600">
+                        <p><strong>User ID:</strong> <span id="modal-log-userid" class="select-all font-mono text-indigo-600"></span></p>
+                        <p><strong>เวลา:</strong> <span id="modal-log-date"></span></p>
+                        <p><strong>ประเภท:</strong> <span id="modal-log-type" class="font-semibold"></span></p>
+                        <p><strong>รายละเอียด:</strong> <span id="modal-log-desc"></span></p>
+                        <p><strong>ค่าที่ได้:</strong> <span id="modal-log-value" class="text-lg font-bold text-indigo-600"></span></p>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="mt-6 flex gap-3 justify-end border-t pt-4">
+                        <button onclick="openEditModal()" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-blue-900 bg-blue-100 border border-transparent rounded-md hover:bg-blue-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500">
+                            <i class="fa-solid fa-pen-to-square mr-2"></i> แก้ไข
+                        </button>
+                        <button onclick="deleteLog()" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-red-900 bg-red-100 border border-transparent rounded-md hover:bg-red-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-red-500">
+                            <i class="fa-solid fa-trash-can mr-2"></i> ลบ
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Log Modal -->
+        <div id="log-edit-modal" class="fixed inset-0 z-50 hidden overflow-y-auto">
+            <div class="flex items-center justify-center min-h-screen px-4 text-center">
+                <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onclick="closeModal('log-edit-modal')"></div>
+                <div class="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-2xl">
+                    <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">แก้ไขข้อมูล</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">รายละเอียด</label>
+                            <textarea id="edit-log-desc" rows="3" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700" id="edit-log-value-label">ค่าที่ได้</label>
+                            <input type="number" id="edit-log-value" step="0.1" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                            <span class="text-xs text-gray-500" id="edit-log-unit"></span>
+                        </div>
+                    </div>
+                    <div class="mt-6 flex gap-3 justify-end">
+                        <button onclick="closeModal('log-edit-modal')" class="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">ยกเลิก</button>
+                        <button onclick="saveEditLog()" class="px-4 py-2 text-sm text-white bg-indigo-600 rounded-md hover:bg-indigo-700">บันทึก</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="action-loading" class="fixed inset-0 z-[60] hidden bg-black bg-opacity-30 flex items-center justify-center">
+            <div class="bg-white p-4 rounded-lg shadow-lg flex items-center space-x-3">
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+                <span class="text-gray-700 font-medium">กำลังดำเนินการ...</span>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Firebase Configuration and Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, collectionGroup, getDocs, query, orderBy, limit, doc, getDoc, where, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Configuration
+        const CONFIG = {
+            LIFF_ID: "1654435774-wze0oX67",
+            ADMIN_ID: "U722ca367a6a72d0b0a9b4c26fa2c7c5c"
+        };
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDATchWwmazw3wPnuNk4i-d79rnyBpSDM0",
+            authDomain: "line-liff-a543c.firebaseapp.com",
+            projectId: "line-liff-a543c",
+            storageBucket: "line-liff-a543c.firebasestorage.app",
+            messagingSenderId: "617440448369",
+            appId: "1:617440448369:web:523f9ce4861c6b656c30d0"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        let allLogs = [];
+        let allUsers = [];
+        let charts = {};
+        let currentLog = null; 
+
+        // --- UI Helpers ---
+        window.openLogDetails = function(userId, logId) {
+            const log = allLogs.find(l => l.id === logId && l.userId === userId);
+            if (!log) {
+                alert("ไม่พบข้อมูลกิจกรรมนี้ (อาจถูกลบไปแล้ว)");
+                return;
+            }
+            currentLog = log;
+
+            document.getElementById('modal-log-userid').innerText = log.userId;
+            document.getElementById('modal-log-date').innerText = formatDisplayDate(log.timestamp);
+            document.getElementById('modal-log-desc').innerText = log.description || '-';
+            
+            const imgEl = document.getElementById('modal-log-image');
+            const noImgEl = document.getElementById('modal-log-no-image');
+            
+            // Check both fields
+            const imageSrc = log.imageUrl || log.imageData;
+
+            if (imageSrc) {
+                imgEl.src = imageSrc;
+                imgEl.classList.remove('hidden');
+                noImgEl.classList.add('hidden');
+            } else {
+                imgEl.classList.add('hidden');
+                noImgEl.classList.remove('hidden');
+            }
+
+            let typeText = '';
+            let valueText = '';
+            if(log.type === 'food') {
+                typeText = 'อาหาร';
+                valueText = `${log.kcal || 0} kcal`;
+            } else if (log.type === 'exercise') {
+                const exerciseMap = { running: 'การวิ่ง', walking: 'เดิน', cycling: 'ปั่นจักรยาน', other: 'กีฬาอื่นๆ' };
+                typeText = exerciseMap[log.exerciseType] || 'ออกกำลังกาย';
+                if(log.km) valueText = `${log.km} กม.`;
+                else if(log.minutes) valueText = `${log.minutes} นาที`;
+            }
+            document.getElementById('modal-log-type').innerText = typeText;
+            document.getElementById('modal-log-value').innerText = valueText;
+
+            document.getElementById('log-detail-modal').classList.remove('hidden');
+        };
+
+        window.closeModal = function(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        };
+
+        window.openEditModal = function() {
+            if(!currentLog) return;
+            
+            document.getElementById('edit-log-desc').value = currentLog.description || '';
+            
+            const valInput = document.getElementById('edit-log-value');
+            const label = document.getElementById('edit-log-value-label');
+            const unit = document.getElementById('edit-log-unit');
+
+            if(currentLog.type === 'food') {
+                label.innerText = 'แคลอรี่ (kcal)';
+                valInput.value = currentLog.kcal || 0;
+                unit.innerText = 'kcal';
+            } else {
+                if(currentLog.km !== undefined) {
+                    label.innerText = 'ระยะทาง (กม.)';
+                    valInput.value = currentLog.km || 0;
+                    unit.innerText = 'กม.';
+                } else {
+                    label.innerText = 'เวลา (นาที)';
+                    valInput.value = currentLog.minutes || 0;
+                    unit.innerText = 'นาที';
+                }
+            }
+            
+            document.getElementById('log-detail-modal').classList.add('hidden');
+            document.getElementById('log-edit-modal').classList.remove('hidden');
+        };
+
+        window.saveEditLog = async function() {
+            if(!currentLog) return;
+            showLoading(true);
+            try {
+                const newDesc = document.getElementById('edit-log-desc').value;
+                const newVal = parseFloat(document.getElementById('edit-log-value').value) || 0;
+                
+                const updates = { description: newDesc };
+                if(currentLog.type === 'food') {
+                    updates.kcal = newVal;
+                } else {
+                    if(currentLog.km !== undefined) updates.km = newVal;
+                    else updates.minutes = newVal;
+                }
+
+                const logRef = doc(db, currentLog.refPath);
+                await updateDoc(logRef, updates);
+
+                alert("แก้ไขข้อมูลสำเร็จ");
+                closeModal('log-edit-modal');
+                await fetchData(); 
+                
+                if(!document.getElementById('page-dashboard').classList.contains('hidden')) renderDashboard();
+                else { 
+                    const user = allUsers.find(u => u.userId === currentLog.userId);
+                    if(user) showUserDetail(user); 
+                }
+
+            } catch (error) {
+                console.error("Update failed:", error);
+                alert("เกิดข้อผิดพลาดในการแก้ไข: " + error.message);
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        window.deleteLog = async function() {
+            if(!currentLog) return;
+            if(!confirm("คุณต้องการลบรายการนี้ใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้")) return;
+            
+            showLoading(true);
+            try {
+                const logRef = doc(db, currentLog.refPath);
+                await deleteDoc(logRef);
+                
+                alert("ลบข้อมูลสำเร็จ");
+                closeModal('log-detail-modal');
+                await fetchData(); 
+                
+                if(!document.getElementById('page-dashboard').classList.contains('hidden')) renderDashboard();
+                else { 
+                     const user = allUsers.find(u => u.userId === currentLog.userId);
+                     if(user) showUserDetail(user); 
+                     else { renderUserList(); }
+                }
+            } catch (error) {
+                console.error("Delete failed:", error);
+                alert("เกิดข้อผิดพลาดในการลบ: " + error.message);
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        function showLoading(show) {
+            document.getElementById('action-loading').classList.toggle('hidden', !show);
+        }
+
+        // --- Helper: Date Formatting ---
+        function getJsDate(timestamp) {
+            if (!timestamp) return null;
+            if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+                return timestamp.toDate();
+            }
+            const d = new Date(timestamp);
+            return isNaN(d.getTime()) ? null : d;
+        }
+
+        function formatDisplayDate(timestamp) {
+            const date = getJsDate(timestamp);
+            return date ? date.toLocaleString('th-TH') : '-';
+        }
+
+        function getUserIdFromPath(ref) {
+            const segments = ref.path.split('/');
+            const usersIndex = segments.indexOf('users');
+            if (usersIndex !== -1 && usersIndex + 1 < segments.length) {
+                return segments[usersIndex + 1];
+            }
+            return 'unknown';
+        }
+
+        // --- Stats Calculation Helper ---
+        function calculateUserStats(user) {
+            const weightHistory = user.weightHistory || [];
+            const heightHistory = user.heightHistory || [];
+            const bodyfatHistory = user.bodyfatHistory || [];
+            const muscleHistory = user.muscleHistory || [];
+            
+            const currentWeight = weightHistory.length > 0 ? weightHistory[weightHistory.length - 1].value : 0;
+            const currentHeight = heightHistory.length > 0 ? heightHistory[heightHistory.length - 1].value : 0;
+            const currentBodyFat = bodyfatHistory.length > 0 ? bodyfatHistory[bodyfatHistory.length - 1].value : 0;
+            const currentMuscle = muscleHistory.length > 0 ? muscleHistory[muscleHistory.length - 1].value : 0;
+            
+            let bmi = 0;
+            let bmiStatus = 'unknown';
+            
+            if (currentWeight > 0 && currentHeight > 0) {
+                const h = currentHeight / 100;
+                bmi = parseFloat((currentWeight / (h * h)).toFixed(1));
+                
+                if (bmi < 18.5) bmiStatus = 'underweight';
+                else if (bmi <= 22.9) bmiStatus = 'normal';
+                else if (bmi <= 24.9) bmiStatus = 'overweight';
+                else if (bmi <= 29.9) bmiStatus = 'obese';
+                else bmiStatus = 'dangerous';
+            }
+
+            const activityCount = allLogs.filter(log => log.userId === user.userId).length;
+
+            return {
+                ...user,
+                currentWeight,
+                currentHeight,
+                currentBodyFat,
+                currentMuscle,
+                bmi,
+                bmiStatus,
+                activityCount
+            };
+        }
+
+        // --- Excel Export Function ---
+        window.exportToExcel = function() {
+            if (allLogs.length === 0 && allUsers.length === 0) {
+                alert("ไม่มีข้อมูลสำหรับส่งออก");
+                return;
+            }
+
+            const usersData = allUsers.map(user => {
+                return {
+                    "User ID": user.userId,
+                    "เพศ": user.gender === 'male' ? 'ชาย' : (user.gender === 'female' ? 'หญิง' : user.gender || '-'),
+                    "วันเกิด": user.dob || '-',
+                    "อายุ": document.getElementById('detail-age') && user.userId === document.getElementById('detail-user-name').innerText ? document.getElementById('detail-age').innerText : calculateAgeForExport(user.dob),
+                    "น้ำหนักล่าสุด (kg)": user.currentWeight || '-',
+                    "ส่วนสูงล่าสุด (cm)": user.currentHeight || '-',
+                    "BMI": user.bmi || '-',
+                    "%ไขมันล่าสุด": user.currentBodyFat || '-',
+                    "%กล้ามเนื้อล่าสุด": user.currentMuscle || '-',
+                    "จำนวนกิจกรรม": user.activityCount
+                };
+            });
+
+            const logsData = allLogs.map(log => {
+                let typeText = '';
+                let valueText = '';
+                
+                if(log.type === 'food') {
+                    typeText = 'อาหาร';
+                    valueText = `${log.kcal || 0} kcal`;
+                } else if (log.type === 'exercise') {
+                    const exerciseMap = {
+                        running: 'การวิ่ง',
+                        walking: 'เดิน',
+                        cycling: 'ปั่นจักรยาน',
+                        other: 'กีฬาอื่นๆ'
+                    };
+                    typeText = exerciseMap[log.exerciseType] || 'ออกกำลังกาย';
+                    if(log.km) valueText = `${log.km} กม.`;
+                    else if(log.minutes) valueText = `${log.minutes} นาที`;
+                }
+
+                return {
+                    "วันที่/เวลา": formatDisplayDate(log.timestamp),
+                    "User ID": log.userId,
+                    "ประเภท": typeText,
+                    "รายละเอียด": log.description || '-',
+                    "ค่าที่ได้": valueText,
+                    "รูปภาพ": log.imageUrl || (log.imageData ? 'มีรูปภาพ (Base64)' : '-')
+                };
+            });
+
+            const wb = XLSX.utils.book_new();
+            const wsUsers = XLSX.utils.json_to_sheet(usersData);
+            XLSX.utils.book_append_sheet(wb, wsUsers, "Users");
+            const wsLogs = XLSX.utils.json_to_sheet(logsData);
+            XLSX.utils.book_append_sheet(wb, wsLogs, "Activity Logs");
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+            XLSX.writeFile(wb, `HealthTracker_Export_${dateStr}.xlsx`);
+        };
+
+        function calculateAgeForExport(dob) {
+            if(!dob) return '-';
+            const birthDate = new Date(dob);
+            if(isNaN(birthDate)) return '-';
+            const diff = Date.now() - birthDate.getTime();
+            const ageDate = new Date(diff);
+            return Math.abs(ageDate.getUTCFullYear() - 1970);
+        }
+
+
+        async function init() {
+            try {
+                // 1. Check LIFF Login & Admin ID
+                await liff.init({ liffId: CONFIG.LIFF_ID });
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
+
+                const profile = await liff.getProfile();
+                // !!! SECURITY CHECK !!!
+                if (profile.userId !== CONFIG.ADMIN_ID) {
+                    document.getElementById('global-loading').classList.add('hidden');
+                    document.getElementById('access-denied').classList.remove('hidden');
+                    document.getElementById('denied-user-id').innerText = profile.userId;
+                    return; // Stop execution
+                }
+
+                // Admin Access Granted - Show small profile in sidebar
+                document.getElementById('admin-name').innerText = profile.displayName;
+                document.getElementById('admin-img').src = profile.pictureUrl;
+                document.getElementById('admin-profile-display').classList.remove('hidden');
+                document.getElementById('loading-text').innerText = 'ยืนยันตัวตนสำเร็จ กำลังโหลดข้อมูล...';
+
+                // 2. Firebase Init
+                await signInAnonymously(auth);
+                await fetchData();
+                
+                // 3. Show Dashboard
+                document.getElementById('global-loading').classList.add('hidden');
+                document.getElementById('page-dashboard').classList.remove('hidden');
+                renderDashboard();
+                renderUserList();
+
+            } catch (error) {
+                console.error("Init Error:", error);
+                if (error.code === 'permission-denied') {
+                    alert("สิทธิ์การเข้าถึงถูกปฏิเสธ (Permission Denied)\n\nกรุณาไปที่ Firebase Console > Firestore Database > Rules\nและเปลี่ยนกฎเป็น 'allow read, write: if true;' เพื่อทดสอบครับ");
+                } else {
+                    alert("เกิดข้อผิดพลาด: " + error.message);
+                }
+            }
+        }
+
+        async function fetchData() {
+            console.log("Fetching data...");
+            
+            // 1. Logs
+            const logsQuery = query(collectionGroup(db, 'logs'));
+            const logsSnapshot = await getDocs(logsQuery);
+            allLogs = [];
+            const foundUserIds = new Set();
+
+            logsSnapshot.forEach(doc => {
+                const userId = getUserIdFromPath(doc.ref);
+                foundUserIds.add(userId);
+                allLogs.push({ ...doc.data(), id: doc.id, userId: userId, refPath: doc.ref.path });
+            });
+
+            allLogs.sort((a, b) => {
+                const dateA = getJsDate(a.timestamp) || new Date(0);
+                const dateB = getJsDate(b.timestamp) || new Date(0);
+                return dateB - dateA;
+            });
+
+            // 2. Helper to fetch subcollections
+            const fetchSubcollection = async (colName) => {
+                const map = {};
+                const q = query(collectionGroup(db, colName));
+                const snap = await getDocs(q);
+                snap.forEach(doc => {
+                    const userId = getUserIdFromPath(doc.ref);
+                    if (!map[userId]) map[userId] = [];
+                    map[userId].push({ ...doc.data(), id: doc.id });
+                    foundUserIds.add(userId);
+                });
+                for (const uid in map) {
+                    map[uid].sort((a, b) => {
+                        const dateA = getJsDate(a.timestamp) || new Date(0);
+                        const dateB = getJsDate(b.timestamp) || new Date(0);
+                        return dateA - dateB;
+                    });
+                }
+                return map;
+            };
+
+            const weightsMap = await fetchSubcollection('weights');
+            const heightsMap = await fetchSubcollection('heights');
+            const bodyfatsMap = await fetchSubcollection('bodyfats');
+            const musclesMap = await fetchSubcollection('muscles');
+
+            // 4. Profiles
+            let rawUsers = [];
+            const usersQuery = query(collectionGroup(db, 'users')); 
+            const usersSnapshot = await getDocs(usersQuery);
+            const processedUserIds = new Set();
+
+            usersSnapshot.forEach(doc => {
+                const userId = doc.id;
+                if (processedUserIds.has(userId)) return;
+
+                const data = doc.data();
+                // Check if valid user doc (has data)
+                if (data.profile || weightsMap[userId] || heightsMap[userId]) {
+                    const profile = data.profile || {};
+                    rawUsers.push({
+                        userId: userId,
+                        ...profile,
+                        weightHistory: weightsMap[userId] || [],
+                        heightHistory: heightsMap[userId] || [],
+                        bodyfatHistory: bodyfatsMap[userId] || [],
+                        muscleHistory: musclesMap[userId] || []
+                    });
+                    processedUserIds.add(userId);
+                }
+            });
+
+            foundUserIds.forEach(uid => {
+                if (!processedUserIds.has(uid) && uid !== 'unknown') {
+                    rawUsers.push({ 
+                        userId: uid, 
+                        gender: '-', 
+                        dob: '-',
+                        weightHistory: weightsMap[uid] || [],
+                        heightHistory: heightsMap[uid] || [],
+                        bodyfatHistory: bodyfatsMap[uid] || [],
+                        muscleHistory: musclesMap[uid] || []
+                    });
+                    processedUserIds.add(uid); 
+                }
+            });
+
+            allUsers = rawUsers.map(calculateUserStats);
+            
+            console.log(`Loaded ${allUsers.length} users with stats.`);
+        }
+
+        function renderDashboard() {
+            const totalUsers = allUsers.length;
+            const totalKm = allLogs.reduce((acc, log) => acc + (log.km || 0), 0);
+            const totalKcal = allLogs.reduce((acc, log) => acc + (log.kcal || 0), 0);
+            const totalMinutes = allLogs.reduce((acc, log) => acc + (log.minutes || 0), 0);
+
+            document.getElementById('stat-total-users').innerText = totalUsers;
+            document.getElementById('stat-total-km').innerText = totalKm.toFixed(1);
+            document.getElementById('stat-total-kcal').innerText = totalKcal.toLocaleString();
+            document.getElementById('stat-total-minutes').innerText = totalMinutes.toLocaleString();
+
+            // --- Charts ---
+            
+            // 1. Activity Distribution
+            const typeCounts = { 'running': 0, 'walking': 0, 'cycling': 0, 'other': 0, 'food': 0 };
+            allLogs.forEach(log => {
+                if (log.type === 'food') typeCounts.food++;
+                else if (log.exerciseType && typeCounts[log.exerciseType] !== undefined) typeCounts[log.exerciseType]++;
+                else typeCounts.other++;
+            });
+            renderChart('activityTypeChart', ['วิ่ง', 'เดิน', 'จักรยาน', 'อื่นๆ', 'อาหาร'], 
+                [typeCounts.running, typeCounts.walking, typeCounts.cycling, typeCounts.other, typeCounts.food], 
+                ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444']);
+
+            // 2. BMI Distribution
+            const bmiCounts = { 'underweight': 0, 'normal': 0, 'overweight': 0, 'obese': 0, 'dangerous': 0, 'unknown': 0 };
+            allUsers.forEach(u => bmiCounts[u.bmiStatus]++);
+            renderChart('bmiDistChart', ['ผอม', 'สมส่วน', 'ท้วม', 'อ้วน', 'อันตราย'], 
+                [bmiCounts.underweight, bmiCounts.normal, bmiCounts.overweight, bmiCounts.obese, bmiCounts.dangerous],
+                ['#3b82f6', '#22c55e', '#f59e0b', '#f97316', '#ef4444']);
+
+            // 3. Fat Distribution (Simple categorization logic for demo)
+            // Male: <14 Low, 14-24 Normal, >24 High
+            // Female: <21 Low, 21-31 Normal, >31 High
+            const fatCounts = { 'low': 0, 'normal': 0, 'high': 0, 'unknown': 0 };
+            allUsers.forEach(u => {
+                const fat = u.currentBodyFat;
+                if(!fat) { fatCounts.unknown++; return; }
+                
+                let status = 'normal';
+                if (u.gender === 'female') {
+                    if (fat < 21) status = 'low'; else if (fat > 31) status = 'high';
+                } else { // Male or unknown assume male
+                    if (fat < 14) status = 'low'; else if (fat > 24) status = 'high';
+                }
+                fatCounts[status]++;
+            });
+            renderChart('fatDistChart', ['ต่ำ', 'ปกติ', 'สูง', 'ไม่ระบุ'], 
+                [fatCounts.low, fatCounts.normal, fatCounts.high, fatCounts.unknown],
+                ['#3b82f6', '#22c55e', '#ef4444', '#d1d5db']);
+
+            // 4. Muscle Distribution (Simple categorization)
+            // Low < 30, Normal 30-40, High > 40
+            const muscleCounts = { 'low': 0, 'normal': 0, 'high': 0, 'unknown': 0 };
+            allUsers.forEach(u => {
+                const mus = u.currentMuscle;
+                if(!mus) { muscleCounts.unknown++; return; }
+                if (mus < 30) muscleCounts.low++;
+                else if (mus > 40) muscleCounts.high++;
+                else muscleCounts.normal++;
+            });
+            renderChart('muscleDistChart', ['น้อย', 'ปานกลาง', 'มาก', 'ไม่ระบุ'], 
+                [muscleCounts.low, muscleCounts.normal, muscleCounts.high, muscleCounts.unknown],
+                ['#f59e0b', '#22c55e', '#3b82f6', '#d1d5db']);
+
+            // Recent Logs Table
+            const tableBody = document.getElementById('recent-logs-table');
+            tableBody.innerHTML = '';
+            allLogs.slice(0, 10).forEach(log => {
+                const date = formatDisplayDate(log.timestamp);
+                let typeBadge = '';
+                if(log.type === 'food') typeBadge = '<span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">อาหาร</span>';
+                else if(log.exerciseType === 'running') typeBadge = '<span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">วิ่ง</span>';
+                else if(log.exerciseType === 'walking') typeBadge = '<span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">เดิน</span>';
+                else typeBadge = '<span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">ออกกำลังกาย</span>';
+
+                let details = log.description || '-';
+                if(log.km) details += ` (${log.km} กม.)`;
+                if(log.kcal) details += ` (${log.kcal} kcal)`;
+
+                // *** FIX: Check both imageUrl AND imageData ***
+                const imgSource = log.imageUrl || log.imageData;
+                // Remove image from dashboard list
+                const imgHtml = ''; 
+                const shortUserId = log.userId.length > 8 ? log.userId.substring(0, 8) + '...' : log.userId;
+
+                const row = `
+                    <tr class="hover:bg-gray-50 cursor-pointer transition-colors" onclick="openLogDetails('${log.userId}', '${log.id}')">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${date}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-xs font-mono text-indigo-600" title="${log.userId}">${shortUserId}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${typeBadge}</td>
+                        <td class="px-6 py-4 text-sm text-gray-900">${details}</td>
+                    </tr>
+                `;
+                tableBody.innerHTML += row;
+            });
+        }
+
+        function renderChart(canvasId, labels, data, colors) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            if (charts[canvasId]) charts[canvasId].destroy();
+            charts[canvasId] = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 10 } } } } }
+            });
+        }
+
+        function renderUserList() {
+            const container = document.getElementById('user-list-container');
+            const searchText = document.getElementById('user-search').value.toLowerCase();
+            const sortOption = document.getElementById('user-sort').value;
+            const filterBmi = document.getElementById('user-filter-bmi').value;
+
+            container.innerHTML = '';
+            
+            let filteredUsers = allUsers.filter(user => {
+                const matchesSearch = user.userId.toLowerCase().includes(searchText);
+                const matchesBmi = filterBmi === 'all' || user.bmiStatus === filterBmi;
+                return matchesSearch && matchesBmi;
+            });
+
+            filteredUsers.sort((a, b) => {
+                switch(sortOption) {
+                    case 'bmi-desc': return b.bmi - a.bmi;
+                    case 'bmi-asc': return a.bmi - b.bmi;
+                    case 'weight-desc': return b.currentWeight - a.currentWeight;
+                    case 'weight-asc': return a.currentWeight - b.currentWeight;
+                    case 'height-desc': return b.currentHeight - a.currentHeight;
+                    case 'height-asc': return a.currentHeight - b.currentHeight;
+                    case 'activity-desc': return b.activityCount - a.activityCount;
+                    default: return a.userId.localeCompare(b.userId);
+                }
+            });
+
+            if (filteredUsers.length === 0) {
+                container.innerHTML = '<div class="p-4 text-center text-gray-500">ไม่พบข้อมูลที่ตรงกัน</div>';
+                return;
+            }
+
+            filteredUsers.forEach(user => {
+                const userLogs = allLogs.filter(l => l.userId === user.userId);
+                const lastActive = userLogs.length > 0 ? formatDisplayDate(userLogs[0].timestamp) : 'ไม่มีกิจกรรม';
+                
+                let statBadge = '';
+                if(sortOption.includes('bmi')) statBadge = `<span class="text-xs bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded ml-2">BMI: ${user.bmi}</span>`;
+                else if(sortOption.includes('weight')) statBadge = `<span class="text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded ml-2">${user.currentWeight}kg</span>`;
+                else if(sortOption.includes('height')) statBadge = `<span class="text-xs bg-teal-100 text-teal-800 px-2 py-0.5 rounded ml-2">${user.currentHeight}cm</span>`;
+                else if(sortOption.includes('activity')) statBadge = `<span class="text-xs bg-orange-100 text-orange-800 px-2 py-0.5 rounded ml-2">${user.activityCount} กิจกรรม</span>`;
+
+                const el = document.createElement('div');
+                el.className = 'flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors border border-transparent hover:border-indigo-100';
+                el.onclick = () => showUserDetail(user);
+                
+                el.innerHTML = `
+                    <div class="h-10 w-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold mr-3">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center">
+                            <p class="text-sm font-medium text-gray-900 truncate" title="${user.userId}">${user.userId}</p>
+                            ${statBadge}
+                        </div>
+                        <p class="text-xs text-gray-500">ล่าสุด: ${lastActive}</p>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
+                `;
+                container.appendChild(el);
+            });
+        }
+
+        document.getElementById('user-search').addEventListener('input', renderUserList);
+        document.getElementById('user-sort').addEventListener('change', renderUserList);
+        document.getElementById('user-filter-bmi').addEventListener('change', renderUserList);
+
+        function showUserDetail(user) {
+            document.getElementById('user-detail-empty').classList.add('hidden');
+            document.getElementById('user-detail-panel').classList.remove('hidden');
+
+            document.getElementById('detail-user-name').innerText = user.userId;
+            document.getElementById('detail-user-id').style.display = 'none';
+            
+            let age = '-';
+            if(user.dob) {
+                const birthDate = new Date(user.dob);
+                const diff = Date.now() - birthDate.getTime();
+                const ageDate = new Date(diff);
+                age = Math.abs(ageDate.getUTCFullYear() - 1970);
+            }
+            document.getElementById('detail-age').innerText = age;
+            document.getElementById('detail-gender').innerText = user.gender === 'male' ? 'ชาย' : (user.gender === 'female' ? 'หญิง' : user.gender || '-');
+
+            document.getElementById('detail-weight').innerText = user.currentWeight ? `${user.currentWeight} kg` : '-';
+            document.getElementById('detail-height').innerText = user.currentHeight ? `${user.currentHeight} cm` : '-';
+            document.getElementById('detail-bmi').innerText = user.bmi > 0 ? user.bmi : '-';
+
+            renderHistoryChart('userWeightChart', user.weightHistory, 'น้ำหนัก (kg)', '#4f46e5');
+            renderHistoryChart('userFatChart', user.bodyfatHistory, '%ไขมัน', '#ef4444');
+            renderHistoryChart('userMuscleChart', user.muscleHistory, '%กล้ามเนื้อ', '#f59e0b');
+
+            const userLogs = allLogs.filter(l => l.userId === user.userId);
+            const logsTable = document.getElementById('detail-logs-table');
+            logsTable.innerHTML = '';
+            
+            if (userLogs.length === 0) {
+                logsTable.innerHTML = '<tr><td colspan="4" class="px-4 py-4 text-center text-gray-400">ไม่มีประวัติกิจกรรม</td></tr>';
+            }
+
+            userLogs.forEach(log => {
+                const date = formatDisplayDate(log.timestamp);
+                let value = '-';
+                if(log.km) value = `${log.km} กม.`;
+                else if(log.minutes) value = `${log.minutes} นาที`;
+                else if(log.kcal) value = `${log.kcal} kcal`;
+
+                // *** Updated row with onclick handler ***
+                const row = `
+                    <tr class="bg-white border-b hover:bg-gray-50 cursor-pointer transition-colors" onclick="openLogDetails('${log.userId}', '${log.id}')">
+                        <td class="px-4 py-2 whitespace-nowrap">${date}</td>
+                        <td class="px-4 py-2 font-medium text-gray-900">
+                            ${log.type === 'food' ? 'อาหาร' : (log.exerciseType || 'ออกกำลังกาย')}
+                        </td>
+                        <td class="px-4 py-2 truncate max-w-xs">${log.description || '-'}</td>
+                        <td class="px-4 py-2 font-bold text-indigo-600">${value}</td>
+                    </tr>
+                `;
+                logsTable.innerHTML += row;
+            });
+        }
+
+        function renderHistoryChart(canvasId, history, label, color) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            
+            if(charts[canvasId]) {
+                charts[canvasId].destroy();
+            }
+
+            if(!history || history.length === 0) {
+                ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                return;
+            }
+
+            charts[canvasId] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: history.map((_, i) => `ครั้งที่ ${i+1}`),
+                    datasets: [{
+                        label: label,
+                        data: history.map(h => h.value),
+                        borderColor: color,
+                        backgroundColor: color + '1A', // 10% opacity
+                        tension: 0.1,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: false } }
+                }
+            });
+        }
+
+        window.showPage = function(pageId) {
+            document.querySelectorAll('#page-dashboard, #page-users').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`page-${pageId}`).classList.remove('hidden');
+            document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(`nav-${pageId}`).classList.add('active');
+        }
+
+        init();
+
+    </script>
+</body>
+</html>
