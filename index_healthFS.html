@@ -175,6 +175,13 @@
                                     <label class="block text-sm font-medium text-gray-700">แคลอรี่ (kcal)</label>
                                     <input type="number" id="log-kcal" placeholder="0" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
                                 </div>
+                                <!-- Healthy Food Checkbox (New) -->
+                                <div id="healthy-food-container" class="hidden flex items-center pt-2">
+                                    <input id="log-healthy-food" type="checkbox" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                    <label for="log-healthy-food" class="ml-2 block text-sm text-gray-900">
+                                        บันทึกอาหารสุขภาพประจำวัน
+                                    </label>
+                                </div>
                                 <!-- Km Input -->
                                 <div id="km-input-container">
                                     <label class="block text-sm font-medium text-gray-700">ระยะทาง (กม.)</label>
@@ -297,6 +304,9 @@
                 exerciseType: document.getElementById('log-exercise-type'),
                 kcalInputContainer: document.getElementById('kcal-input-container'),
                 kcal: document.getElementById('log-kcal'),
+                // New Healthy Food Elements
+                healthyFoodContainer: document.getElementById('healthy-food-container'),
+                healthyFoodCheckbox: document.getElementById('log-healthy-food'),
                 kmInputContainer: document.getElementById('km-input-container'),
                 km: document.getElementById('log-km'),
                 minutesInputContainer: document.getElementById('minutes-input-container'),
@@ -632,7 +642,16 @@
                     const valueText = item.km > 0 ? `${item.km} กม.` : (item.minutes > 0 ? `${item.minutes} นาที` : '');
                     detailsHtml = `<p class="mt-1 font-semibold text-blue-600">${typeText}${valueText ? `: ${valueText}` : ''}</p>`;
                 } else {
-                    detailsHtml = `<p class="mt-1 font-semibold text-orange-600">${item.kcal || 0} kcal</p>`;
+                    let foodDetails = `<p class="mt-1 font-semibold text-orange-600">${item.kcal || 0} kcal</p>`;
+                    if (item.isHealthy) {
+                        foodDetails += `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 mt-1">
+                            <svg class="mr-1.5 h-2 w-2 text-green-400" fill="currentColor" viewBox="0 0 8 8">
+                                <circle cx="4" cy="4" r="3" />
+                            </svg>
+                            อาหารสุขภาพ
+                        </span>`;
+                    }
+                    detailsHtml = foodDetails;
                 }
                 contentHtml = `<img src="${item.imageData}" alt="${item.description || 'log image'}" class="w-24 h-24 object-cover rounded-md bg-gray-200 flex-shrink-0"><div class="flex-1 flex flex-col"><div class="flex-grow pr-6"><span class="px-2 py-1 text-xs font-semibold rounded-full ${typeDisplay.bg} ${typeDisplay.textColor}">${typeDisplay.text}</span><p class="mt-2 text-gray-700">${item.description || 'ไม่มีคำอธิบาย'}</p>${detailsHtml}</div><div class="text-right text-xs text-gray-400 mt-2">${logDate}</div></div>`;
             } else {
@@ -700,8 +719,10 @@
         };
         const resetLogForm = () => {
             DOM.log.description.value = ''; DOM.log.fileInput.value = ''; DOM.log.kcal.value = ''; DOM.log.km.value = ''; DOM.log.minutes.value = '';
+            DOM.log.healthyFoodCheckbox.checked = false; // Reset checkbox
             DOM.log.exerciseType.value = 'running'; state.logImageBase64 = null; DOM.log.preview.src = '';
             setElementVisibility(DOM.log.preview, false); setElementVisibility(DOM.log.placeholderIcon, true);
+            setElementVisibility(DOM.log.healthyFoodContainer, false); // Hide checkbox
             DOM.log.typeButtons[0].click(); 
         };
 
@@ -800,7 +821,7 @@
                     description: DOM.log.description.value,
                     imageData: state.logImageBase64,
                     timestamp: serverTimestamp(),
-                    exerciseType: null, km: 0, minutes: 0, kcal: 0
+                    exerciseType: null, km: 0, minutes: 0, kcal: 0, isHealthy: false // Default isHealthy
                 };
 
                 if (state.currentLogType === 'exercise') {
@@ -809,6 +830,7 @@
                     else logToSave.minutes = parseInt(DOM.log.minutes.value) || 0;
                 } else {
                     logToSave.kcal = parseInt(DOM.log.kcal.value) || 0;
+                    logToSave.isHealthy = DOM.log.healthyFoodCheckbox.checked; // Capture checkbox value
                 }
                 
                 await addDoc(logsCollectionRef, logToSave);
@@ -820,6 +842,7 @@
                     height: state.appData.heightHistory.at(-1)?.value || null, weight: state.appData.weightHistory.at(-1)?.value || null,
                     exerciseType: logToSave.exerciseType, km: logToSave.km > 0 ? logToSave.km : null,
                     minutes: logToSave.minutes > 0 ? logToSave.minutes : null, kcal: logToSave.kcal > 0 ? logToSave.kcal : null,
+                    isHealthy: logToSave.isHealthy
                 };
                 await postToWebhook(webhookPayload);
 
@@ -966,6 +989,7 @@
                     DOM.log.uploadLabel.textContent = `อัปโหลดรูปภาพ${isExercise ? 'การออกกำลังกาย' : 'อาหาร'}`;
                     setElementVisibility(DOM.log.exerciseTypeContainer, isExercise);
                     setElementVisibility(DOM.log.kcalInputContainer, !isExercise);
+                    setElementVisibility(DOM.log.healthyFoodContainer, !isExercise); // Toggle healthy food checkbox
                     if (isExercise) DOM.log.exerciseType.dispatchEvent(new Event('change'));
                     else { setElementVisibility(DOM.log.kmInputContainer, false); setElementVisibility(DOM.log.minutesInputContainer, false); }
                     DOM.log.typeButtons.forEach(btn => {
