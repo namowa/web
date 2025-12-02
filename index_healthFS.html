@@ -28,23 +28,7 @@
 <body class="bg-gray-50">
 
     <div id="app-container">
-        <!-- App Header -->
-        <header class="bg-white shadow-sm">
-            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex justify-between items-center">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-900">Health Tracker</h1>
-                    <p class="text-gray-500">ระบบส่งเสริมสุขภาพพนักงาน</p>
-                </div>
-                <!-- LIFF Profile Info -->
-                <div id="liff-profile" class="hidden flex items-center space-x-3">
-                    <span id="liff-display-name" class="font-semibold text-gray-700 text-right"></span>
-                    <img id="liff-picture-url" class="w-10 h-10 rounded-full" src="" alt="LINE Profile Picture">
-                </div>
-                <div id="liff-loading" class="text-sm text-gray-500">
-                    กำลังเชื่อมต่อกับ LINE...
-                </div>
-            </div>
-        </header>
+        <!-- App Header Removed -->
 
         <!-- Main Content -->
         <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -270,10 +254,7 @@
         const DOM = {
             appLoading: document.getElementById('app-loading'),
             mainApp: document.getElementById('main-app'),
-            liffLoading: document.getElementById('liff-loading'),
-            liffProfileContainer: document.getElementById('liff-profile'),
-            liffDisplayName: document.getElementById('liff-display-name'),
-            liffPictureUrl: document.getElementById('liff-picture-url'),
+            // Removed header related DOM elements
             footerText: document.getElementById('footer-text'),
             navButtons: document.querySelectorAll('.nav-button'),
             pages: document.querySelectorAll('.page'),
@@ -420,10 +401,7 @@
 
         // --- UI Rendering & Updates ---
         const updateLiffProfileUI = () => {
-            DOM.liffDisplayName.textContent = state.liff.profile.displayName;
-            DOM.liffPictureUrl.src = state.liff.profile.pictureUrl;
-            setElementVisibility(DOM.liffProfileContainer, true);
-            setElementVisibility(DOM.liffLoading, false);
+            // Updated to remove header UI updates
             DOM.footerText.textContent = `UserID: ${state.firebase.userId}`;
         };
         const renderProfileBmiDisplay = () => {
