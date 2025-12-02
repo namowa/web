@@ -520,7 +520,11 @@
             `;
         };
         const createHistoryItemHTML = (item) => {
-            const logDate = item.timestamp.toDate().toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' });
+            // แก้ไข: ตรวจสอบ timestamp ว่ามีค่าหรือไม่ ป้องกัน Error ตอนบันทึกใหม่ๆ
+            const logDate = item.timestamp 
+                ? item.timestamp.toDate().toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' }) 
+                : 'กำลังบันทึก...';
+                
             let contentHtml = '';
             if (item.type === 'exercise' || item.type === 'food') {
                 const isExercise = item.type === 'exercise';
@@ -564,6 +568,26 @@
                 // (END: Refactored Block)
             }
             return `<div class="relative flex items-start space-x-4 p-4 border border-gray-200 rounded-lg">${contentHtml}<button class="delete-btn absolute top-2 right-2 text-gray-400 hover:text-red-500" data-id="${item.id}" data-type="${item.type}"><svg class="w-6 h-6 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button></div>`;
+        };
+        const loadHistory = () => {
+            const combinedHistory = [
+                ...state.appData.logs,
+                ...state.appData.weightHistory.map(entry => ({ ...entry, type: 'weight' })),
+                ...state.appData.heightHistory.map(entry => ({ ...entry, type: 'height' })),
+                ...state.appData.bodyfatHistory.map(entry => ({ ...entry, type: 'bodyfat' })), // Added
+                ...state.appData.muscleHistory.map(entry => ({ ...entry, type: 'muscle' }))    // Added
+            ].sort((a, b) => {
+                // แก้ไข: ป้องกัน Error ถ้า timestamp เป็น null (ให้ถือว่าเป็นเวลาปัจจุบันเพื่อให้แสดงบนสุด)
+                const timeA = a.timestamp ? a.timestamp.toMillis() : Date.now();
+                const timeB = b.timestamp ? b.timestamp.toMillis() : Date.now();
+                return timeB - timeA;
+            });
+
+            if (combinedHistory.length === 0) {
+                DOM.historyContainer.innerHTML = '<p class="text-center text-gray-500">ยังไม่มีข้อมูลบันทึก</p>';
+                return;
+            }
+            DOM.historyContainer.innerHTML = combinedHistory.map(item => createHistoryItemHTML({ ...item, sortDate: item.timestamp })).join('');
         };
         const loadDashboard = () => { renderBmiGauge(); renderExerciseSummary(); renderFoodSummary(); };
         const loadProfileForm = () => {
