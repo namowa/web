@@ -96,8 +96,8 @@
                             <h2 class="text-2xl font-bold mb-4 text-gray-800">ข้อมูลส่วนตัว</h2>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700">วัน/เดือน/ปีเกิด</label>
-                                    <input type="date" id="profile-dob" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
+                                    <label class="block text-sm font-medium text-gray-700">อายุ (ปี)</label>
+                                    <input type="number" id="profile-age" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
                                 </div>
                                  <div>
                                     <label class="block text-sm font-medium text-gray-700">เพศ</label>
@@ -126,7 +126,6 @@
                                 </div>
                                 
                             </div>
-                            <div id="age-display" class="mt-4 text-gray-600"></div>
                             <button id="save-profile-btn" class="mt-6 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out">
                                 บันทึกข้อมูล
                             </button>
@@ -261,7 +260,8 @@
                 walking: 'เดิน',
                 cycling: 'ปั่นจักรยาน',
                 other: 'กีฬาอื่นๆ'
-            }
+            },
+            APP_ID: "default-app-id"
         };
 
         // --- DOM Element References ---
@@ -276,14 +276,14 @@
             navButtons: document.querySelectorAll('.nav-button'),
             pages: document.querySelectorAll('.page'),
             profile: {
-                dob: document.getElementById('profile-dob'),
+                age: document.getElementById('profile-age'), // Changed from dob
                 gender: document.getElementById('profile-gender'),
                 weight: document.getElementById('profile-weight'),
                 height: document.getElementById('profile-height'),
                 bodyfat: document.getElementById('profile-bodyfat'), 
                 muscle: document.getElementById('profile-muscle'), 
                 saveBtn: document.getElementById('save-profile-btn'),
-                ageDisplay: document.getElementById('age-display'),
+                // Removed ageDisplay
                 bmiDisplay: document.getElementById('bmi-display'),
                 message: document.getElementById('profile-message'),
                 weightChartCanvas: document.getElementById('weightChart'),
@@ -332,7 +332,7 @@
                 liffId: null,
             },
             appData: {
-                profile: { dob: '', gender: '' },
+                profile: { age: '', gender: '' }, // Changed from dob
                 weightHistory: [],
                 heightHistory: [],
                 bodyfatHistory: [], 
@@ -344,7 +344,7 @@
             weightChartInstance: null,
             bmiGaugeChartInstance: null,
             itemToDeleteId: null,
-            unsubscribeListeners: [], 
+            unsubscribeListeners: [], // To store unsubscribe functions for cleanup
         };
 
         // --- Helper & Utility Functions ---
@@ -401,15 +401,8 @@
         };
 
         // --- Business Logic (Calculations) ---
-        const calculateAge = (dobString) => {
-            if (!dobString) return null;
-            const birthDate = new Date(dobString);
-            const today = new Date();
-            let age = today.getFullYear() - birthDate.getFullYear();
-            const monthDiff = today.getMonth() - birthDate.getMonth();
-            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) age--;
-            return age;
-        };
+        // Removed calculateAge function
+
         const calculateBmi = () => {
             const lastWeight = state.appData.weightHistory.at(-1)?.value;
             const lastHeight = state.appData.heightHistory.at(-1)?.value;
@@ -442,8 +435,6 @@
             DOM.profile.bmiDisplay.innerHTML = `<div class="mt-4 p-4 bg-gray-100 rounded-lg text-center"><h3 class="font-bold text-lg">ค่าดัชนีมวลกาย (BMI)</h3><p class="text-3xl font-bold">${value}</p><p class="font-semibold" style="color:${info.color};">${info.text}</p></div>`;
         };
         const updateProfileCalculations = () => {
-            const age = calculateAge(DOM.profile.dob.value);
-            DOM.profile.ageDisplay.textContent = age !== null ? `อายุ: ${age} ปี` : '';
             renderProfileBmiDisplay();
         };
         const renderWeightChart = () => {
@@ -566,7 +557,6 @@
                       contentHtml = `<div>Unknown item type: ${item.type}</div>`; 
                 }
             }
-            
             return `<div class="relative flex items-start space-x-4 p-4 border border-gray-200 rounded-lg">${contentHtml}<button class="delete-btn absolute top-2 right-2 text-gray-400 hover:text-red-500" data-id="${item.id}" data-type="${item.type}"><svg class="w-6 h-6 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button></div>`;
         };
         const loadHistory = () => {
@@ -586,7 +576,7 @@
         const loadDashboard = () => { renderBmiGauge(); renderExerciseSummary(); };
         const loadProfileForm = () => {
             const { profile, weightHistory, heightHistory, bodyfatHistory, muscleHistory } = state.appData;
-            DOM.profile.dob.value = profile.dob || '';
+            DOM.profile.age.value = profile.age || ''; // Changed from dob
             DOM.profile.gender.value = profile.gender || '';
             DOM.profile.weight.value = weightHistory.at(-1)?.value || '';
             DOM.profile.height.value = heightHistory.at(-1)?.value || '';
@@ -607,14 +597,14 @@
             setElementVisibility(DOM.sendingPopup, true);
             try {
                 const { db, userId } = state.firebase;
-                const profileRef = doc(db, "users", userId);
+                const profileRef = doc(db, "artifacts", CONFIG.APP_ID, "users", userId); // Correct path
                 const newWeight = parseFloat(DOM.profile.weight.value);
                 const newHeight = parseFloat(DOM.profile.height.value);
                 const newBodyFat = parseFloat(DOM.profile.bodyfat.value); 
                 const newMuscle = parseFloat(DOM.profile.muscle.value); 
                 
                 const profileData = {
-                    dob: DOM.profile.dob.value,
+                    age: DOM.profile.age.value, // Changed from dob
                     gender: DOM.profile.gender.value,
                     updatedAt: serverTimestamp()
                 };
@@ -644,7 +634,8 @@
                 const webhookPayload = {
                     userId: userId, displayName: state.liff.profile.displayName, pictureUrl: state.liff.profile.pictureUrl,
                     timestamp: new Date().toISOString(), eventType: 'profileUpdate', description: 'Profile updated.',
-                    dob: profileData.dob || null, gender: profileData.gender || null,
+                    age: profileData.age || null, // Changed from dob
+                    gender: profileData.gender || null,
                     height: newHeight || null, weight: newWeight || null,
                     bodyfat: newBodyFat || null, muscle: newMuscle || null,
                 };
@@ -663,7 +654,7 @@
             setElementVisibility(DOM.sendingPopup, true);
             try {
                 const { db, userId } = state.firebase;
-                const logsCollectionRef = collection(db, "users", userId, "logs");
+                const logsCollectionRef = collection(db, "artifacts", CONFIG.APP_ID, "users", userId, "logs"); // Correct path
                 
                 const { downloadURL, storagePath } = await uploadImage(state.logImageBase64);
 
@@ -693,6 +684,7 @@
                     height: state.appData.heightHistory.at(-1)?.value || null, weight: state.appData.weightHistory.at(-1)?.value || null,
                     exerciseType: logToSave.exerciseType, km: logToSave.km > 0 ? logToSave.km : null,
                     minutes: logToSave.minutes > 0 ? logToSave.minutes : null, kcal: logToSave.kcal > 0 ? logToSave.kcal : null,
+                    age: state.appData.profile.age || null // Changed from dob
                 };
                 await postToWebhook(webhookPayload);
 
@@ -710,7 +702,7 @@
         const uploadImage = async (base64String) => {
              const { storage, userId } = state.firebase;
              const timestamp = Date.now();
-             const storagePath = `users/${userId}/logs/${timestamp}.jpg`;
+             const storagePath = `artifacts/${CONFIG.APP_ID}/users/${userId}/logs/${timestamp}.jpg`; // Correct path
              const storageRef = ref(storage, storagePath);
              
              const snapshot = await uploadString(storageRef, base64String, 'data_url');
@@ -725,11 +717,12 @@
             const { db, userId } = state.firebase;
             let docRef;
 
-            if (type === 'weight') docRef = doc(db, "users", userId, "weights", id);
-            else if (type === 'height') docRef = doc(db, "users", userId, "heights", id);
-            else if (type === 'bodyfat') docRef = doc(db, "users", userId, "bodyfats", id);
-            else if (type === 'muscle') docRef = doc(db, "users", userId, "muscles", id);
-            else docRef = doc(db, "users", userId, "logs", id); 
+            // Correct paths using artifacts/default-app-id
+            if (type === 'weight') docRef = doc(db, "artifacts", CONFIG.APP_ID, "users", userId, "weights", id);
+            else if (type === 'height') docRef = doc(db, "artifacts", CONFIG.APP_ID, "users", userId, "heights", id);
+            else if (type === 'bodyfat') docRef = doc(db, "artifacts", CONFIG.APP_ID, "users", userId, "bodyfats", id);
+            else if (type === 'muscle') docRef = doc(db, "artifacts", CONFIG.APP_ID, "users", userId, "muscles", id);
+            else docRef = doc(db, "artifacts", CONFIG.APP_ID, "users", userId, "logs", id); 
             
             try {
                 await deleteDoc(docRef);
@@ -778,10 +771,10 @@
             state.unsubscribeListeners.forEach(unsub => unsub());
             state.unsubscribeListeners = [];
 
-            const profileRef = doc(db, "users", userId);
+            const profileRef = doc(db, "artifacts", CONFIG.APP_ID, "users", userId); // Correct path
             const unsubProfile = onSnapshot(profileRef, (docSnap) => {
                 if (docSnap.exists()) {
-                    state.appData.profile = docSnap.data().profile || { dob: '', gender: '' };
+                    state.appData.profile = docSnap.data().profile || { age: '', gender: '' }; // Changed dob to age
                 } else {
                     setDoc(profileRef, { profile: { createdAt: serverTimestamp() } }, { merge: true });
                 }
@@ -836,7 +829,7 @@
         // --- Initialization ---
         const setupEventListeners = () => {
             DOM.navButtons.forEach(button => button.addEventListener('click', handleNavigation));
-            [DOM.profile.dob, DOM.profile.weight, DOM.profile.height, DOM.profile.gender, DOM.profile.bodyfat, DOM.profile.muscle].forEach(input => input.addEventListener('input', updateProfileCalculations));
+            [DOM.profile.age, DOM.profile.weight, DOM.profile.height, DOM.profile.gender, DOM.profile.bodyfat, DOM.profile.muscle].forEach(input => input.addEventListener('input', updateProfileCalculations)); // Changed dob to age
             DOM.profile.saveBtn.addEventListener('click', handleSaveProfile);
             DOM.log.typeButtons.forEach(button => {
                 button.addEventListener('click', () => {
