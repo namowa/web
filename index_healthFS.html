@@ -276,14 +276,13 @@
             navButtons: document.querySelectorAll('.nav-button'),
             pages: document.querySelectorAll('.page'),
             profile: {
-                age: document.getElementById('profile-age'), // Changed from dob
+                age: document.getElementById('profile-age'), 
                 gender: document.getElementById('profile-gender'),
                 weight: document.getElementById('profile-weight'),
                 height: document.getElementById('profile-height'),
                 bodyfat: document.getElementById('profile-bodyfat'), 
                 muscle: document.getElementById('profile-muscle'), 
                 saveBtn: document.getElementById('save-profile-btn'),
-                // Removed ageDisplay
                 bmiDisplay: document.getElementById('bmi-display'),
                 message: document.getElementById('profile-message'),
                 weightChartCanvas: document.getElementById('weightChart'),
@@ -332,7 +331,7 @@
                 liffId: null,
             },
             appData: {
-                profile: { age: '', gender: '' }, // Changed from dob
+                profile: { age: '', gender: '' },
                 weightHistory: [],
                 heightHistory: [],
                 bodyfatHistory: [], 
@@ -344,7 +343,7 @@
             weightChartInstance: null,
             bmiGaugeChartInstance: null,
             itemToDeleteId: null,
-            unsubscribeListeners: [], // To store unsubscribe functions for cleanup
+            unsubscribeListeners: [], 
         };
 
         // --- Helper & Utility Functions ---
@@ -384,12 +383,23 @@
                 return acc;
             }, {});
             console.log("Sending cleaned payload to webhook:", JSON.stringify(cleanedPayload, null, 2));
+            
+            // Create a promise that rejects after 10 seconds
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Webhook timeout')), 10000)
+            );
+
             try {
-                const response = await fetch(CONFIG.WEBHOOK_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(cleanedPayload)
-                });
+                // Race between fetch and timeout
+                const response = await Promise.race([
+                    fetch(CONFIG.WEBHOOK_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(cleanedPayload)
+                    }),
+                    timeoutPromise
+                ]);
+
                 if (![200, 202].includes(response.status)) {
                     const errorText = await response.text();
                     throw new Error(`Server responded with status: ${response.status}. ${errorText}`);
@@ -397,12 +407,11 @@
                 console.log('Data posted successfully.');
             } catch (error) {
                 console.error('Error posting data to webhook:', error);
+                // We don't re-throw here, allowing the app flow to complete (hide popup)
             }
         };
 
         // --- Business Logic (Calculations) ---
-        // Removed calculateAge function
-
         const calculateBmi = () => {
             const lastWeight = state.appData.weightHistory.at(-1)?.value;
             const lastHeight = state.appData.heightHistory.at(-1)?.value;
