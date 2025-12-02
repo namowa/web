@@ -254,7 +254,6 @@
         // --- Configuration and Constants ---
         const CONFIG = {
             LIFF_ID: "1654435774-VGmjB3Gk",
-            WEBHOOK_URL: 'https://prod-53.southeastasia.logic.azure.com:443/workflows/c2e513eb481f410ba8177327c40e7f9d/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=AiNM5m_ySfmRHe50_UsM83kLpJJOMBtCkvID9APwgvc',
             EXERCISE_TYPE_MAP: {
                 running: 'การวิ่ง',
                 walking: 'เดิน',
@@ -374,29 +373,6 @@
                 };
                 reader.readAsDataURL(file);
             });
-        };
-
-        // --- API & Webhook Communication ---
-        const postToWebhook = async (payload) => {
-            const cleanedPayload = Object.entries(payload).reduce((acc, [key, value]) => {
-                if (value !== null && value !== undefined) acc[key] = value;
-                return acc;
-            }, {});
-            console.log("Sending cleaned payload to webhook:", JSON.stringify(cleanedPayload, null, 2));
-            try {
-                const response = await fetch(CONFIG.WEBHOOK_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(cleanedPayload)
-                });
-                if (![200, 202].includes(response.status)) {
-                    const errorText = await response.text();
-                    throw new Error(`Server responded with status: ${response.status}. ${errorText}`);
-                }
-                console.log('Data posted successfully.');
-            } catch (error) {
-                console.error('Error posting data to webhook:', error);
-            }
         };
 
         // --- Business Logic (Calculations) ---
@@ -628,15 +604,7 @@
                     await addDoc(collection(profileRef, "muscles"), { value: newMuscle, timestamp: serverTimestamp() });
                 }
                 
-                const webhookPayload = {
-                    userId: userId, displayName: state.liff.profile.displayName, pictureUrl: state.liff.profile.pictureUrl,
-                    timestamp: new Date().toISOString(), eventType: 'profileUpdate', description: 'Profile updated.',
-                    age: profileData.age || null, // Changed from dob
-                    gender: profileData.gender || null,
-                    height: newHeight || null, weight: newWeight || null,
-                    bodyfat: newBodyFat || null, muscle: newMuscle || null,
-                };
-                await postToWebhook(webhookPayload);
+                // Removed Webhook Payload because it was deleted in previous step
 
                 showUserMessage(DOM.profile.message, 'บันทึกข้อมูลสำเร็จ!', true);
             } catch (error) {
@@ -675,16 +643,7 @@
                 
                 await addDoc(logsCollectionRef, logToSave);
                 
-                const webhookPayload = {
-                    userId: userId, displayName: state.liff.profile.displayName, pictureUrl: state.liff.profile.pictureUrl,
-                    timestamp: new Date().toISOString(), eventType: logToSave.type,
-                    description: logToSave.description || null, imageData: logToSave.imageData,
-                    height: state.appData.heightHistory.at(-1)?.value || null, weight: state.appData.weightHistory.at(-1)?.value || null,
-                    exerciseType: logToSave.exerciseType, km: logToSave.km > 0 ? logToSave.km : null,
-                    minutes: logToSave.minutes > 0 ? logToSave.minutes : null, kcal: logToSave.kcal > 0 ? logToSave.kcal : null,
-                    age: state.appData.profile.age || null // Changed from dob
-                };
-                await postToWebhook(webhookPayload);
+                // Removed Webhook Payload because it was deleted in previous step
 
                 showUserMessage(DOM.log.message, 'บันทึกกิจกรรมสำเร็จ!', true);
                 resetLogForm();
