@@ -54,7 +54,7 @@
                     <!-- Dashboard Page -->
                     <div id="dashboard-page" class="page active">
                         <div class="p-6 bg-white rounded-xl shadow-lg">
-                            <h2 class="text-2xl font-bold mb-4 text-gray-800">ภาพรวมสุขภาพ</h2>
+                            <!-- Removed: <h2 class="text-2xl font-bold mb-4 text-gray-800">ภาพรวมสุขภาพ</h2> -->
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <!-- BMI Gauge -->
                                 <div class="flex flex-col items-center">
@@ -73,9 +73,9 @@
                                         </div>
                                     </div>
                                     
-                                    <!-- Food Summary (New Added Section) -->
+                                    <!-- Food Summary -->
                                     <div>
-                                        <h3 class="text-lg font-semibold text-gray-700 mb-2">สรุปการกินอาหาร</h3>
+                                        <!-- Removed: <h3 class="text-lg font-semibold text-gray-700 mb-2">สรุปการกินอาหาร</h3> -->
                                         <div id="food-summary-container" class="space-y-3">
                                             <!-- Food Summary data will be injected here -->
                                         </div>
@@ -514,7 +514,7 @@
             
             DOM.dashboard.foodSummaryContainer.innerHTML = `
                 <div class="flex justify-between items-center p-3 bg-gray-100 rounded-lg">
-                    <span class="font-semibold text-gray-600">จำนวนครั้งที่บันทึกอาหาร</span>
+                    <span class="font-semibold text-gray-600">บันทึกอาหาร</span>
                     <span class="font-bold text-lg text-orange-600">${foodLogCount} ครั้ง</span>
                 </div>
             `;
