@@ -65,7 +65,7 @@
                                         </div>
                                     </div>
 
-                                    <!-- Daily Calorie Recommendation (New) -->
+                                    <!-- Daily Calorie Recommendation (Updated Logic) -->
                                     <div class="w-full bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
                                         <h3 class="text-sm font-bold text-blue-800">พลังงานที่แนะนำต่อวัน</h3>
                                         <div id="daily-calories-display" class="mt-2">
@@ -124,7 +124,7 @@
                                   START: Added Fields
                                 -->
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700">%ไขมัน</label>
+                                    <label class="block text-sm font-medium text-gray-700">%ไขมัน (ใช้คำนวณ BMR แม่นยำขึ้น)</label>
                                     <input type="number" id="profile-bodyfat" placeholder="0.0" step="0.1" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
                                 </div>
                                 <div>
@@ -533,28 +533,40 @@
         const renderDailyCalories = () => {
             const profile = state.appData.profile;
             const currentWeight = state.appData.weightHistory.at(-1)?.value;
-            const currentHeight = state.appData.heightHistory.at(-1)?.value;
+            const bodyFat = profile.bodyfat || state.appData.bodyfatHistory.at(-1)?.value;
             const age = profile.age;
             const gender = profile.gender;
+            const currentHeight = state.appData.heightHistory.at(-1)?.value;
 
             let displayHtml = '<span class="text-xs text-gray-500">ระบุข้อมูลให้ครบถ้วน</span>';
+            let bmr = 0;
+            let formulaName = "";
 
-            if (currentWeight && currentHeight && age && gender) {
-                let bmr = 0;
-                // Mifflin-St Jeor Equation
-                if (gender === 'male') {
-                    bmr = (10 * currentWeight) + (6.25 * currentHeight) - (5 * age) + 5;
-                } else if (gender === 'female') {
-                    bmr = (10 * currentWeight) + (6.25 * currentHeight) - (5 * age) - 161;
+            if (currentWeight) {
+                // Try Katch-McArdle first (if Body Fat % is available)
+                if (bodyFat) {
+                    const lbm = currentWeight * (1 - (bodyFat / 100));
+                    bmr = 370 + (21.6 * lbm);
+                    formulaName = "สูตร Katch-McArdle (%ไขมัน)";
+                } 
+                // Fallback to Mifflin-St Jeor (if Age, Height, Gender are available)
+                else if (currentHeight && age && gender) {
+                    if (gender === 'male') {
+                        bmr = (10 * currentWeight) + (6.25 * currentHeight) - (5 * age) + 5;
+                    } else if (gender === 'female') {
+                        bmr = (10 * currentWeight) + (6.25 * currentHeight) - (5 * age) - 161;
+                    }
+                    formulaName = "สูตร Mifflin-St Jeor";
                 }
-                
+            }
+
+            if (bmr > 0) {
                 // TDEE for Sedentary (Little or no exercise)
                 const tdee = Math.round(bmr * 1.2); 
-
                 displayHtml = `
                     <p class="text-3xl font-bold text-blue-600">${tdee.toLocaleString()}</p>
                     <p class="text-xs text-blue-500">kcal / วัน</p>
-                    <p class="text-[10px] text-gray-400 mt-1">คำนวณจาก BMR * 1.2 (กิจกรรมน้อย)</p>
+                    <p class="text-[10px] text-gray-400 mt-1">คำนวณจาก ${formulaName} * 1.2</p>
                 `;
             }
             
