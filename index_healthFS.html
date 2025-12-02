@@ -249,7 +249,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, addDoc, onSnapshot, collection, query, deleteDoc, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-        import { getStorage, ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+        // Removed getStorage import as it is no longer used
 
         // --- Configuration and Constants ---
         const CONFIG = {
@@ -383,23 +383,12 @@
                 return acc;
             }, {});
             console.log("Sending cleaned payload to webhook:", JSON.stringify(cleanedPayload, null, 2));
-            
-            // Create a promise that rejects after 10 seconds
-            const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Webhook timeout')), 10000)
-            );
-
             try {
-                // Race between fetch and timeout
-                const response = await Promise.race([
-                    fetch(CONFIG.WEBHOOK_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(cleanedPayload)
-                    }),
-                    timeoutPromise
-                ]);
-
+                const response = await fetch(CONFIG.WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(cleanedPayload)
+                });
                 if (![200, 202].includes(response.status)) {
                     const errorText = await response.text();
                     throw new Error(`Server responded with status: ${response.status}. ${errorText}`);
@@ -407,7 +396,6 @@
                 console.log('Data posted successfully.');
             } catch (error) {
                 console.error('Error posting data to webhook:', error);
-                // We don't re-throw here, allowing the app flow to complete (hide popup)
             }
         };
 
@@ -665,13 +653,14 @@
                 const { db, userId } = state.firebase;
                 const logsCollectionRef = collection(db, "artifacts", CONFIG.APP_ID, "users", userId, "logs"); // Correct path
                 
-                const { downloadURL, storagePath } = await uploadImage(state.logImageBase64);
+                // DIRECT SAVE BASE64: No Storage Upload
+                // const { downloadURL, storagePath } = await uploadImage(state.logImageBase64);
 
                 const logToSave = {
                     type: state.currentLogType,
                     description: DOM.log.description.value,
-                    imageData: downloadURL, // Use the download URL from Storage
-                    imageStoragePath: storagePath, // Keep path for deletion later if needed
+                    imageData: state.logImageBase64, // Store Base64 Directly
+                    // imageStoragePath: storagePath, // No path needed
                     timestamp: serverTimestamp(),
                     exerciseType: null, km: 0, minutes: 0, kcal: 0
                 };
@@ -707,7 +696,8 @@
             }
         };
         
-        // New helper function to upload to Firebase Storage
+        // New helper function to upload to Firebase Storage - COMMENTED OUT
+        /*
         const uploadImage = async (base64String) => {
              const { storage, userId } = state.firebase;
              const timestamp = Date.now();
@@ -719,6 +709,7 @@
              
              return { downloadURL, storagePath };
         };
+        */
 
         const handleDeleteItem = async () => {
             if (!state.itemToDeleteId) return;
