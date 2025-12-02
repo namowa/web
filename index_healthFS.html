@@ -538,35 +538,77 @@
             const gender = profile.gender;
             const currentHeight = state.appData.heightHistory.at(-1)?.value;
 
-            let displayHtml = '<span class="text-xs text-gray-500">ระบุข้อมูลให้ครบถ้วน</span>';
+            let displayHtml = '<span class="text-xs text-gray-500">ระบุข้อมูลส่วนตัวให้ครบถ้วนเพื่อคำนวณเป้าหมาย</span>';
             let bmr = 0;
-            let formulaName = "";
+            let tdee = 0;
 
+            // 1. คำนวณ TDEE (เป้าหมาย)
             if (currentWeight) {
-                // Try Katch-McArdle first (if Body Fat % is available)
                 if (bodyFat) {
                     const lbm = currentWeight * (1 - (bodyFat / 100));
                     bmr = 370 + (21.6 * lbm);
-                    formulaName = "สูตร Katch-McArdle (%ไขมัน)";
-                } 
-                // Fallback to Mifflin-St Jeor (if Age, Height, Gender are available)
-                else if (currentHeight && age && gender) {
+                } else if (currentHeight && age && gender) {
                     if (gender === 'male') {
                         bmr = (10 * currentWeight) + (6.25 * currentHeight) - (5 * age) + 5;
                     } else if (gender === 'female') {
                         bmr = (10 * currentWeight) + (6.25 * currentHeight) - (5 * age) - 161;
                     }
-                    formulaName = "สูตร Mifflin-St Jeor";
                 }
             }
 
             if (bmr > 0) {
-                // TDEE for Sedentary (Little or no exercise)
-                const tdee = Math.round(bmr * 1.2); 
+                tdee = Math.round(bmr * 1.2); 
+            }
+
+            // 2. คำนวณแคลอรี่ที่กินวันนี้
+            let consumedToday = 0;
+            const today = new Date();
+            state.appData.logs.forEach(log => {
+                if (log.type === 'food') {
+                    // ถ้า timestamp เป็น null (เพิ่งบันทึก) ให้ถือว่าเป็นวันนี้
+                    const logDate = log.timestamp ? log.timestamp.toDate() : new Date();
+                    if (logDate.getDate() === today.getDate() &&
+                        logDate.getMonth() === today.getMonth() &&
+                        logDate.getFullYear() === today.getFullYear()) {
+                        consumedToday += (log.kcal || 0);
+                    }
+                }
+            });
+
+            // 3. แสดงผลเปรียบเทียบ
+            if (tdee > 0) {
+                const remaining = tdee - consumedToday;
+                const percentage = Math.min(100, Math.round((consumedToday / tdee) * 100));
+                
+                // กำหนดสีของ Progress Bar
+                let progressColor = 'bg-blue-500';
+                if (percentage > 100) progressColor = 'bg-red-500';
+                else if (percentage > 85) progressColor = 'bg-yellow-500';
+
                 displayHtml = `
-                    <p class="text-3xl font-bold text-blue-600">${tdee.toLocaleString()}</p>
-                    <p class="text-xs text-blue-500">kcal / วัน</p>
-                    <p class="text-[10px] text-gray-400 mt-1">คำนวณจาก ${formulaName} * 1.2</p>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-end">
+                            <div class="text-left">
+                                <p class="text-xs text-gray-500">กินไปแล้ว</p>
+                                <p class="text-xl font-bold text-gray-800">${consumedToday.toLocaleString()} <span class="text-xs font-normal">kcal</span></p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-xs text-gray-500">เป้าหมาย</p>
+                                <p class="text-xl font-bold text-blue-600">${tdee.toLocaleString()} <span class="text-xs font-normal">kcal</span></p>
+                            </div>
+                        </div>
+                        
+                        <div class="w-full bg-white rounded-full h-3 border border-gray-200 overflow-hidden">
+                            <div class="${progressColor} h-full rounded-full transition-all duration-500" style="width: ${percentage}%"></div>
+                        </div>
+
+                        <div class="text-center">
+                            ${remaining >= 0 
+                                ? `<span class="text-sm font-semibold text-green-600">กินได้อีก ${remaining.toLocaleString()} kcal</span>` 
+                                : `<span class="text-sm font-semibold text-red-500">เกินเป้าหมาย ${Math.abs(remaining).toLocaleString()} kcal</span>`
+                            }
+                        </div>
+                    </div>
                 `;
             }
             
