@@ -602,34 +602,74 @@
                 const { db, userId } = state.firebase;
                 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
                 const profileRef = doc(db, "artifacts", appId, "users", userId);
-                const newWeight = parseFloat(DOM.profile.weight.value);
-                const newHeight = parseFloat(DOM.profile.height.value);
-                const newBodyFat = parseFloat(DOM.profile.bodyfat.value); // Added
-                const newMuscle = parseFloat(DOM.profile.muscle.value); // Added
                 
-                const profileData = {
-                    age: parseInt(DOM.profile.age.value) || null, // Changed dob to age
-                    gender: DOM.profile.gender.value,
-                    updatedAt: serverTimestamp()
-                };
-                await setDoc(profileRef, { profile: profileData }, { merge: true });
+                // 1. ดึงข้อมูลปัจจุบันจาก State มาเทียบ
+                const currentProfile = state.appData.profile || {};
+                const lastWeight = state.appData.weightHistory.at(-1)?.value;
+                const lastHeight = state.appData.heightHistory.at(-1)?.value;
+                const lastBodyFat = state.appData.bodyfatHistory.at(-1)?.value;
+                const lastMuscle = state.appData.muscleHistory.at(-1)?.value;
 
-                if (newWeight) await addDoc(collection(profileRef, "weights"), { value: newWeight, timestamp: serverTimestamp() });
-                if (newHeight) await addDoc(collection(profileRef, "heights"), { value: newHeight, timestamp: serverTimestamp() });
-                if (newBodyFat) await addDoc(collection(profileRef, "bodyfats"), { value: newBodyFat, timestamp: serverTimestamp() }); // Added
-                if (newMuscle) await addDoc(collection(profileRef, "muscles"), { value: newMuscle, timestamp: serverTimestamp() }); // Added
+                // 2. ดึงค่าใหม่จาก Input
+                const newAge = DOM.profile.age.value ? parseInt(DOM.profile.age.value) : null;
+                const newGender = DOM.profile.gender.value;
+                const newWeight = DOM.profile.weight.value ? parseFloat(DOM.profile.weight.value) : null;
+                const newHeight = DOM.profile.height.value ? parseFloat(DOM.profile.height.value) : null;
+                const newBodyFat = DOM.profile.bodyfat.value ? parseFloat(DOM.profile.bodyfat.value) : null;
+                const newMuscle = DOM.profile.muscle.value ? parseFloat(DOM.profile.muscle.value) : null;
                 
-                const webhookPayload = {
-                    userId: userId, displayName: state.liff.profile.displayName, pictureUrl: state.liff.profile.pictureUrl,
-                    timestamp: new Date().toISOString(), eventType: 'profileUpdate', description: 'Profile updated.',
-                    age: profileData.age, gender: profileData.gender || null, // Changed dob to age
-                    height: newHeight || null, weight: newWeight || null,
-                    bodyfat: newBodyFat || null, // Added
-                    muscle: newMuscle || null, // Added
-                };
-                await postToWebhook(webhookPayload);
+                let hasChanges = false;
+                const profileUpdates = {};
 
-                showUserMessage(DOM.profile.message, 'บันทึกข้อมูลสำเร็จ!', true);
+                // 3. ตรวจสอบการเปลี่ยนแปลงของข้อมูลส่วนตัว (Age, Gender)
+                if (newAge !== (currentProfile.age ?? null)) {
+                    profileUpdates.age = newAge;
+                    hasChanges = true;
+                }
+                if (newGender !== (currentProfile.gender || "")) {
+                    profileUpdates.gender = newGender;
+                    hasChanges = true;
+                }
+
+                // อัปเดตข้อมูลส่วนตัวถ้ามีการเปลี่ยนแปลง
+                if (Object.keys(profileUpdates).length > 0) {
+                    profileUpdates.updatedAt = serverTimestamp();
+                    await setDoc(profileRef, { profile: profileUpdates }, { merge: true });
+                }
+
+                // 4. ตรวจสอบและบันทึกค่าวัดต่างๆ (Weight, Height, BodyFat, Muscle) เฉพาะเมื่อค่าเปลี่ยนไป
+                if (newWeight !== null && newWeight !== lastWeight) {
+                    await addDoc(collection(profileRef, "weights"), { value: newWeight, timestamp: serverTimestamp() });
+                    hasChanges = true;
+                }
+                if (newHeight !== null && newHeight !== lastHeight) {
+                    await addDoc(collection(profileRef, "heights"), { value: newHeight, timestamp: serverTimestamp() });
+                    hasChanges = true;
+                }
+                if (newBodyFat !== null && newBodyFat !== lastBodyFat) {
+                    await addDoc(collection(profileRef, "bodyfats"), { value: newBodyFat, timestamp: serverTimestamp() });
+                    hasChanges = true;
+                }
+                if (newMuscle !== null && newMuscle !== lastMuscle) {
+                    await addDoc(collection(profileRef, "muscles"), { value: newMuscle, timestamp: serverTimestamp() });
+                    hasChanges = true;
+                }
+                
+                // 5. สรุปผลการทำงาน
+                if (!hasChanges) {
+                    showUserMessage(DOM.profile.message, 'ไม่มีการเปลี่ยนแปลงข้อมูล', true);
+                } else {
+                    const webhookPayload = {
+                        userId: userId, displayName: state.liff.profile.displayName, pictureUrl: state.liff.profile.pictureUrl,
+                        timestamp: new Date().toISOString(), eventType: 'profileUpdate', description: 'Profile updated.',
+                        age: newAge, gender: newGender,
+                        height: newHeight, weight: newWeight,
+                        bodyfat: newBodyFat, 
+                        muscle: newMuscle,
+                    };
+                    await postToWebhook(webhookPayload);
+                    showUserMessage(DOM.profile.message, 'บันทึกข้อมูลสำเร็จ!', true);
+                }
             } catch (error) {
                 console.error("Error saving profile:", error);
                 showUserMessage(DOM.profile.message, 'เกิดข้อผิดพลาดในการบันทึก', false);
