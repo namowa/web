@@ -63,11 +63,22 @@
                                         <canvas id="bmiGaugeChart"></canvas>
                                     </div>
                                 </div>
-                                <!-- Exercise Summary -->
-                                <div class="flex flex-col">
-                                    <h3 class="text-lg font-semibold text-gray-700 mb-2">สรุปการออกกำลังกาย</h3>
-                                    <div id="exercise-summary-container" class="space-y-3">
-                                        <!-- Summary data will be injected here -->
+                                <!-- Summaries Column -->
+                                <div class="flex flex-col space-y-6">
+                                    <!-- Exercise Summary -->
+                                    <div>
+                                        <h3 class="text-lg font-semibold text-gray-700 mb-2">สรุปการออกกำลังกาย</h3>
+                                        <div id="exercise-summary-container" class="space-y-3">
+                                            <!-- Exercise Summary data will be injected here -->
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Food Summary (New Added Section) -->
+                                    <div>
+                                        <h3 class="text-lg font-semibold text-gray-700 mb-2">สรุปการกินอาหาร</h3>
+                                        <div id="food-summary-container" class="space-y-3">
+                                            <!-- Food Summary data will be injected here -->
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -292,6 +303,7 @@
             dashboard: {
                 bmiGaugeChartCanvas: document.getElementById('bmiGaugeChart'),
                 exerciseSummaryContainer: document.getElementById('exercise-summary-container'),
+                foodSummaryContainer: document.getElementById('food-summary-container'), // Added
             },
             sendingPopup: document.getElementById('sending-popup'),
             confirmModal: {
@@ -494,6 +506,19 @@
                 <div class="flex justify-between items-center p-3 bg-gray-100 rounded-lg"><span class="font-semibold text-gray-600">ปั่นจักรยาน</span><span class="font-bold text-lg text-indigo-600">${summary.cycling.km.toFixed(1)} กม.</span></div>
                 <div class="flex justify-between items-center p-3 bg-gray-100 rounded-lg"><span class="font-semibold text-gray-600">กีฬาอื่นๆ</span><span class="font-bold text-lg text-indigo-600">${summary.other.minutes} นาที</span></div>`;
         };
+        const renderFoodSummary = () => {
+            let foodLogCount = 0;
+            state.appData.logs.forEach(log => {
+                if (log.type === 'food') foodLogCount++;
+            });
+            
+            DOM.dashboard.foodSummaryContainer.innerHTML = `
+                <div class="flex justify-between items-center p-3 bg-gray-100 rounded-lg">
+                    <span class="font-semibold text-gray-600">จำนวนครั้งที่บันทึกอาหาร</span>
+                    <span class="font-bold text-lg text-orange-600">${foodLogCount} ครั้ง</span>
+                </div>
+            `;
+        };
         const createHistoryItemHTML = (item) => {
             const logDate = item.timestamp.toDate().toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' });
             let contentHtml = '';
@@ -540,21 +565,7 @@
             }
             return `<div class="relative flex items-start space-x-4 p-4 border border-gray-200 rounded-lg">${contentHtml}<button class="delete-btn absolute top-2 right-2 text-gray-400 hover:text-red-500" data-id="${item.id}" data-type="${item.type}"><svg class="w-6 h-6 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button></div>`;
         };
-        const loadHistory = () => {
-            const combinedHistory = [
-                ...state.appData.logs,
-                ...state.appData.weightHistory.map(entry => ({ ...entry, type: 'weight' })),
-                ...state.appData.heightHistory.map(entry => ({ ...entry, type: 'height' })),
-                ...state.appData.bodyfatHistory.map(entry => ({ ...entry, type: 'bodyfat' })), // Added
-                ...state.appData.muscleHistory.map(entry => ({ ...entry, type: 'muscle' }))    // Added
-            ].sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
-            if (combinedHistory.length === 0) {
-                DOM.historyContainer.innerHTML = '<p class="text-center text-gray-500">ยังไม่มีข้อมูลบันทึก</p>';
-                return;
-            }
-            DOM.historyContainer.innerHTML = combinedHistory.map(item => createHistoryItemHTML({ ...item, sortDate: item.timestamp })).join('');
-        };
-        const loadDashboard = () => { renderBmiGauge(); renderExerciseSummary(); };
+        const loadDashboard = () => { renderBmiGauge(); renderExerciseSummary(); renderFoodSummary(); };
         const loadProfileForm = () => {
             const { profile, weightHistory, heightHistory, bodyfatHistory, muscleHistory } = state.appData;
             DOM.profile.age.value = profile.age || ''; // Changed dob to age
