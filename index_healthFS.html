@@ -54,15 +54,26 @@
                     <!-- Dashboard Page -->
                     <div id="dashboard-page" class="page active">
                         <div class="p-6 bg-white rounded-xl shadow-lg">
-                            <!-- Removed: <h2 class="text-2xl font-bold mb-4 text-gray-800">ภาพรวมสุขภาพ</h2> -->
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <!-- BMI Gauge -->
-                                <div class="flex flex-col items-center">
-                                    <h3 class="text-lg font-semibold text-gray-700">ดัชนีมวลกาย (BMI)</h3>
-                                    <div class="relative w-full max-w-xs h-48">
-                                        <canvas id="bmiGaugeChart"></canvas>
+                                <!-- Left Column: BMI & Calorie Recommendation -->
+                                <div class="flex flex-col items-center space-y-6">
+                                    <!-- BMI Gauge (Resized) -->
+                                    <div class="flex flex-col items-center w-full">
+                                        <h3 class="text-lg font-semibold text-gray-700 mb-2">ดัชนีมวลกาย (BMI)</h3>
+                                        <div class="relative w-48 h-32"> <!-- Adjusted size here -->
+                                            <canvas id="bmiGaugeChart"></canvas>
+                                        </div>
+                                    </div>
+
+                                    <!-- Daily Calorie Recommendation (New) -->
+                                    <div class="w-full bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
+                                        <h3 class="text-sm font-bold text-blue-800">พลังงานที่แนะนำต่อวัน</h3>
+                                        <div id="daily-calories-display" class="mt-2">
+                                            <span class="text-xs text-gray-500">กรุณากรอกข้อมูลส่วนตัวให้ครบถ้วน</span>
+                                        </div>
                                     </div>
                                 </div>
+
                                 <!-- Summaries Column -->
                                 <div class="flex flex-col space-y-6">
                                     <!-- Exercise Summary -->
@@ -75,7 +86,6 @@
                                     
                                     <!-- Food Summary -->
                                     <div>
-                                        <!-- Removed: <h3 class="text-lg font-semibold text-gray-700 mb-2">สรุปการกินอาหาร</h3> -->
                                         <div id="food-summary-container" class="space-y-3">
                                             <!-- Food Summary data will be injected here -->
                                         </div>
@@ -303,7 +313,8 @@
             dashboard: {
                 bmiGaugeChartCanvas: document.getElementById('bmiGaugeChart'),
                 exerciseSummaryContainer: document.getElementById('exercise-summary-container'),
-                foodSummaryContainer: document.getElementById('food-summary-container'), // Added
+                foodSummaryContainer: document.getElementById('food-summary-container'), 
+                dailyCaloriesDisplay: document.getElementById('daily-calories-display'), // Added
             },
             sendingPopup: document.getElementById('sending-popup'),
             confirmModal: {
@@ -519,6 +530,38 @@
                 </div>
             `;
         };
+        const renderDailyCalories = () => {
+            const profile = state.appData.profile;
+            const currentWeight = state.appData.weightHistory.at(-1)?.value;
+            const currentHeight = state.appData.heightHistory.at(-1)?.value;
+            const age = profile.age;
+            const gender = profile.gender;
+
+            let displayHtml = '<span class="text-xs text-gray-500">ระบุข้อมูลให้ครบถ้วน</span>';
+
+            if (currentWeight && currentHeight && age && gender) {
+                let bmr = 0;
+                // Mifflin-St Jeor Equation
+                if (gender === 'male') {
+                    bmr = (10 * currentWeight) + (6.25 * currentHeight) - (5 * age) + 5;
+                } else if (gender === 'female') {
+                    bmr = (10 * currentWeight) + (6.25 * currentHeight) - (5 * age) - 161;
+                }
+                
+                // TDEE for Sedentary (Little or no exercise)
+                const tdee = Math.round(bmr * 1.2); 
+
+                displayHtml = `
+                    <p class="text-3xl font-bold text-blue-600">${tdee.toLocaleString()}</p>
+                    <p class="text-xs text-blue-500">kcal / วัน</p>
+                    <p class="text-[10px] text-gray-400 mt-1">คำนวณจาก BMR * 1.2 (กิจกรรมน้อย)</p>
+                `;
+            }
+            
+            if(DOM.dashboard.dailyCaloriesDisplay) {
+                DOM.dashboard.dailyCaloriesDisplay.innerHTML = displayHtml;
+            }
+        };
         const createHistoryItemHTML = (item) => {
             // แก้ไข: ตรวจสอบ timestamp ว่ามีค่าหรือไม่ ป้องกัน Error ตอนบันทึกใหม่ๆ
             const logDate = item.timestamp 
@@ -589,7 +632,7 @@
             }
             DOM.historyContainer.innerHTML = combinedHistory.map(item => createHistoryItemHTML({ ...item, sortDate: item.timestamp })).join('');
         };
-        const loadDashboard = () => { renderBmiGauge(); renderExerciseSummary(); renderFoodSummary(); };
+        const loadDashboard = () => { renderBmiGauge(); renderExerciseSummary(); renderFoodSummary(); renderDailyCalories(); };
         const loadProfileForm = () => {
             const { profile, weightHistory, heightHistory, bodyfatHistory, muscleHistory } = state.appData;
             DOM.profile.age.value = profile.age || ''; // Changed dob to age
