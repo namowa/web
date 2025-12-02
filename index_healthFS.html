@@ -57,15 +57,15 @@
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <!-- Left Column: BMI & Calorie Recommendation -->
                                 <div class="flex flex-col items-center space-y-6">
-                                    <!-- BMI Gauge (Resized) -->
+                                    <!-- BMI Gauge (Changed to Linear) -->
                                     <div class="flex flex-col items-center w-full">
                                         <h3 class="text-lg font-semibold text-gray-700 mb-2">ดัชนีมวลกาย (BMI)</h3>
-                                        <div class="relative w-48 h-32"> <!-- Adjusted size here -->
-                                            <canvas id="bmiGaugeChart"></canvas>
+                                        <div id="bmi-linear-container" class="w-full">
+                                            <!-- Linear BMI Gauge will be injected here -->
                                         </div>
                                     </div>
 
-                                    <!-- Daily Calorie Recommendation (Updated Logic) -->
+                                    <!-- Daily Calorie Recommendation -->
                                     <div class="w-full bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
                                         <h3 class="text-sm font-bold text-blue-800">พลังงานที่แนะนำต่อวัน</h3>
                                         <div id="daily-calories-display" class="mt-2">
@@ -120,9 +120,7 @@
                                     <label class="block text-sm font-medium text-gray-700">น้ำหนัก (kg)</label>
                                     <input type="number" id="profile-weight" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
                                 </div>
-                                <!--
-                                  START: Added Fields
-                                -->
+                                <!-- Added Fields -->
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700">%ไขมัน (ใช้คำนวณ BMR แม่นยำขึ้น)</label>
                                     <input type="number" id="profile-bodyfat" placeholder="0.0" step="0.1" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
@@ -131,9 +129,6 @@
                                     <label class="block text-sm font-medium text-gray-700">%กล้ามเนื้อ</label>
                                     <input type="number" id="profile-muscle" placeholder="0.0" step="0.1" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
                                 </div>
-                                <!--
-                                  END: Added Fields
-                                -->
                             </div>
                             <button id="save-profile-btn" class="mt-6 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out">
                                 บันทึกข้อมูล
@@ -175,7 +170,7 @@
                                     <label class="block text-sm font-medium text-gray-700">แคลอรี่ (kcal)</label>
                                     <input type="number" id="log-kcal" placeholder="0" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
                                 </div>
-                                <!-- Healthy Food Checkbox (New) -->
+                                <!-- Healthy Food Checkbox -->
                                 <div id="healthy-food-container" class="hidden flex items-center pt-2">
                                     <input id="log-healthy-food" type="checkbox" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
                                     <label for="log-healthy-food" class="ml-2 block text-sm text-gray-900">
@@ -231,7 +226,7 @@
 
             <!-- Footer -->
             <footer class="text-center mt-8 text-gray-400 text-xs">
-               <p id="footer-text"></p> <!-- Cleared text "ข้อมูลถูกจัดเก็บในระบบคลาวด์" -->
+               <p id="footer-text"></p> 
             </footer>
         </main>
         
@@ -282,17 +277,16 @@
         const DOM = {
             appLoading: document.getElementById('app-loading'),
             mainApp: document.getElementById('main-app'),
-            // Removed header related DOM elements
             footerText: document.getElementById('footer-text'),
             navButtons: document.querySelectorAll('.nav-button'),
             pages: document.querySelectorAll('.page'),
             profile: {
-                age: document.getElementById('profile-age'), // Changed from dob
+                age: document.getElementById('profile-age'),
                 gender: document.getElementById('profile-gender'),
                 weight: document.getElementById('profile-weight'),
                 height: document.getElementById('profile-height'),
-                bodyfat: document.getElementById('profile-bodyfat'), // Added
-                muscle: document.getElementById('profile-muscle'), // Added
+                bodyfat: document.getElementById('profile-bodyfat'),
+                muscle: document.getElementById('profile-muscle'),
                 saveBtn: document.getElementById('save-profile-btn'),
                 bmiDisplay: document.getElementById('bmi-display'),
                 message: document.getElementById('profile-message'),
@@ -304,7 +298,6 @@
                 exerciseType: document.getElementById('log-exercise-type'),
                 kcalInputContainer: document.getElementById('kcal-input-container'),
                 kcal: document.getElementById('log-kcal'),
-                // New Healthy Food Elements
                 healthyFoodContainer: document.getElementById('healthy-food-container'),
                 healthyFoodCheckbox: document.getElementById('log-healthy-food'),
                 kmInputContainer: document.getElementById('km-input-container'),
@@ -321,10 +314,11 @@
             },
             historyContainer: document.getElementById('history-container'),
             dashboard: {
-                bmiGaugeChartCanvas: document.getElementById('bmiGaugeChart'),
+                // BMI Chart element reference updated
+                bmiLinearContainer: document.getElementById('bmi-linear-container'), 
                 exerciseSummaryContainer: document.getElementById('exercise-summary-container'),
                 foodSummaryContainer: document.getElementById('food-summary-container'), 
-                dailyCaloriesDisplay: document.getElementById('daily-calories-display'), // Added
+                dailyCaloriesDisplay: document.getElementById('daily-calories-display'),
             },
             sendingPopup: document.getElementById('sending-popup'),
             confirmModal: {
@@ -347,19 +341,19 @@
                 liffId: null,
             },
             appData: {
-                profile: { age: '', gender: '' }, // Changed dob to age
+                profile: { age: '', gender: '' },
                 weightHistory: [],
                 heightHistory: [],
-                bodyfatHistory: [], // Added
-                muscleHistory: [], // Added
+                bodyfatHistory: [],
+                muscleHistory: [],
                 logs: [],
             },
             currentLogType: 'exercise',
             logImageBase64: null,
             weightChartInstance: null,
-            bmiGaugeChartInstance: null,
+            // Removed bmiGaugeChartInstance
             itemToDeleteId: null,
-            unsubscribeListeners: [], // To store unsubscribe functions for cleanup
+            unsubscribeListeners: [],
         };
 
         // --- Helper & Utility Functions ---
@@ -416,7 +410,6 @@
         };
 
         // --- Business Logic (Calculations) ---
-        // Removed calculateAge function as user inputs age directly
         const calculateBmi = () => {
             const lastWeight = state.appData.weightHistory.at(-1)?.value;
             const lastHeight = state.appData.heightHistory.at(-1)?.value;
@@ -434,7 +427,6 @@
 
         // --- UI Rendering & Updates ---
         const updateLiffProfileUI = () => {
-            // Updated to remove header UI updates
             DOM.footerText.textContent = `UserID: ${state.firebase.userId}`;
         };
         const renderProfileBmiDisplay = () => {
@@ -446,7 +438,6 @@
             DOM.profile.bmiDisplay.innerHTML = `<div class="mt-4 p-4 bg-gray-100 rounded-lg text-center"><h3 class="font-bold text-lg">ค่าดัชนีมวลกาย (BMI)</h3><p class="text-3xl font-bold">${value}</p><p class="font-semibold" style="color:${info.color};">${info.text}</p></div>`;
         };
         const updateProfileCalculations = () => {
-            // No longer calculating age from DOB
             renderProfileBmiDisplay();
         };
         const renderWeightChart = () => {
@@ -488,30 +479,44 @@
         };
         const renderBmiGauge = () => {
             const { value, info } = calculateBmi();
-            const ctx = DOM.dashboard.bmiGaugeChartCanvas.getContext('2d');
-            if(state.bmiGaugeChartInstance) state.bmiGaugeChartInstance.destroy();
+            const container = DOM.dashboard.bmiLinearContainer;
+            
             if (!value) {
-                ctx.clearRect(0, 0, DOM.dashboard.bmiGaugeChartCanvas.width, DOM.dashboard.bmiGaugeChartCanvas.height);
-                ctx.font = "16px Sarabun"; ctx.fillStyle = "rgb(107, 114, 128)"; ctx.textAlign = "center";
-                ctx.fillText("ไม่มีข้อมูล BMI", DOM.dashboard.bmiGaugeChartCanvas.width / 2, DOM.dashboard.bmiGaugeChartCanvas.height / 2);
+                container.innerHTML = '<p class="text-center text-gray-400 text-sm">ไม่มีข้อมูล BMI</p>';
                 return;
             }
-            const maxBmi = 50;
-            state.bmiGaugeChartInstance = new Chart(ctx, {
-                type: 'doughnut',
-                data: { datasets: [{ data: [value, maxBmi - value], backgroundColor: [info.color, '#e5e7eb'], borderColor: ['#fff', '#fff'], borderWidth: 2, circumference: 180, rotation: -90, }] },
-                options: {
-                    responsive: true, maintainAspectRatio: false, cutout: '60%',
-                    plugins: {
-                        legend: { display: false }, tooltip: { enabled: false },
-                        datalabels: {
-                            formatter: (val, context) => (context.dataIndex === 0) ? `${val}\n${info.text}` : '',
-                            color: '#1f2937', textAlign: 'center', font: { size: 18, weight: 'bold', family: 'Sarabun' }
-                        }
-                    }
-                },
-                plugins: [ChartDataLabels]
-            });
+
+            const bmi = parseFloat(value);
+            const maxBmi = 40; // Max visual range
+            const percent = Math.min(100, Math.max(0, (bmi / maxBmi) * 100));
+
+            // Linear gauge HTML
+            container.innerHTML = `
+                <div class="w-full">
+                     <div class="flex justify-between items-baseline mb-2">
+                        <span class="text-3xl font-bold text-gray-800">${value}</span>
+                        <span class="text-sm font-bold" style="color: ${info.color}">${info.text}</span>
+                    </div>
+                    <div class="relative h-3 w-full rounded-full bg-gray-200 flex overflow-hidden">
+                        <div class="h-full bg-blue-400" style="width: 46%"></div> <!-- < 18.5 -->
+                        <div class="h-full bg-green-500" style="width: 11%"></div> <!-- 18.5 - 22.9 -->
+                        <div class="h-full bg-yellow-400" style="width: 5%"></div> <!-- 23 - 24.9 -->
+                        <div class="h-full bg-orange-500" style="width: 12.5%"></div> <!-- 25 - 29.9 -->
+                        <div class="h-full bg-red-500" style="flex: 1"></div> <!-- > 30 -->
+                    </div>
+                    <div class="relative w-full h-2">
+                         <div class="absolute -top-4 w-1 h-5 bg-gray-800 border border-white" style="left: ${percent}%; transform: translateX(-50%);"></div>
+                    </div>
+                    <div class="flex justify-between text-[10px] text-gray-400 mt-1">
+                        <span>0</span>
+                        <span>18.5</span>
+                        <span>23</span>
+                        <span>25</span>
+                        <span>30</span>
+                        <span>40+</span>
+                    </div>
+                </div>
+            `;
         };
         const renderExerciseSummary = () => {
             const summary = { running: { km: 0 }, walking: { km: 0 }, cycling: { km: 0 }, other: { minutes: 0 } };
@@ -529,14 +534,24 @@
         };
         const renderFoodSummary = () => {
             let foodLogCount = 0;
+            let healthyLogCount = 0;
             state.appData.logs.forEach(log => {
-                if (log.type === 'food') foodLogCount++;
+                if (log.type === 'food') {
+                    foodLogCount++;
+                    if (log.isHealthy) healthyLogCount++;
+                }
             });
             
             DOM.dashboard.foodSummaryContainer.innerHTML = `
-                <div class="flex justify-between items-center p-3 bg-gray-100 rounded-lg">
-                    <span class="font-semibold text-gray-600">บันทึกอาหาร</span>
-                    <span class="font-bold text-lg text-orange-600">${foodLogCount} ครั้ง</span>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="flex flex-col justify-center items-center p-3 bg-gray-100 rounded-lg">
+                        <span class="font-semibold text-gray-600 text-sm">บันทึกอาหาร</span>
+                        <span class="font-bold text-xl text-orange-600">${foodLogCount} <span class="text-xs">ครั้ง</span></span>
+                    </div>
+                    <div class="flex flex-col justify-center items-center p-3 bg-green-50 rounded-lg border border-green-100">
+                        <span class="font-semibold text-green-700 text-sm">อาหารสุขภาพ</span>
+                        <span class="font-bold text-xl text-green-600">${healthyLogCount} <span class="text-xs">ครั้ง</span></span>
+                    </div>
                 </div>
             `;
         };
@@ -552,7 +567,6 @@
             let bmr = 0;
             let tdee = 0;
 
-            // 1. คำนวณ TDEE (เป้าหมาย)
             if (currentWeight) {
                 if (bodyFat) {
                     const lbm = currentWeight * (1 - (bodyFat / 100));
@@ -570,12 +584,10 @@
                 tdee = Math.round(bmr * 1.2); 
             }
 
-            // 2. คำนวณแคลอรี่ที่กินวันนี้
             let consumedToday = 0;
             const today = new Date();
             state.appData.logs.forEach(log => {
                 if (log.type === 'food') {
-                    // ถ้า timestamp เป็น null (เพิ่งบันทึก) ให้ถือว่าเป็นวันนี้
                     const logDate = log.timestamp ? log.timestamp.toDate() : new Date();
                     if (logDate.getDate() === today.getDate() &&
                         logDate.getMonth() === today.getMonth() &&
@@ -585,12 +597,10 @@
                 }
             });
 
-            // 3. แสดงผลเปรียบเทียบ
             if (tdee > 0) {
                 const remaining = tdee - consumedToday;
                 const percentage = Math.min(100, Math.round((consumedToday / tdee) * 100));
                 
-                // กำหนดสีของ Progress Bar
                 let progressColor = 'bg-blue-500';
                 if (percentage > 100) progressColor = 'bg-red-500';
                 else if (percentage > 85) progressColor = 'bg-yellow-500';
@@ -627,7 +637,6 @@
             }
         };
         const createHistoryItemHTML = (item) => {
-            // แก้ไข: ตรวจสอบ timestamp ว่ามีค่าหรือไม่ ป้องกัน Error ตอนบันทึกใหม่ๆ
             const logDate = item.timestamp 
                 ? item.timestamp.toDate().toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' }) 
                 : 'กำลังบันทึก...';
@@ -655,7 +664,6 @@
                 }
                 contentHtml = `<img src="${item.imageData}" alt="${item.description || 'log image'}" class="w-24 h-24 object-cover rounded-md bg-gray-200 flex-shrink-0"><div class="flex-1 flex flex-col"><div class="flex-grow pr-6"><span class="px-2 py-1 text-xs font-semibold rounded-full ${typeDisplay.bg} ${typeDisplay.textColor}">${typeDisplay.text}</span><p class="mt-2 text-gray-700">${item.description || 'ไม่มีคำอธิบาย'}</p>${detailsHtml}</div><div class="text-right text-xs text-gray-400 mt-2">${logDate}</div></div>`;
             } else {
-                // Handle profile updates: weight, height, bodyfat, muscle (START: Refactored Block)
                 const updateTypeInfo = {
                     'weight': { text: 'น้ำหนัก', unit: 'kg', color: 'purple', 
                                 svg: `<svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>` },
@@ -679,9 +687,8 @@
                             <div class="text-right text-xs text-gray-400 mt-1">${logDate}</div>
                         </div>`;
                 } else {
-                      contentHtml = `<div>Unknown item type: ${item.type}</div>`; // Fallback
+                      contentHtml = `<div>Unknown item type: ${item.type}</div>`; 
                 }
-                // (END: Refactored Block)
             }
             return `<div class="relative flex items-start space-x-4 p-4 border border-gray-200 rounded-lg">${contentHtml}<button class="delete-btn absolute top-2 right-2 text-gray-400 hover:text-red-500" data-id="${item.id}" data-type="${item.type}"><svg class="w-6 h-6 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button></div>`;
         };
@@ -690,10 +697,9 @@
                 ...state.appData.logs,
                 ...state.appData.weightHistory.map(entry => ({ ...entry, type: 'weight' })),
                 ...state.appData.heightHistory.map(entry => ({ ...entry, type: 'height' })),
-                ...state.appData.bodyfatHistory.map(entry => ({ ...entry, type: 'bodyfat' })), // Added
-                ...state.appData.muscleHistory.map(entry => ({ ...entry, type: 'muscle' }))    // Added
+                ...state.appData.bodyfatHistory.map(entry => ({ ...entry, type: 'bodyfat' })), 
+                ...state.appData.muscleHistory.map(entry => ({ ...entry, type: 'muscle' }))
             ].sort((a, b) => {
-                // แก้ไข: ป้องกัน Error ถ้า timestamp เป็น null (ให้ถือว่าเป็นเวลาปัจจุบันเพื่อให้แสดงบนสุด)
                 const timeA = a.timestamp ? a.timestamp.toMillis() : Date.now();
                 const timeB = b.timestamp ? b.timestamp.toMillis() : Date.now();
                 return timeB - timeA;
@@ -708,21 +714,21 @@
         const loadDashboard = () => { renderBmiGauge(); renderExerciseSummary(); renderFoodSummary(); renderDailyCalories(); };
         const loadProfileForm = () => {
             const { profile, weightHistory, heightHistory, bodyfatHistory, muscleHistory } = state.appData;
-            DOM.profile.age.value = profile.age || ''; // Changed dob to age
+            DOM.profile.age.value = profile.age || ''; 
             DOM.profile.gender.value = profile.gender || '';
             DOM.profile.weight.value = weightHistory.at(-1)?.value || '';
             DOM.profile.height.value = heightHistory.at(-1)?.value || '';
-            DOM.profile.bodyfat.value = bodyfatHistory.at(-1)?.value || ''; // Added
-            DOM.profile.muscle.value = muscleHistory.at(-1)?.value || ''; // Added
+            DOM.profile.bodyfat.value = bodyfatHistory.at(-1)?.value || ''; 
+            DOM.profile.muscle.value = muscleHistory.at(-1)?.value || ''; 
             updateProfileCalculations();
             renderWeightChart();
         };
         const resetLogForm = () => {
             DOM.log.description.value = ''; DOM.log.fileInput.value = ''; DOM.log.kcal.value = ''; DOM.log.km.value = ''; DOM.log.minutes.value = '';
-            DOM.log.healthyFoodCheckbox.checked = false; // Reset checkbox
+            DOM.log.healthyFoodCheckbox.checked = false; 
             DOM.log.exerciseType.value = 'running'; state.logImageBase64 = null; DOM.log.preview.src = '';
             setElementVisibility(DOM.log.preview, false); setElementVisibility(DOM.log.placeholderIcon, true);
-            setElementVisibility(DOM.log.healthyFoodContainer, false); // Hide checkbox
+            setElementVisibility(DOM.log.healthyFoodContainer, false); 
             DOM.log.typeButtons[0].click(); 
         };
 
@@ -734,14 +740,12 @@
                 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
                 const profileRef = doc(db, "artifacts", appId, "users", userId);
                 
-                // 1. ดึงข้อมูลปัจจุบันจาก State มาเทียบ
                 const currentProfile = state.appData.profile || {};
                 const lastWeight = state.appData.weightHistory.at(-1)?.value;
                 const lastHeight = state.appData.heightHistory.at(-1)?.value;
                 const lastBodyFat = state.appData.bodyfatHistory.at(-1)?.value;
                 const lastMuscle = state.appData.muscleHistory.at(-1)?.value;
 
-                // 2. ดึงค่าใหม่จาก Input
                 const newAge = DOM.profile.age.value ? parseInt(DOM.profile.age.value) : null;
                 const newGender = DOM.profile.gender.value;
                 const newWeight = DOM.profile.weight.value ? parseFloat(DOM.profile.weight.value) : null;
@@ -752,7 +756,6 @@
                 let hasChanges = false;
                 const profileUpdates = {};
 
-                // 3. ตรวจสอบการเปลี่ยนแปลงของข้อมูลส่วนตัว (Age, Gender)
                 if (newAge !== (currentProfile.age ?? null)) {
                     profileUpdates.age = newAge;
                     hasChanges = true;
@@ -762,13 +765,11 @@
                     hasChanges = true;
                 }
 
-                // อัปเดตข้อมูลส่วนตัวถ้ามีการเปลี่ยนแปลง
                 if (Object.keys(profileUpdates).length > 0) {
                     profileUpdates.updatedAt = serverTimestamp();
                     await setDoc(profileRef, { profile: profileUpdates }, { merge: true });
                 }
 
-                // 4. ตรวจสอบและบันทึกค่าวัดต่างๆ (Weight, Height, BodyFat, Muscle) เฉพาะเมื่อค่าเปลี่ยนไป
                 if (newWeight !== null && newWeight !== lastWeight) {
                     await addDoc(collection(profileRef, "weights"), { value: newWeight, timestamp: serverTimestamp() });
                     hasChanges = true;
@@ -786,7 +787,6 @@
                     hasChanges = true;
                 }
                 
-                // 5. สรุปผลการทำงาน
                 if (!hasChanges) {
                     showUserMessage(DOM.profile.message, 'ไม่มีการเปลี่ยนแปลงข้อมูล', true);
                 } else {
@@ -821,7 +821,7 @@
                     description: DOM.log.description.value,
                     imageData: state.logImageBase64,
                     timestamp: serverTimestamp(),
-                    exerciseType: null, km: 0, minutes: 0, kcal: 0, isHealthy: false // Default isHealthy
+                    exerciseType: null, km: 0, minutes: 0, kcal: 0, isHealthy: false 
                 };
 
                 if (state.currentLogType === 'exercise') {
@@ -830,7 +830,7 @@
                     else logToSave.minutes = parseInt(DOM.log.minutes.value) || 0;
                 } else {
                     logToSave.kcal = parseInt(DOM.log.kcal.value) || 0;
-                    logToSave.isHealthy = DOM.log.healthyFoodCheckbox.checked; // Capture checkbox value
+                    logToSave.isHealthy = DOM.log.healthyFoodCheckbox.checked; 
                 }
                 
                 await addDoc(logsCollectionRef, logToSave);
@@ -862,12 +862,11 @@
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
             let docRef;
 
-            // Updated to include new types
             if (type === 'weight') docRef = doc(db, "artifacts", appId, "users", userId, "weights", id);
             else if (type === 'height') docRef = doc(db, "artifacts", appId, "users", userId, "heights", id);
             else if (type === 'bodyfat') docRef = doc(db, "artifacts", appId, "users", userId, "bodyfats", id);
             else if (type === 'muscle') docRef = doc(db, "artifacts", appId, "users", userId, "muscles", id);
-            else docRef = doc(db, "artifacts", appId, "users", userId, "logs", id); // Default to logs
+            else docRef = doc(db, "artifacts", appId, "users", userId, "logs", id); 
             
             try {
                 await deleteDoc(docRef);
@@ -914,15 +913,13 @@
             const { db, userId } = state.firebase;
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
             
-            // Clean up old listeners before attaching new ones
             state.unsubscribeListeners.forEach(unsub => unsub());
             state.unsubscribeListeners = [];
 
-            // Listener for Profile
             const profileRef = doc(db, "artifacts", appId, "users", userId);
             const unsubProfile = onSnapshot(profileRef, (docSnap) => {
                 if (docSnap.exists()) {
-                    state.appData.profile = docSnap.data().profile || { age: '', gender: '' }; // Changed default dob to age
+                    state.appData.profile = docSnap.data().profile || { age: '', gender: '' }; 
                 } else {
                     console.log("No profile document! Creating one.");
                     setDoc(profileRef, { profile: { createdAt: serverTimestamp() } }, { merge: true });
@@ -931,7 +928,6 @@
                 loadDashboard();
             });
 
-            // Listener for Weight History
             const weightsQuery = query(collection(profileRef, "weights"), orderBy("timestamp", "asc"));
             const unsubWeights = onSnapshot(weightsQuery, (querySnapshot) => {
                 state.appData.weightHistory = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -940,7 +936,6 @@
                 if(document.getElementById('history-page').classList.contains('active')) loadHistory();
             });
 
-            // Listener for Height History
             const heightsQuery = query(collection(profileRef, "heights"), orderBy("timestamp", "asc"));
             const unsubHeights = onSnapshot(heightsQuery, (querySnapshot) => {
                 state.appData.heightHistory = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -949,7 +944,6 @@
                 if(document.getElementById('history-page').classList.contains('active')) loadHistory();
             });
 
-            // Listener for BodyFat History (Added)
             const bodyfatsQuery = query(collection(profileRef, "bodyfats"), orderBy("timestamp", "asc"));
             const unsubBodyFats = onSnapshot(bodyfatsQuery, (querySnapshot) => {
                 state.appData.bodyfatHistory = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -957,7 +951,6 @@
                 if(document.getElementById('history-page').classList.contains('active')) loadHistory();
             });
 
-            // Listener for Muscle History (Added)
             const musclesQuery = query(collection(profileRef, "muscles"), orderBy("timestamp", "asc"));
             const unsubMuscles = onSnapshot(musclesQuery, (querySnapshot) => {
                 state.appData.muscleHistory = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -965,7 +958,6 @@
                 if(document.getElementById('history-page').classList.contains('active')) loadHistory();
             });
 
-            // Listener for Logs
             const logsQuery = query(collection(profileRef, "logs"), orderBy("timestamp", "desc"));
             const unsubLogs = onSnapshot(logsQuery, (querySnapshot) => {
                 state.appData.logs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -973,13 +965,12 @@
                 if(document.getElementById('history-page').classList.contains('active')) loadHistory();
             });
 
-            state.unsubscribeListeners.push(unsubProfile, unsubWeights, unsubHeights, unsubLogs, unsubBodyFats, unsubMuscles); // Added new unsubscribers
+            state.unsubscribeListeners.push(unsubProfile, unsubWeights, unsubHeights, unsubLogs, unsubBodyFats, unsubMuscles); 
         };
 
         // --- Initialization ---
         const setupEventListeners = () => {
             DOM.navButtons.forEach(button => button.addEventListener('click', handleNavigation));
-            // Updated to include new fields in the listener. Changed dob to age.
             [DOM.profile.age, DOM.profile.weight, DOM.profile.height, DOM.profile.gender, DOM.profile.bodyfat, DOM.profile.muscle].forEach(input => input.addEventListener('input', updateProfileCalculations));
             DOM.profile.saveBtn.addEventListener('click', handleSaveProfile);
             DOM.log.typeButtons.forEach(button => {
@@ -989,7 +980,7 @@
                     DOM.log.uploadLabel.textContent = `อัปโหลดรูปภาพ${isExercise ? 'การออกกำลังกาย' : 'อาหาร'}`;
                     setElementVisibility(DOM.log.exerciseTypeContainer, isExercise);
                     setElementVisibility(DOM.log.kcalInputContainer, !isExercise);
-                    setElementVisibility(DOM.log.healthyFoodContainer, !isExercise); // Toggle healthy food checkbox
+                    setElementVisibility(DOM.log.healthyFoodContainer, !isExercise); 
                     if (isExercise) DOM.log.exerciseType.dispatchEvent(new Event('change'));
                     else { setElementVisibility(DOM.log.kmInputContainer, false); setElementVisibility(DOM.log.minutesInputContainer, false); }
                     DOM.log.typeButtons.forEach(btn => {
@@ -1025,7 +1016,6 @@
         };
         const main = async () => {
             try {
-                // Firebase configuration provided by the user
                 const firebaseConfig = {
                     apiKey: "AIzaSyDATchWwmazw3wPnuNk4i-d79rnyBpSDM0",
                     authDomain: "line-liff-a543c.firebaseapp.com",
@@ -1035,18 +1025,14 @@
                     appId: "1:617440448369:web:523f9ce4861c6b656c30d0"
                 };
                 
-                // Use a default app ID since __app_id is not available in this context
                 const appId = 'health-tracker-app'; 
 
-                // 1. Initialize Firebase
                 state.firebase.app = initializeApp(firebaseConfig);
                 state.firebase.auth = getAuth(state.firebase.app);
                 state.firebase.db = getFirestore(state.firebase.app);
 
-                // 2. Authenticate with Firebase (using anonymous sign-in for standalone use)
                 await signInAnonymously(state.firebase.auth);
                 
-                // 3. Initialize LIFF
                 await liff.init({ liffId: CONFIG.LIFF_ID });
                 if (!liff.isLoggedIn()) {
                     liff.login();
@@ -1054,9 +1040,8 @@
                 }
                 
                 state.liff.profile = await liff.getProfile();
-                state.firebase.userId = state.liff.profile.userId; // Use LIFF User ID for document paths
+                state.firebase.userId = state.liff.profile.userId; 
 
-                // 4. Start the app
                 updateLiffProfileUI();
                 initializeAppUI();
 
