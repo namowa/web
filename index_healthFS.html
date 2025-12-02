@@ -604,8 +604,6 @@
                     await addDoc(collection(profileRef, "muscles"), { value: newMuscle, timestamp: serverTimestamp() });
                 }
                 
-                // Removed Webhook Payload because it was deleted in previous step
-
                 showUserMessage(DOM.profile.message, 'บันทึกข้อมูลสำเร็จ!', true);
             } catch (error) {
                 console.error("Error saving profile:", error);
@@ -643,8 +641,6 @@
                 
                 await addDoc(logsCollectionRef, logToSave);
                 
-                // Removed Webhook Payload because it was deleted in previous step
-
                 showUserMessage(DOM.log.message, 'บันทึกกิจกรรมสำเร็จ!', true);
                 resetLogForm();
             } catch (error) {
