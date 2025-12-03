@@ -161,7 +161,6 @@
                                     <select id="log-exercise-type" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
                                         <option value="running">การวิ่ง</option>
                                         <option value="walking">เดิน</option>
-                                        <option value="cycling">ปั่นจักรยาน</option>
                                         <option value="other">กีฬาอื่นๆ</option>
                                     </select>
                                 </div>
@@ -268,7 +267,6 @@
             EXERCISE_TYPE_MAP: {
                 running: 'การวิ่ง',
                 walking: 'เดิน',
-                cycling: 'ปั่นจักรยาน',
                 other: 'กีฬาอื่นๆ'
             }
         };
@@ -519,7 +517,7 @@
             `;
         };
         const renderExerciseSummary = () => {
-            const summary = { running: { km: 0 }, walking: { km: 0 }, cycling: { km: 0 }, other: { minutes: 0 } };
+            const summary = { running: { km: 0 }, walking: { km: 0 }, other: { minutes: 0 } };
             state.appData.logs.filter(log => log.type === 'exercise').forEach(log => {
                 if (log.exerciseType && summary[log.exerciseType]) {
                     if (log.km) summary[log.exerciseType].km += log.km;
@@ -529,7 +527,6 @@
             DOM.dashboard.exerciseSummaryContainer.innerHTML = `
                 <div class="flex justify-between items-center p-3 bg-gray-100 rounded-lg"><span class="font-semibold text-gray-600">วิ่ง</span><span class="font-bold text-lg text-indigo-600">${summary.running.km.toFixed(1)} กม.</span></div>
                 <div class="flex justify-between items-center p-3 bg-gray-100 rounded-lg"><span class="font-semibold text-gray-600">เดิน</span><span class="font-bold text-lg text-indigo-600">${summary.walking.km.toFixed(1)} กม.</span></div>
-                <div class="flex justify-between items-center p-3 bg-gray-100 rounded-lg"><span class="font-semibold text-gray-600">ปั่นจักรยาน</span><span class="font-bold text-lg text-indigo-600">${summary.cycling.km.toFixed(1)} กม.</span></div>
                 <div class="flex justify-between items-center p-3 bg-gray-100 rounded-lg"><span class="font-semibold text-gray-600">กีฬาอื่นๆ</span><span class="font-bold text-lg text-indigo-600">${summary.other.minutes} นาที</span></div>`;
         };
         const renderFoodSummary = () => {
@@ -826,7 +823,7 @@
 
                 if (state.currentLogType === 'exercise') {
                     logToSave.exerciseType = DOM.log.exerciseType.value;
-                    if (['running', 'walking', 'cycling'].includes(logToSave.exerciseType)) logToSave.km = parseFloat(DOM.log.km.value) || 0;
+                    if (['running', 'walking'].includes(logToSave.exerciseType)) logToSave.km = parseFloat(DOM.log.km.value) || 0;
                     else logToSave.minutes = parseInt(DOM.log.minutes.value) || 0;
                 } else {
                     logToSave.kcal = parseInt(DOM.log.kcal.value) || 0;
