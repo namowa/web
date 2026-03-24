@@ -11,15 +11,15 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* ใช้ฟอนต์ Sarabun สำหรับภาษาไทย และ Inter เป็นฟอนต์สำรอง */
+        /* Use Sarabun for Thai and Inter for English */
         body { font-family: 'Sarabun', 'Inter', sans-serif; }
-        /* เอฟเฟกต์ปุ่มกด */
+        /* Button Interaction */
         .btn-primary { transition: background-color 0.3s ease, transform 0.2s ease; }
         .btn-primary:hover { transform: translateY(-2px); }
         .btn-primary:active { transform: translateY(0); }
-        /* สไตล์สำหรับ Dropdown ที่ถูกปิดใช้งาน */
+        /* Disabled select style */
         select:disabled { background-color: #e9ecef; cursor: not-allowed; }
-        /* สไตล์ส่วนอัปโหลดไฟล์ */
+        /* File upload label style */
         .file-input-label { cursor: pointer; border: 2px dashed #cbd5e1; padding: 2rem; transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out; }
         .file-input-label:hover { background-color: #f8fafc; border-color: #94a3b8; }
     </style>
@@ -28,15 +28,15 @@
 
     <div class="w-full max-w-2xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
         <div class="p-8">
-            <!-- หัวข้อแบบฟอร์ม -->
+            <!-- Form Header -->
             <div class="text-center mb-8">
                 <h1 class="text-3xl font-bold text-gray-800">แบบฟอร์มแจ้งซ่อม</h1>
                 <p class="text-gray-500 mt-2">กรุณากรอกรายละเอียดด้านล่างให้ครบถ้วน</p>
             </div>
 
-            <!-- ฟอร์มการแจ้งซ่อม -->
+            <!-- Maintenance Request Form -->
             <form id="repairForm" class="space-y-6">
-                 <!-- แถวที่ 1: ชื่อผู้แจ้งและเบอร์ติดต่อ -->
+                 <!-- Row 1: Reporter and Contact -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label for="reporterName" class="block text-sm font-medium text-gray-700 mb-1">ชื่อผู้แจ้ง</label>
@@ -48,7 +48,7 @@
                     </div>
                 </div>
 
-                <!-- แถวที่ 2: ประเภทงานซ่อมและหน่วยงาน -->
+                <!-- Row 2: Repair Type and Department -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label for="repairType" class="block text-sm font-medium text-gray-700 mb-1">ประเภทงานซ่อม</label>
@@ -73,7 +73,7 @@
                     </div>
                 </div>
 
-                <!-- แถวที่ 3: ไลน์ผลิตและชื่อเครื่องจักร -->
+                <!-- Row 3: Production Line and Machine -->
                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label for="productionLine" class="block text-sm font-medium text-gray-700 mb-1">ไลน์ผลิต</label>
@@ -87,13 +87,13 @@
                     </div>
                 </div>
 
-                <!-- แถวที่ 4: รายละเอียดปัญหา -->
+                <!-- Row 4: Problem Details -->
                 <div>
                     <label for="problemDescription" class="block text-sm font-medium text-gray-700 mb-1">รายละเอียดปัญหา</label>
                     <textarea id="problemDescription" name="problemDescription" rows="4" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="อธิบายอาการที่พบโดยละเอียด"></textarea>
                 </div>
 
-                <!-- แถวที่ 5: อัปโหลดรูปภาพ -->
+                <!-- Row 5: Image Upload -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">รูปภาพปัญหา (ถ้ามี)</label>
                     <label for="imageUpload" class="file-input-label flex flex-col items-center justify-center rounded-lg text-center">
@@ -101,11 +101,10 @@
                         <p class="mt-2 text-sm text-gray-500">คลิกเพื่อเลือกรูปภาพ (1 รูป)</p>
                     </label>
                     <input type="file" id="imageUpload" name="image" accept="image/*" class="hidden">
-                    <!-- ส่วนแสดงภาพตัวอย่าง -->
                     <div id="imagePreview" class="mt-4"></div>
                 </div>
 
-                <!-- ปุ่มส่งข้อมูล -->
+                <!-- Submit Button -->
                 <div class="text-center pt-4">
                     <button type="submit" id="submitButton" class="btn-primary w-full md:w-auto bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 shadow-md">
                         <span id="buttonText">ส่งข้อมูลการแจ้งซ่อม</span>
@@ -121,7 +120,7 @@
         </div>
     </div>
 
-    <!-- Modal สำหรับแจ้งสถานะ (สำเร็จ/ผิดพลาด) -->
+    <!-- Feedback Modal -->
     <div id="feedbackModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         <div class="mx-auto p-5 border w-11/12 md:w-1/3 shadow-lg rounded-md bg-white">
             <div class="text-center">
@@ -140,12 +139,12 @@
     <script>
     document.addEventListener('DOMContentLoaded', () => {
 
-        // --- ตั้งค่าเริ่มต้น ---
-        const API_ENDPOINT_URL = 'https://prod-47.southeastasia.logic.azure.com:443/workflows/231decf705094921b331e1ce09595d67/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=YEI3LbYYK8fhWbhUf5fTH8XjgTM8mt852aJJOGbulL8';
+        // --- CONFIGURATION ---
+        const API_ENDPOINT_URL = 'https://defaultead303242c2a42bf9541bf96019df2.c6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/231decf705094921b331e1ce09595d67/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=f6vEq9gINmn62pUpm4DWutMqv7LKcHtfJgM_RxChZic';
         const MAX_IMAGE_WIDTH = 800;
         const MAX_IMAGE_HEIGHT = 600;
 
-        // --- ข้อมูลไลน์ผลิตแยกตามหน่วยงาน ---
+        // --- PRODUCTION LINES DATA ---
         const productionLinesByDept = {
             PRE: ['PF', 'GRID', 'PART', 'E1', 'E2', 'E3', 'PA1', 'PA2', 'LP1', 'LP2', 'LP3', 'LP4', 'LP5', 'LP6', 'LP7', 'LS1', 'LS2', 'อื่นๆ'],
             AS1: ['COS#2', 'COS#3', 'COS#4', 'COS#10', 'อื่นๆ'],
@@ -154,7 +153,7 @@
             CHG2: ['CHG2', 'อื่นๆ']
         };
 
-        // --- อ้างอิง DOM ELEMENTS ---
+        // --- DOM ELEMENTS ---
         const elements = {
             form: document.getElementById('repairForm'),
             submitButton: document.getElementById('submitButton'),
@@ -173,7 +172,7 @@
             }
         };
 
-        // --- ฟังก์ชันการจัดการ UI ---
+        // --- UI FUNCTIONS ---
         const ui = {
             setButtonLoading(isLoading) {
                 elements.submitButton.disabled = isLoading;
@@ -193,7 +192,7 @@
                     icon.innerHTML = `<svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
                 }
                 modalTitle.textContent = title;
-                modalMessage.textContent = message;
+                modalMessage.innerHTML = message; // Use innerHTML to support multiline or styling if needed
                 container.classList.remove('hidden');
             },
             hideModal() {
@@ -234,7 +233,7 @@
             }
         };
 
-        // --- ฟังก์ชันจัดการรูปภาพ ---
+        // --- IMAGE PROCESSING ---
         function resizeAndEncodeImage(file, maxWidth, maxHeight) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -268,21 +267,16 @@
             });
         }
 
-        // --- ฟังก์ชันตรวจสอบ URL Parameters สำหรับ Pre-fill ---
+        // --- URL PARAMETERS FOR PRE-FILL ---
         function checkUrlParameters() {
             const params = new URLSearchParams(window.location.search);
-            
-            // แมปพารามิเตอร์กับฟิลด์ในฟอร์ม
             if (params.has('name')) elements.form.reporterName.value = params.get('name');
             if (params.has('tel')) elements.form.contactNumber.value = params.get('tel');
             if (params.has('type')) elements.form.repairType.value = params.get('type');
             if (params.has('dept')) {
                 const deptValue = params.get('dept');
                 elements.form.department.value = deptValue;
-                // อัปเดตไลน์ผลิตให้สอดคล้องกับหน่วยงาน
                 ui.updateProductionLines();
-                
-                // ถ้ามีค่าไลน์ผลิตส่งมาด้วย
                 if (params.has('line')) {
                     elements.form.productionLine.value = params.get('line');
                 }
@@ -291,7 +285,7 @@
             if (params.has('desc')) elements.form.problemDescription.value = params.get('desc');
         }
 
-        // --- ตัวจัดการเหตุการณ์ (Event Handlers) ---
+        // --- EVENT HANDLERS ---
         async function handleFormSubmit(event) {
             event.preventDefault();
             ui.setButtonLoading(true);
@@ -331,11 +325,19 @@
                     body: JSON.stringify(payload),
                 });
 
+                // Extract JobNo from response headers
+                const jobNo = response.headers.get('JobNo');
+
+                // Support 200 OK or 202 Accepted
                 if (response.status !== 200 && response.status !== 202) {
                     throw new Error(`Server responded with status: ${response.status}`);
                 }
                 
-                ui.showModal('success', 'ส่งข้อมูลสำเร็จ', 'เราได้รับข้อมูลการแจ้งซ่อมของคุณแล้ว');
+                const successMsg = jobNo 
+                    ? `เราได้รับข้อมูลการแจ้งซ่อมของคุณแล้ว<br><span class="font-bold text-blue-600 text-lg">เลขที่ใบแจ้งงาน: ${jobNo}</span>`
+                    : 'เราได้รับข้อมูลการแจ้งซ่อมของคุณแล้ว';
+
+                ui.showModal('success', 'ส่งข้อมูลสำเร็จ', successMsg);
                 ui.resetForm();
             } catch (error) {
                 console.error('Submit Error:', error);
@@ -350,7 +352,7 @@
             ui.displayImagePreview(file);
         }
 
-        // --- เริ่มต้นการทำงาน (Initialization) ---
+        // --- INITIALIZATION ---
         elements.form.addEventListener('submit', handleFormSubmit);
         elements.departmentSelect.addEventListener('change', ui.updateProductionLines);
         elements.imageUpload.addEventListener('change', handleImageUpload);
@@ -361,7 +363,7 @@
             }
         });
 
-        // ตรวจสอบข้อมูลจาก URL เมื่อโหลดหน้าเว็บเสร็จ
+        // Check for URL parameters on load
         checkUrlParameters();
     });
     </script>
