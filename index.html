@@ -260,7 +260,6 @@
                         canvas.height = height;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
-                        // คืนค่าเป็น Base64
                         resolve(ctx.canvas.toDataURL('image/jpeg', 0.85));
                     };
                     img.onerror = reject;
@@ -269,12 +268,34 @@
             });
         }
 
+        // --- ฟังก์ชันตรวจสอบ URL Parameters สำหรับ Pre-fill ---
+        function checkUrlParameters() {
+            const params = new URLSearchParams(window.location.search);
+            
+            // แมปพารามิเตอร์กับฟิลด์ในฟอร์ม
+            if (params.has('name')) elements.form.reporterName.value = params.get('name');
+            if (params.has('tel')) elements.form.contactNumber.value = params.get('tel');
+            if (params.has('type')) elements.form.repairType.value = params.get('type');
+            if (params.has('dept')) {
+                const deptValue = params.get('dept');
+                elements.form.department.value = deptValue;
+                // อัปเดตไลน์ผลิตให้สอดคล้องกับหน่วยงาน
+                ui.updateProductionLines();
+                
+                // ถ้ามีค่าไลน์ผลิตส่งมาด้วย
+                if (params.has('line')) {
+                    elements.form.productionLine.value = params.get('line');
+                }
+            }
+            if (params.has('machine')) elements.form.machineName.value = params.get('machine');
+            if (params.has('desc')) elements.form.problemDescription.value = params.get('desc');
+        }
+
         // --- ตัวจัดการเหตุการณ์ (Event Handlers) ---
         async function handleFormSubmit(event) {
             event.preventDefault();
             ui.setButtonLoading(true);
 
-            // สร้าง Payload ข้อมูล
             const payload = {
                 reporterName: elements.form.reporterName.value,
                 contactNumber: elements.form.contactNumber.value,
@@ -310,7 +331,6 @@
                     body: JSON.stringify(payload),
                 });
 
-                // รองรับสถานะ 200 OK หรือ 202 Accepted จาก Logic Apps
                 if (response.status !== 200 && response.status !== 202) {
                     throw new Error(`Server responded with status: ${response.status}`);
                 }
@@ -341,6 +361,8 @@
             }
         });
 
+        // ตรวจสอบข้อมูลจาก URL เมื่อโหลดหน้าเว็บเสร็จ
+        checkUrlParameters();
     });
     </script>
 </body>
