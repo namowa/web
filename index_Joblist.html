@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGSMT - Job Tracking</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Sarabun & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Sarabun', 'Inter', sans-serif; }
+        .filter-card { transition: all 0.3s ease; }
+        .job-row { transition: background-color 0.2s; }
+        .job-row:hover { background-color: #f8fafc; }
+        select:disabled { background-color: #f1f5f9; cursor: not-allowed; }
+        
+        /* สไตล์สำหรับสถานะต่างๆ */
+        .status-open { background-color: #fee2e2; color: #991b1b; } 
+        .status-progress { background-color: #fef3c7; color: #92400e; } 
+        .status-complete { background-color: #dcfce7; color: #166534; } 
+        
+        .table-container::-webkit-scrollbar { height: 6px; }
+        .table-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        /* Modal Animation */
+        .modal-animate-in { animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800">รายการแจ้งซ่อม (Job List)</h1>
+                <p class="text-gray-500 mt-1">ติดตามสถานะและตรวจสอบรายการงานซ่อมทั้งหมด</p>
+            </div>
+            <div class="mt-4 md:mt-0 text-right">
+                <button id="refreshBtn" class="flex items-center bg-white border border-gray-300 px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-50 shadow-sm transition">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    รีเฟรชข้อมูล
+                </button>
+            </div>
+        </div>
+
+        <!-- Filter Section -->
+        <div class="bg-white rounded-xl shadow-md p-6 mb-8 filter-card border border-gray-100">
+            <h2 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
+                ตัวกรองข้อมูล (Filters)
+            </h2>
+            <form id="filterForm" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 uppercase mb-1">ประเภทงานซ่อม</label>
+                    <select id="repairType" name="repairType" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition">
+                        <option value="">ทั้งหมด</option>
+                        <option value="BD">BD</option>
+                        <option value="RP">RP</option>
+                        <option value="PM">PM</option>
+                        <option value="SF">SF</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 uppercase mb-1">หน่วยงานที่แจ้ง</label>
+                    <select id="department" name="department" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition">
+                        <option value="">ทั้งหมด</option>
+                        <option value="PRE">PRE</option>
+                        <option value="AS1">AS1</option>
+                        <option value="AS2">AS2</option>
+                        <option value="CHG1">CHG1</option>
+                        <option value="CHG2">CHG2</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 uppercase mb-1">ไลน์ผลิต</label>
+                    <select id="productionLine" name="productionLine" disabled class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition">
+                        <option value="">ทั้งหมด</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 uppercase mb-1">สถานะงาน</label>
+                    <select id="status" name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition">
+                        <option value="">ทั้งหมด</option>
+                        <option value="Open">Open (รอดำเนินการ)</option>
+                        <option value="In Progress">In Progress (กำลังซ่อม)</option>
+                        <option value="Completed">Completed (เสร็จสิ้น)</option>
+                        <option value="Cancelled">Cancelled (ยกเลิก)</option>
+                    </select>
+                </div>
+                <div class="lg:col-span-4 flex justify-end mt-2">
+                    <button type="submit" id="searchBtn" class="bg-blue-600 text-white px-8 py-2 rounded-lg font-bold hover:bg-blue-700 shadow-md transition flex items-center">
+                        <span id="btnText">ค้นหารายการ</span>
+                        <div id="btnSpinner" class="hidden ml-2">
+                            <svg class="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        </div>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Results Table Section -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
+            <div class="table-container overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                            <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">เลขที่งาน</th>
+                            <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">วันที่/เวลา</th>
+                            <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">ประเภท</th>
+                            <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">หน่วยงาน/ไลน์</th>
+                            <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">เครื่องจักร</th>
+                            <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">สถานะ</th>
+                            <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">การจัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="jobTableBody" class="divide-y divide-gray-100">
+                        <tr>
+                            <td colspan="7" class="px-6 py-12 text-center text-gray-400">
+                                <div class="flex flex-col items-center">
+                                    <svg class="w-12 h-12 mb-3 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                                    กดปุ่ม "ค้นหารายการ" เพื่อดึงข้อมูล
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="tableFooter" class="px-6 py-4 bg-gray-50 border-t border-gray-200 text-sm text-gray-500 hidden">
+                พบข้อมูลทั้งหมด <span id="rowCount" class="font-bold text-gray-700">0</span> รายการ
+            </div>
+        </div>
+    </div>
+
+    <!-- Job Detail Modal (Popup) -->
+    <div id="detailModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto modal-animate-in shadow-2xl">
+            <!-- Modal Header -->
+            <div class="sticky top-0 bg-white px-6 py-4 border-b flex justify-between items-center z-10">
+                <h3 class="text-xl font-bold text-gray-800 flex items-center">
+                    <span class="mr-2">🔍 รายละเอียดงาน:</span>
+                    <span id="detailJobNo" class="text-blue-600"></span>
+                </h3>
+                <button id="closeDetailBtn" class="p-2 hover:bg-gray-100 rounded-full transition text-gray-500">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <!-- Modal Body (Loading State) -->
+            <div id="detailLoading" class="p-12 text-center">
+                <svg class="animate-spin h-10 w-10 text-blue-600 mx-auto mb-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                <p class="text-gray-500 font-medium">กำลังดึงรายละเอียดข้อมูล...</p>
+            </div>
+
+            <!-- Modal Body (Content) -->
+            <div id="detailContent" class="hidden p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="space-y-4">
+                        <div class="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                            <p class="text-xs text-gray-400 uppercase font-bold mb-1">ชื่อผู้แจ้ง / เบอร์ติดต่อ</p>
+                            <p id="detailReporter" class="text-gray-800 font-medium"></p>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                            <p class="text-xs text-gray-400 uppercase font-bold mb-1">ประเภทงาน / สถานะ</p>
+                            <div class="flex items-center gap-2">
+                                <span id="detailType" class="text-gray-800 font-medium"></span>
+                                <span id="detailStatusBadge" class="px-2 py-0.5 rounded-full text-xs font-bold"></span>
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                            <p class="text-xs text-gray-400 uppercase font-bold mb-1">เครื่องจักร / ไลน์ผลิต</p>
+                            <p id="detailMachine" class="text-gray-800 font-medium"></p>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="bg-blue-50 p-3 rounded-lg border border-blue-100 h-full">
+                            <p class="text-xs text-blue-400 uppercase font-bold mb-1">รายละเอียดปัญหา</p>
+                            <p id="detailDesc" class="text-gray-700 text-sm whitespace-pre-line leading-relaxed"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Image Section -->
+                <div id="detailImageSection" class="mt-6 hidden">
+                    <p class="text-xs text-gray-400 uppercase font-bold mb-2">รูปภาพประกอบ</p>
+                    <div class="bg-gray-100 rounded-xl overflow-hidden flex items-center justify-center p-2 border border-gray-200">
+                        <img id="detailImage" src="" alt="Job Image" class="max-w-full h-auto rounded-lg shadow-sm cursor-zoom-in" onclick="window.open(this.src)">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="errorModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-[60]">
+        <div class="bg-white rounded-lg p-6 max-w-sm mx-auto shadow-xl">
+            <div class="text-center">
+                <div class="bg-red-100 text-red-600 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </div>
+                <h3 class="text-lg font-bold text-gray-900 mb-2">เกิดข้อผิดพลาด</h3>
+                <p class="text-sm text-gray-500 mb-6" id="errorMessage"></p>
+                <button id="closeErrorBtn" class="w-full bg-gray-800 text-white py-2 rounded-lg hover:bg-gray-900 transition">ตกลง</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+        // --- CONFIGURATION ---
+        const LIST_API_URL = 'https://defaultead303242c2a42bf9541bf96019df2.c6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/fa44a3ed6820414a96e44101ec30b466/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=8XDEtNVr-uTAhwxyFAsVlBxcUCM6ibWhJqXJSbEauPc';
+        
+        // สำหรับรายละเอียดงาน
+        const DETAIL_API_URL = 'https://defaultead303242c2a42bf9541bf96019df2.c6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ea10e19c14654564b1b219bdbed99138/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=ww-AwWeC9X9S8JIu_brTS568EcYRIin9ZM7IazHTj18'; 
+
+        // --- DATA ---
+        const productionLinesByDept = {
+            PRE: ['PF', 'GRID', 'PART', 'E1', 'E2', 'E3', 'PA1', 'PA2', 'LP1', 'LP2', 'LP3', 'LP4', 'LP5', 'LP6', 'LP7', 'LS1', 'LS2', 'อื่นๆ'],
+            AS1: ['COS#2', 'COS#3', 'COS#4', 'COS#10', 'อื่นๆ'],
+            AS2: ['COS#6', 'COS#7', 'COS#8', 'COS#9', 'อื่นๆ'],
+            CHG1: ['ACS', 'BCH', 'QA', 'QC', 'TEST', 'IC', 'FROM', 'อื่นๆ'],
+            CHG2: ['CHG2', 'อื่นๆ']
+        };
+
+        const elements = {
+            filterForm: document.getElementById('filterForm'),
+            departmentSelect: document.getElementById('department'),
+            productionLineSelect: document.getElementById('productionLine'),
+            tableBody: document.getElementById('jobTableBody'),
+            tableFooter: document.getElementById('tableFooter'),
+            rowCount: document.getElementById('rowCount'),
+            searchBtn: document.getElementById('searchBtn'),
+            refreshBtn: document.getElementById('refreshBtn'),
+            errorModal: document.getElementById('errorModal'),
+            errorMessage: document.getElementById('errorMessage'),
+            closeErrorBtn: document.getElementById('closeErrorBtn'),
+            // Modal Elements
+            detailModal: document.getElementById('detailModal'),
+            closeDetailBtn: document.getElementById('closeDetailBtn'),
+            detailLoading: document.getElementById('detailLoading'),
+            detailContent: document.getElementById('detailContent'),
+            detailJobNo: document.getElementById('detailJobNo'),
+            detailReporter: document.getElementById('detailReporter'),
+            detailType: document.getElementById('detailType'),
+            detailStatusBadge: document.getElementById('detailStatusBadge'),
+            detailMachine: document.getElementById('detailMachine'),
+            detailDesc: document.getElementById('detailDesc'),
+            detailImageSection: document.getElementById('detailImageSection'),
+            detailImage: document.getElementById('detailImage')
+        };
+
+        const ui = {
+            setLoading(isLoading) {
+                elements.searchBtn.disabled = isLoading;
+                document.getElementById('btnText').textContent = isLoading ? 'กำลังโหลด...' : 'ค้นหารายการ';
+                document.getElementById('btnSpinner').classList.toggle('hidden', !isLoading);
+            },
+            updateProductionLines() {
+                const selectedDept = elements.departmentSelect.value;
+                elements.productionLineSelect.innerHTML = '<option value="">ทั้งหมด</option>';
+                if (selectedDept && productionLinesByDept[selectedDept]) {
+                    elements.productionLineSelect.disabled = false;
+                    productionLinesByDept[selectedDept].forEach(line => {
+                        const option = document.createElement('option');
+                        option.value = line;
+                        option.textContent = line;
+                        elements.productionLineSelect.appendChild(option);
+                    });
+                } else {
+                    elements.productionLineSelect.disabled = true;
+                }
+            },
+            formatDate(dateString) {
+                if (!dateString) return '-';
+                try {
+                    const date = new Date(dateString);
+                    if (isNaN(date.getTime())) return dateString;
+                    return date.toLocaleString('th-TH', { 
+                        year: 'numeric', month: 'short', day: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                    });
+                } catch(e) { return dateString; }
+            },
+            getStatusBadgeClass(status) {
+                const s = (status || '').toLowerCase();
+                if (s.includes('open')) return 'status-open';
+                if (s.includes('progress')) return 'status-progress';
+                if (s.includes('complete')) return 'status-complete';
+                return 'bg-gray-100 text-gray-600';
+            },
+            renderTable(data) {
+                elements.tableBody.innerHTML = '';
+                const list = (data && data.body) ? data.body : (Array.isArray(data) ? data : []);
+                
+                if (list.length === 0) {
+                    elements.tableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-12 text-center text-gray-400 italic">ไม่พบข้อมูลที่ต้องการ</td></tr>`;
+                    elements.tableFooter.classList.add('hidden');
+                    return;
+                }
+
+                list.forEach(job => {
+                    const row = document.createElement('tr');
+                    row.className = 'job-row border-b border-gray-50';
+                    const statusValue = (job.status && typeof job.status === 'object') ? job.status.Value : (job.status || 'Open');
+                    
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap font-bold text-blue-600">${job.JobNo || '-'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${this.formatDate(job.timestamp)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800">${job.repairType || '-'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            <div class="font-medium text-gray-800">${job.department || '-'}</div>
+                            <div class="text-xs text-gray-400">${job.productionLine || '-'}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800">${job.machineName || '-'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-3 py-1 rounded-full text-xs font-bold ${this.getStatusBadgeClass(statusValue)}">
+                                ${statusValue}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center">
+                            <button class="bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white px-4 py-1.5 rounded-lg text-sm font-bold transition shadow-sm border border-blue-100" 
+                                    onclick="viewDetails('${job.JobNo}')">
+                                รายละเอียด
+                            </button>
+                        </td>
+                    `;
+                    elements.tableBody.appendChild(row);
+                });
+                elements.rowCount.textContent = list.length;
+                elements.tableFooter.classList.remove('hidden');
+            },
+            showError(msg) {
+                elements.errorMessage.textContent = msg;
+                elements.errorModal.classList.remove('hidden');
+            },
+            toggleDetailModal(show) {
+                if (show) {
+                    elements.detailModal.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
+                } else {
+                    elements.detailModal.classList.add('hidden');
+                    document.body.style.overflow = '';
+                }
+            }
+        };
+
+        async function fetchJobs() {
+            ui.setLoading(true);
+            const filterData = {
+                repairType: document.getElementById('repairType').value || "",
+                department: document.getElementById('department').value || "",
+                productionLine: document.getElementById('productionLine').value || "",
+                status: document.getElementById('status').value || ""
+            };
+
+            try {
+                const response = await fetch(LIST_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(filterData)
+                });
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                const data = await response.json();
+                ui.renderTable(data);
+            } catch (error) {
+                ui.showError(error.message || 'ไม่สามารถดึงข้อมูลได้');
+            } finally {
+                ui.setLoading(false);
+            }
+        }
+
+        window.viewDetails = async function(jobNo) {
+            ui.toggleDetailModal(true);
+            elements.detailLoading.classList.remove('hidden');
+            elements.detailContent.classList.add('hidden');
+            elements.detailJobNo.textContent = jobNo;
+
+            try {
+                const response = await fetch(DETAIL_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ JobNo: jobNo, action: "get_detail" })
+                });
+
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+
+                const data = await response.json();
+                
+                // ดึงข้อมูล Job
+                let rawBody = (data && data.body) ? data.body : data;
+                if (typeof rawBody === 'string') {
+                    try { rawBody = JSON.parse(rawBody); } catch(e) { console.error("Parse error", e); }
+                }
+                const job = Array.isArray(rawBody) ? rawBody[0] : rawBody;
+
+                if (!job || typeof job !== 'object') throw new Error("ไม่พบข้อมูลรายละเอียดสำหรับงานนี้");
+
+                // แสดงผลข้อมูล
+                elements.detailReporter.textContent = `${job.reporterName || '-'} (โทร: ${job.contactNumber || '-'})`;
+                elements.detailType.textContent = job.repairType || '-';
+                
+                const statusValue = (job.status && typeof job.status === 'object') ? job.status.Value : (job.status || 'Open');
+                elements.detailStatusBadge.textContent = statusValue;
+                elements.detailStatusBadge.className = `px-2 py-0.5 rounded-full text-xs font-bold ${ui.getStatusBadgeClass(statusValue)}`;
+                
+                elements.detailMachine.textContent = `${job.machineName || '-'} / ${job.department || '-'} (${job.productionLine || '-'})`;
+                elements.detailDesc.textContent = job.problemDescription || 'ไม่มีข้อมูลรายละเอียดเพิ่มเติม';
+
+                // --- ปรับปรุงการแสดงรูปภาพให้รองรับ Payload ใหม่ ---
+                let imageSrc = '';
+                if (job.imageJSON) {
+                    if (typeof job.imageJSON === 'string') {
+                        imageSrc = job.imageJSON; // ถ้าเป็น Base64 string โดยตรง
+                    } else if (typeof job.imageJSON === 'object' && job.imageJSON.imageData) {
+                        imageSrc = job.imageJSON.imageData; // ถ้าเป็น Object รูปแบบเดิม
+                    }
+                }
+
+                if (imageSrc) {
+                    elements.detailImage.src = imageSrc;
+                    elements.detailImageSection.classList.remove('hidden');
+                } else {
+                    elements.detailImageSection.classList.add('hidden');
+                }
+
+                elements.detailLoading.classList.add('hidden');
+                elements.detailContent.classList.remove('hidden');
+
+            } catch (error) {
+                console.error('Detail Fetch Error:', error);
+                ui.toggleDetailModal(false);
+                ui.showError(error.message || 'ไม่สามารถดึงรายละเอียดได้');
+            }
+        };
+
+        // --- EVENT LISTENERS ---
+        elements.departmentSelect.addEventListener('change', () => ui.updateProductionLines());
+        elements.filterForm.addEventListener('submit', (e) => { e.preventDefault(); fetchJobs(); });
+        elements.refreshBtn.addEventListener('click', fetchJobs);
+        elements.closeErrorBtn.addEventListener('click', () => { elements.errorModal.classList.add('hidden'); });
+        elements.closeDetailBtn.addEventListener('click', () => ui.toggleDetailModal(false));
+        
+        elements.detailModal.addEventListener('click', (e) => {
+            if (e.target === elements.detailModal) ui.toggleDetailModal(false);
+        });
+
+        ui.updateProductionLines();
+    });
+    </script>
+</body>
+</html>
