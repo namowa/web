@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>โปรแกรมดูไฟล์ DAE (3D Viewer)</title>
+    <!-- JSZip สำหรับอ่านไฟล์ ZIP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Tailwind CSS สำหรับตกแต่ง UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Import Map สำหรับจัดการโมดูลของ Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #1a202c; }
+        #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; z-index: 10; pointer-events: none; }
+        .pointer-events-auto { pointer-events: auto; }
+        
+        /* สไตล์สำหรับหน้าจอโหลดดิ้ง */
+        #loader-overlay {
+            display: none; /* ซ่อนไว้เป็นค่าเริ่มต้น */
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 50; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%; width: 50px; height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="text-white font-sans antialiased">
+
+    <!-- ส่วนแสดง 3D Model -->
+    <div id="canvas-container"></div>
+
+    <!-- ปุ่มซ่อน/แสดง UI -->
+    <button id="toggle-ui-btn" class="fixed bottom-6 right-6 z-50 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-full shadow-lg pointer-events-auto transition-all font-medium border border-gray-600 backdrop-blur-md">
+        ซ่อน UI
+    </button>
+
+    <!-- ส่วนติดต่อผู้ใช้งาน (UI) -->
+    <div id="ui-layer" class="p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-opacity duration-300">
+        <div class="ui-panel bg-gray-800/80 backdrop-blur-md p-4 rounded-xl shadow-lg pointer-events-auto border border-gray-700">
+            <h1 class="text-2xl font-bold text-blue-400 mb-2">DAE Viewer</h1>
+            <p class="text-sm text-gray-300 mb-4">โปรแกรมเปิดดูโมเดล 3 มิติ (.dae)</p>
+            
+            <label class="block mb-2 text-sm font-medium text-gray-300" for="file-upload">อัปโหลดไฟล์ DAE, Texture หรือไฟล์ .zip</label>
+            <input class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400" 
+                   id="file-upload" type="file" accept=".dae,.png,.jpg,.jpeg,.zip" multiple>
+                   
+            <p class="text-xs text-yellow-400 mt-3 max-w-xs">
+                * วิธีใช้งาน: เลือกไฟล์ .dae พร้อมรูปภาพ Texture หรือบีบอัดทั้งหมดรวมกันเป็นไฟล์ .zip แล้วอัปโหลดเพียงไฟล์เดียว
+            </p>
+            
+            <!-- เพิ่มส่วนควบคุมแสงสว่าง -->
+            <div class="mt-4 border-t border-gray-600 pt-4">
+                <label class="block mb-2 text-sm font-medium text-gray-300" for="light-intensity">ปรับความสว่าง (Lighting)</label>
+                <input id="light-intensity" type="range" min="0" max="3" step="0.1" value="1" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer">
+                <div class="flex justify-between text-xs text-gray-400 mt-1">
+                    <span>มืด</span>
+                    <span>ปกติ</span>
+                    <span>สว่างมาก</span>
+                </div>
+            </div>
+
+            <!-- เพิ่มส่วนเครื่องมือวัดระยะ -->
+            <div class="mt-4 border-t border-gray-600 pt-4">
+                <h3 class="text-sm font-medium text-gray-300 mb-2">เครื่องมือวัดระยะ (Measurement)</h3>
+                <div class="flex gap-2 mb-2">
+                    <button id="btn-measure" class="flex-1 bg-gray-700 hover:bg-blue-600 text-white text-xs py-2 rounded transition-colors border border-gray-600">เปิดโหมดวัดระยะ</button>
+                    <button id="btn-clear-measure" class="flex-1 bg-gray-700 hover:bg-red-600 text-white text-xs py-2 rounded transition-colors border border-gray-600">ล้างเส้นวัด</button>
+                </div>
+                <div class="text-xs text-gray-400 bg-gray-900/50 p-2 rounded">
+                    สถานะ: <span id="measure-status" class="text-yellow-400">ปิด</span><br>
+                    ระยะทาง (Scale จริง): <span id="measure-result" class="text-green-400 font-bold text-sm">-</span> เมตร
+                </div>
+            </div>
+        </div>
+
+        <div class="ui-panel bg-gray-800/80 backdrop-blur-md p-4 rounded-xl shadow-lg pointer-events-auto border border-gray-700 text-sm">
+            <h3 class="font-semibold text-gray-200 mb-2">การควบคุม (Controls)</h3>
+            <ul class="text-gray-400 space-y-1">
+                <li><span class="text-white font-bold">คลิกซ้าย + ลาก:</span> หมุนกล้อง</li>
+                <li><span class="text-white font-bold">เลื่อนลูกกลิ้งเมาส์:</span> ซูมเข้า/ออก</li>
+                <li><span class="text-white font-bold">คลิกขวา + ลาก:</span> เลื่อนมุมกล้อง</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- หน้าจอตอนกำลังโหลดไฟล์ -->
+    <div id="loader-overlay">
+        <div class="spinner mb-4"></div>
+        <p class="text-white text-lg font-medium">กำลังโหลดโมเดล...</p>
+    </div>
+
+    <!-- สคริปต์การทำงานของ 3D -->
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js';
+        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+        let scene, camera, renderer, labelRenderer, controls;
+        let currentModel = null;
+        let currentScale = 1; // เก็บค่า Scale จริง เพื่อใช้คำนวณระยะทางกลับ
+        let ambientLight, directionalLight1, directionalLight2;
+        
+        // ตัวแปรสำหรับระบบวัดระยะ
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let isMeasuring = false;
+        let measureClicks = []; 
+        let measurementObjects = []; // เก็บจุดและเส้นไว้ลบ
+        const sphereGeo = new THREE.SphereGeometry(0.08, 16, 16);
+        const sphereMat = new THREE.MeshBasicMaterial({ color: 0xff3333, depthTest: false }); // depthTest: false ทำให้มองเห็นทะลุโมเดลได้
+        const lineMat = new THREE.LineBasicMaterial({ color: 0x33ff33, depthTest: false });
+
+        // ค่าเริ่มต้นความสว่าง
+        const defaultAmbientIntensity = 0.7;
+        const defaultDir1Intensity = 0.8;
+        const defaultDir2Intensity = 0.5;
+
+        // ฟังก์ชันเริ่มต้น (Initialize)
+        function init() {
+            const container = document.getElementById('canvas-container');
+
+            // 1. สร้าง Scene (ฉาก)
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a202c); // สีพื้นหลังตรงกับ Tailwind (gray-900)
+
+            // เพิ่มตารางตารางอ้างอิงบนพื้น
+            const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
+            scene.add(gridHelper);
+
+            // 2. สร้าง Camera (กล้อง)
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(10, 10, 10);
+
+            // 3. สร้าง Renderer (ตัวเรนเดอร์)
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+
+            // สร้าง Label Renderer สำหรับข้อความ 2D
+            labelRenderer = new CSS2DRenderer();
+            labelRenderer.setSize(window.innerWidth, window.innerHeight);
+            labelRenderer.domElement.style.position = 'absolute';
+            labelRenderer.domElement.style.top = '0px';
+            labelRenderer.domElement.style.pointerEvents = 'none'; // ป้องกันการบังคลิกเมาส์
+            container.appendChild(labelRenderer.domElement);
+
+            // 4. สร้าง Controls (ควบคุมกล้อง)
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true; // ทำให้การหมุนกล้องลื่นไหล
+            controls.dampingFactor = 0.05;
+
+            // 5. แสงสว่าง (Lighting)
+            // แสงสว่างโดยรอบ
+            ambientLight = new THREE.AmbientLight(0xffffff, defaultAmbientIntensity);
+            scene.add(ambientLight);
+
+            // แสงสว่างแบบมีทิศทาง
+            directionalLight1 = new THREE.DirectionalLight(0xffffff, defaultDir1Intensity);
+            directionalLight1.position.set(10, 20, 10);
+            scene.add(directionalLight1);
+
+            directionalLight2 = new THREE.DirectionalLight(0xffffff, defaultDir2Intensity);
+            directionalLight2.position.set(-10, -20, -10);
+            scene.add(directionalLight2);
+
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize);
+            document.getElementById('file-upload').addEventListener('change', handleFileUpload);
+            document.getElementById('light-intensity').addEventListener('input', updateLighting);
+
+            // การตั้งค่าระบบคลิกวัดระยะ
+            setupMeasurementSystem();
+
+            // ปุ่มซ่อน/แสดง UI
+            const toggleBtn = document.getElementById('toggle-ui-btn');
+            const uiLayer = document.getElementById('ui-layer');
+            let uiVisible = true;
+            
+            toggleBtn.addEventListener('click', () => {
+                uiVisible = !uiVisible;
+                
+                // ปรับความโปร่งใสของ Layer
+                uiLayer.style.opacity = uiVisible ? '1' : '0';
+                
+                // เปิด/ปิด การคลิกบนแผงควบคุมที่ซ่อนอยู่ (ป้องกันการเผลอไปกดโดน)
+                const panels = document.querySelectorAll('.ui-panel');
+                panels.forEach(panel => {
+                    panel.style.pointerEvents = uiVisible ? 'auto' : 'none';
+                });
+                
+                // เปลี่ยนข้อความและสีปุ่ม
+                toggleBtn.textContent = uiVisible ? 'ซ่อน UI' : 'แสดง UI';
+                if (uiVisible) {
+                    toggleBtn.classList.replace('bg-gray-700/80', 'bg-blue-600');
+                    toggleBtn.classList.replace('hover:bg-gray-600/80', 'hover:bg-blue-700');
+                } else {
+                    toggleBtn.classList.replace('bg-blue-600', 'bg-gray-700/80');
+                    toggleBtn.classList.replace('hover:bg-blue-700', 'hover:bg-gray-600/80');
+                }
+            });
+        }
+
+        // ตั้งค่าระบบคลิกวัดระยะ (Raycaster)
+        function setupMeasurementSystem() {
+            const container = document.getElementById('canvas-container');
+            const btnMeasure = document.getElementById('btn-measure');
+            const btnClear = document.getElementById('btn-clear-measure');
+            const measureStatus = document.getElementById('measure-status');
+            const measureResult = document.getElementById('measure-result');
+            let pointerDownPos = new THREE.Vector2();
+
+            // จัดการปุ่มเปิด/ปิดโหมด
+            btnMeasure.addEventListener('click', () => {
+                isMeasuring = !isMeasuring;
+                if (isMeasuring) {
+                    btnMeasure.classList.replace('bg-gray-700', 'bg-blue-600');
+                    btnMeasure.textContent = 'ปิดโหมดวัดระยะ';
+                    measureStatus.textContent = 'เปิด (คลิก 2 จุดบนโมเดล)';
+                    measureStatus.className = 'text-green-400';
+                    container.style.cursor = 'crosshair';
+                } else {
+                    btnMeasure.classList.replace('bg-blue-600', 'bg-gray-700');
+                    btnMeasure.textContent = 'เปิดโหมดวัดระยะ';
+                    measureStatus.textContent = 'ปิด';
+                    measureStatus.className = 'text-yellow-400';
+                    container.style.cursor = 'default';
+                    measureClicks = []; // รีเซ็ตการคลิกที่ค้างอยู่ 1 จุด
+                    if (measureResult.textContent === 'กำลังรอจุดที่ 2...') {
+                        measureResult.textContent = '-';
+                    }
+                }
+            });
+
+            // จัดการปุ่มล้างข้อมูล
+            btnClear.addEventListener('click', clearMeasurements);
+
+            // ตรวจจับการคลิกบนหน้าจอ 3D
+            container.addEventListener('pointerdown', (event) => {
+                pointerDownPos.set(event.clientX, event.clientY);
+            });
+
+            container.addEventListener('pointerup', (event) => {
+                if (!isMeasuring || !currentModel) return;
+
+                // ตรวจสอบว่าเป็นการลากเมาส์ (Drag) หรือคลิก (Click)
+                const distance = Math.hypot(event.clientX - pointerDownPos.x, event.clientY - pointerDownPos.y);
+                if (distance > 5) return; // ถ้าลากเมาส์เกิน 5 pixel ให้ถือว่าหมุนกล้อง ไม่ใช่วัดระยะ
+
+                // แปลงพิกัดเมาส์ให้อยู่ในระบบ 3D (Normalized Device Coordinates)
+                mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+                raycaster.setFromCamera(mouse, camera);
+
+                // หาจุดตัดกับโมเดล
+                const intersects = raycaster.intersectObject(currentModel, true);
+                
+                if (intersects.length > 0) {
+                    const point = intersects[0].point;
+                    addMeasurementPoint(point);
+                }
+            });
+        }
+
+        function addMeasurementPoint(point) {
+            const measureResult = document.getElementById('measure-result');
+
+            // สร้างมาร์กเกอร์ (จุดสีแดง)
+            const marker = new THREE.Mesh(sphereGeo, sphereMat);
+            marker.position.copy(point);
+            marker.renderOrder = 999; // ให้อยู่หน้าสุด
+            scene.add(marker);
+            measurementObjects.push(marker);
+            
+            measureClicks.push(point);
+
+            if (measureClicks.length === 2) {
+                // ลากเส้นเชื่อมระหว่าง 2 จุด
+                const points = [measureClicks[0], measureClicks[1]];
+                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const line = new THREE.Line(geometry, lineMat);
+                line.renderOrder = 999;
+                scene.add(line);
+                measurementObjects.push(line);
+
+                // คำนวณระยะทาง
+                // หารด้วย currentScale เพื่อแปลงกลับเป็นระยะทางขนาดดั้งเดิมของโมเดล
+                const distance3D = measureClicks[0].distanceTo(measureClicks[1]);
+                const trueDistance = distance3D / currentScale; 
+                
+                measureResult.textContent = trueDistance.toFixed(2); // แสดงทศนิยม 2 ตำแหน่ง
+
+                // สร้างป้ายข้อความ (Label) แสดงระยะทางบนเส้น 3D
+                const labelDiv = document.createElement('div');
+                labelDiv.className = 'text-xs font-bold text-green-400 bg-gray-900/90 px-2 py-1 rounded border border-green-500 whitespace-nowrap shadow-lg pointer-events-none';
+                labelDiv.textContent = `${trueDistance.toFixed(2)} เมตร`;
+                
+                const labelObject = new CSS2DObject(labelDiv);
+                // จัดตำแหน่งป้ายข้อความไว้ตรงกึ่งกลางของเส้นวัดระยะ
+                const midPoint = new THREE.Vector3().addVectors(measureClicks[0], measureClicks[1]).multiplyScalar(0.5);
+                labelObject.position.copy(midPoint);
+                
+                scene.add(labelObject);
+                measurementObjects.push(labelObject);
+
+                // รีเซ็ตค่าเตรียมรับคู่ต่อไป
+                measureClicks = [];
+            } else {
+                measureResult.textContent = 'กำลังรอจุดที่ 2...';
+            }
+        }
+
+        function clearMeasurements() {
+            measurementObjects.forEach(obj => {
+                scene.remove(obj);
+                if (obj.geometry) obj.geometry.dispose();
+                // ลบ DOM element ของป้ายข้อความด้วยเพื่อป้องกัน memory leak
+                if (obj.isCSS2DObject && obj.element.parentNode) {
+                    obj.element.parentNode.removeChild(obj.element);
+                }
+            });
+            measurementObjects = [];
+            measureClicks = [];
+            document.getElementById('measure-result').textContent = '-';
+        }
+
+        // จัดการเมื่อเลื่อนแถบความสว่าง
+        function updateLighting(event) {
+            const multiplier = parseFloat(event.target.value);
+            if (ambientLight) ambientLight.intensity = defaultAmbientIntensity * multiplier;
+            if (directionalLight1) directionalLight1.intensity = defaultDir1Intensity * multiplier;
+            if (directionalLight2) directionalLight2.intensity = defaultDir2Intensity * multiplier;
+        }
+
+        // จัดการปรับขนาดหน้าจอ
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // จัดการเมื่ออัปโหลดไฟล์
+        async function handleFileUpload(event) {
+            const files = event.target.files;
+            if (!files || files.length === 0) return;
+
+            const loaderOverlay = document.getElementById('loader-overlay');
+            loaderOverlay.style.display = 'flex';
+
+            let daeBlob = null;
+            const fileMap = {};
+
+            try {
+                // ตรวจสอบว่ามีไฟล์ ZIP หรือไม่
+                const zipFile = Array.from(files).find(f => f.name.toLowerCase().endsWith('.zip'));
+
+                if (zipFile) {
+                    // 1. กรณีอัปโหลดเป็นไฟล์ ZIP
+                    const zip = await JSZip.loadAsync(zipFile);
+                    const zipEntries = Object.values(zip.files);
+                    
+                    for (const zipEntry of zipEntries) {
+                        if (zipEntry.dir) continue; // ข้ามโฟลเดอร์
+                        
+                        // อ่านไฟล์ใน ZIP ให้ออกมาเป็น Blob
+                        const filename = zipEntry.name.split('/').pop().toLowerCase();
+                        const blob = await zipEntry.async("blob");
+                        
+                        if (filename.endsWith('.dae')) {
+                            daeBlob = blob;
+                        } else {
+                            fileMap[filename] = blob;
+                        }
+                    }
+                } else {
+                    // 2. กรณีอัปโหลดไฟล์แยกทีละไฟล์แบบเดิม
+                    for (let i = 0; i < files.length; i++) {
+                        const file = files[i];
+                        const filename = file.name.toLowerCase();
+                        
+                        if (filename.endsWith('.dae')) {
+                            daeBlob = file;
+                        } else {
+                            fileMap[filename] = file;
+                        }
+                    }
+                }
+
+                if (!daeBlob) {
+                    alert('ไม่พบไฟล์นามสกุล .dae (Collada) ในรายการที่อัปโหลด หรือในไฟล์ ZIP');
+                    event.target.value = ''; 
+                    loaderOverlay.style.display = 'none';
+                    return;
+                }
+
+                // สร้าง LoadingManager เพื่อจัดการเชื่อมโยง Texture
+                const manager = new THREE.LoadingManager();
+                const objectURLs = [];
+
+                manager.setURLModifier((url) => {
+                    const filename = url.split('/').pop().split('\\').pop();
+                    const matchedKey = Object.keys(fileMap).find(k => k.toLowerCase() === filename.toLowerCase());
+
+                    if (matchedKey) {
+                        const blobUrl = URL.createObjectURL(fileMap[matchedKey]);
+                        objectURLs.push(blobUrl);
+                        return blobUrl; 
+                    }
+                    return url;
+                });
+
+                const daeUrl = URL.createObjectURL(daeBlob);
+                objectURLs.push(daeUrl);
+
+                const loader = new ColladaLoader(manager);
+
+                loader.load(daeUrl, function (collada) {
+                    // ลบโมเดลเก่าออก
+                    if (currentModel) {
+                        scene.remove(currentModel);
+                        currentModel.traverse((child) => {
+                            if (child.isMesh) {
+                                child.geometry.dispose();
+                                if (child.material.isMaterial) {
+                                    child.material.dispose();
+                                } else {
+                                    for (const material of child.material) material.dispose();
+                                }
+                            }
+                        });
+                    }
+
+                    // ลบเส้นวัดระยะเก่าทิ้งเสมอ เมื่อโหลดโมเดลใหม่
+                    clearMeasurements();
+
+                    currentModel = collada.scene;
+
+                    // จัดขนาดโมเดลอัตโนมัติ
+                    const box = new THREE.Box3().setFromObject(currentModel);
+                    const center = box.getCenter(new THREE.Vector3());
+                    const size = box.getSize(new THREE.Vector3());
+                    const maxDim = Math.max(size.x, size.y, size.z);
+                    
+                    const scale = 10 / maxDim;
+                    currentScale = scale; // จำค่าสเกลนี้ไว้เพื่อใช้ปรับแก้การคำนวณระยะทาง
+                    currentModel.scale.set(scale, scale, scale);
+
+                    box.setFromObject(currentModel);
+                    box.getCenter(center);
+                    currentModel.position.sub(center);
+
+                    box.setFromObject(currentModel);
+                    currentModel.position.y -= box.min.y;
+
+                    scene.add(currentModel);
+                    
+                    camera.position.set(10, 10, 15);
+                    controls.target.set(0, (box.max.y - box.min.y) / 2, 0);
+
+                    loaderOverlay.style.display = 'none';
+
+                    // คืนหน่วยความจำ
+                    setTimeout(() => {
+                        objectURLs.forEach(url => URL.revokeObjectURL(url));
+                    }, 1000);
+
+                }, undefined, function (error) {
+                    console.error('An error happened while loading DAE:', error);
+                    alert('เกิดข้อผิดพลาดในการโหลดไฟล์ หรือไฟล์อาจเสียหาย');
+                    loaderOverlay.style.display = 'none';
+                    objectURLs.forEach(url => URL.revokeObjectURL(url));
+                });
+
+            } catch (error) {
+                console.error('Error processing files:', error);
+                alert('เกิดข้อผิดพลาดในการอ่านไฟล์ ZIP หรือการประมวลผลไฟล์');
+                loaderOverlay.style.display = 'none';
+            }
+            
+            // รีเซ็ตค่า input เพื่อให้สามารถเลือกไฟล์เดิมซ้ำได้ในกรณีที่ต้องการ
+            event.target.value = '';
+        }
+
+        // วงจรการอัปเดตแอนิเมชัน (Animation Loop)
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update(); // จำเป็นสำหรับการตั้งค่า enableDamping
+            renderer.render(scene, camera);
+            labelRenderer.render(scene, camera);
+        }
+
+        // เรียกใช้งานตอนโหลดหน้าเว็บ
+        init();
+        animate();
+    </script>
+</body>
+</html>
